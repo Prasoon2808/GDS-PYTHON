@@ -44,3 +44,22 @@ def test_arrange_bathroom_respects_clearances():
     required = BATH_RULES["fixtures"]["lavatory"]["to_adjacent_fixture_edge_m"]["min"]
     assert gap_cells * CELL_M >= required
 
+
+def test_arrange_bathroom_deterministic_and_uses_rule_sizes():
+    plan1 = arrange_bathroom(3.0, 3.5, BATH_RULES)
+    plan2 = arrange_bathroom(3.0, 3.5, BATH_RULES)
+
+    assert plan1.occ == plan2.occ
+    assert plan1.clearzones == plan2.clearzones
+
+    tub = _find_rect(plan1, "TUB")
+    shr = _find_rect(plan1, "SHR")
+
+    fx = BATH_RULES["fixtures"]
+    in_m = BATH_RULES.get("units", {}).get("IN_M", 0.0254)
+    expected_tub = plan1.meters_to_cells(min(fx["bathtub"]["common_lengths_m"]))
+    expected_shr = plan1.meters_to_cells(min(s["w"] * in_m for s in fx["shower"]["stall_nominal_sizes_in"]))
+
+    assert tub[2] == expected_tub
+    assert shr[2] == expected_shr
+

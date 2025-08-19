@@ -2079,9 +2079,6 @@ def arrange_bathroom(
             p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
         return True
 
-    if rng is None:
-        rng = random.Random()
-
     p = GridPlan(Wm, Hm)
     units = rules.get('units', {})
     in_m = units.get('IN_M', 0.0254)
@@ -2097,10 +2094,11 @@ def arrange_bathroom(
         'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
     }
 
-    tub_lengths = fx.get('bathtub', {}).get('common_lengths_m', [1.5])
-    shr_opts = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w': 36, 'd': 36}])
-    rng.shuffle(tub_lengths)
-    rng.shuffle(shr_opts)
+    tub_lengths = sorted(fx.get('bathtub', {}).get('common_lengths_m', [1.5]))
+    shr_opts = sorted(
+        fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w': 36, 'd': 36}]),
+        key=lambda s: (s.get('w', 0) * s.get('d', 0), s.get('w', 0), s.get('d', 0))
+    )
 
     for tub_len in tub_lengths:
         for shr_size in shr_opts:
@@ -2573,11 +2571,9 @@ class GenerateView:
         self.bed_plan = bed_plan
         if self.bath_dims and bath_ok:
             self.bath_plan = arrange_bathroom(
-                self.bath_dims[0],
-                self.bath_dims[1],
-                BATH_RULES,
-                self.bath_openings,
-                random.Random(),
+
+                self.bath_dims[0], self.bath_dims[1], BATH_RULES
+
             )
             add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
             bath_sticky = getattr(self, '_sticky_bath_items', [])
