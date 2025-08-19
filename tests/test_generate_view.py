@@ -46,8 +46,10 @@ def make_generate_view(bath_dims=(2.0, 2.0)):
     gv.sim_path = gv.sim_poly = gv.sim2_path = gv.sim2_poly = []
     gv._apply_openings_from_ui = lambda: None
     gv.bed_Wm = gv.bed_Hm = 4.0
-    gv.Wm = gv.bed_Wm + (bath_dims[0] if bath_dims else 0)
-    gv.Hm = max(gv.bed_Hm, bath_dims[1] if bath_dims else gv.bed_Hm)
+    if bath_dims:
+        gv.bath_Wm, gv.bath_Hm = bath_dims
+    else:
+        gv.bath_Wm = gv.bath_Hm = 0.0
     gv._draw = lambda: None
     gv._log_run = lambda meta: None
     gv.bed_key = None
@@ -154,23 +156,17 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
 def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
     import vastu_all_in_one
 
-    # ``_solve_and_draw`` will only regenerate the bedroom.  The bathroom
-    # should be arranged separately inside ``_apply_batch_and_generate``.
     def fake_solve_and_draw(self):
         plan = GridPlan(self.bed_Wm, self.bed_Hm)
         plan.place(0, 0, 1, 1, 'BED')
-        self.bed_plan = plan
-        self.plan = plan
-        self.bath_plan = None
+        self.bed_plan = self.plan = plan
+        if self.bath_dims:
+            bath = GridPlan(self.bath_dims[0], self.bath_dims[1])
+            bath.place(0, 0, 1, 1, 'WC')
+            self.bath_plan = bath
         self._draw()
 
-    def dummy_arrange_bathroom(w, h, rules):
-        plan = GridPlan(w, h)
-        plan.place(0, 0, 1, 1, 'WC')
-        return plan
-
     monkeypatch.setattr(GenerateView, '_solve_and_draw', fake_solve_and_draw, raising=False)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv._draw = lambda: None
