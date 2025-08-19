@@ -151,6 +151,36 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
     assert components_by_code(gv.bath_plan, 'WC'), 'Bathroom furniture missing'
 
 
+def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
+    import vastu_all_in_one
+
+    # ``_solve_and_draw`` will only regenerate the bedroom.  The bathroom
+    # should be arranged separately inside ``_apply_batch_and_generate``.
+    def fake_solve_and_draw(self):
+        plan = GridPlan(self.bed_Wm, self.bed_Hm)
+        plan.place(0, 0, 1, 1, 'BED')
+        self.bed_plan = plan
+        self.plan = plan
+        self.bath_plan = None
+        self._draw()
+
+    def dummy_arrange_bathroom(w, h, rules):
+        plan = GridPlan(w, h)
+        plan.place(0, 0, 1, 1, 'WC')
+        return plan
+
+    monkeypatch.setattr(GenerateView, '_solve_and_draw', fake_solve_and_draw, raising=False)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv._draw = lambda: None
+
+    gv._apply_batch_and_generate()
+
+    assert components_by_code(gv.bed_plan, 'BED'), 'Bedroom furniture missing after regenerate'
+    assert components_by_code(gv.bath_plan, 'WC'), 'Bathroom furniture missing after regenerate'
+
+
 def test_furniture_controls_present_for_generator_label(monkeypatch):
     import types
     import tkinter as tk

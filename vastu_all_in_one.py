@@ -2488,6 +2488,31 @@ class GenerateView:
         self._apply_openings_from_ui()
         self._solve_and_draw()
 
+        # If a bathroom is present, always re-run its generator so that both
+        # rooms refresh together.  ``_solve_and_draw`` focuses on the bedroom
+        # arrangement; calling ``arrange_bathroom`` here ensures the bathroom
+        # layout is newly generated and then merged with the bedroom plan.
+        if self.bath_dims:
+            bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+            if getattr(self, 'bed_plan', None):
+                combined = GridPlan(self.Wm, self.Hm)
+                for j in range(self.bed_plan.gh):
+                    for i in range(self.bed_plan.gw):
+                        combined.occ[j][i] = self.bed_plan.occ[j][i]
+                combined.clearzones.extend(self.bed_plan.clearzones)
+                xoff = self.bed_plan.gw
+                for j in range(bath_plan.gh):
+                    for i in range(bath_plan.gw):
+                        combined.occ[j][i + xoff] = bath_plan.occ[j][i]
+                for (x, y, w, h, k, o) in bath_plan.clearzones:
+                    combined.clearzones.append((x + xoff, y, w, h, k, o))
+                self.plan = combined
+            else:
+                self.plan = bath_plan
+            self.bath_plan = bath_plan
+            # redraw so the canvas shows the new bedroom+bathroom combo
+            self._draw()
+
     def _solve_and_draw(self):
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
