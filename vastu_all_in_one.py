@@ -2097,34 +2097,38 @@ class GenerateView:
         self.human_id=None; self.human2_id=None
         # batch feedback vars filled in _build_sidebar
         self._solve_and_draw()
-
     # ----------------- sidebar
 
     def _legend_row(self, label, color):
-        r=ttk.Frame(self.sidebar); r.pack(fill=tk.X, pady=1)
-        sw=tk.Canvas(r, width=18, height=18, highlightthickness=0); sw.pack(side=tk.LEFT)
-        sw.create_rectangle(1,1,17,17, fill=color, outline='')
+        r = ttk.Frame(self.sidebar)
+        r.pack(fill=tk.X, pady=1)
+        sw = tk.Canvas(r, width=18, height=18, highlightthickness=0)
+        sw.pack(side=tk.LEFT)
+        sw.create_rectangle(1, 1, 17, 17, fill=color, outline='')
         ttk.Label(r, text=label).pack(side=tk.LEFT, padx=8)
 
-# ...existing code...
     def _build_sidebar(self):
         ttk.Label(self.sidebar, text='Legend', font=('SF Pro Text', 13, 'bold')).pack(anchor='w')
         if self.bath_dims:
             items = [
-                ('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
-                ('DRS','Dresser'),('DESK','Desk'),('TVU','TV Unit'),
-                ('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),
-                ('CLEAR','Clearances (merged)')
+                ('BED', 'Bed'), ('BST', 'Night Table'), ('WRD', 'Wardrobe'),
+                ('DRS', 'Dresser'), ('DESK', 'Desk'), ('TVU', 'TV Unit'),
+                ('WC', 'Toilet'), ('SHR', 'Shower'), ('TUB', 'Tub'),
+                ('LAV', 'Lavatory'), ('CLEAR', 'Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
+
+        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
-            items = [('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
-                     ('DRS','Dresser'),('DESK','Desk'),('TVU','TV Unit'),
-                     ('CLEAR','Clearances (merged)')]
+            items = [
+                ('BED', 'Bed'), ('BST', 'Night Table'), ('WRD', 'Wardrobe'),
+                ('DRS', 'Dresser'), ('DESK', 'Desk'), ('TVU', 'TV Unit'),
+                ('CLEAR', 'Clearances (merged)')
+            ]
         for k, label in items:
             self._legend_row(label, PALETTE[k] if k in PALETTE else '#888')
-# ...existing code...        ttk.Separator(self.sidebar).pack(fill=tk.X, pady=6)
+        ttk.Separator(self.sidebar).pack(fill=tk.X, pady=6)
 
         ttk.Label(self.sidebar, text='Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
@@ -3171,7 +3175,8 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
-        
+        ]
+
         # 2) Room input dialogs (bedroom then bathroom)
 
 
@@ -3240,11 +3245,16 @@ class App:
         else:
             Wb, Hb, bed_key = bed_dims
             Wc, Hc, _ = bath_dims
-            GenerateView(self.root, Wb, Hb, bed_key, room_label='Plan', bath_dims=(Wc, Hc), pack_side=tk.LEFT, on_back=self._back_to_landing)
-
-
-            GenerateView(self.root, Wb, Hb, bed_key, room_label='Bedroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
-            GenerateView(self.root, Wc, Hc, None, room_label='Bathroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
+            GenerateView(
+                self.root,
+                Wb,
+                Hb,
+                bed_key,
+                room_label='Plan',
+                bath_dims=(Wc, Hc),
+                pack_side=tk.LEFT,
+                on_back=self._back_to_landing,
+            )
 
 
     def _back_to_landing(self):
