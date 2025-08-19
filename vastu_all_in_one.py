@@ -2118,7 +2118,7 @@ def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
 
 PALETTE = {
     'BED':'#2eea98','BST':'#cfcfcf','WRD':'#ffa54a','DRS':'#ffd84a',
-    'DESK':'#8ad1ff','TVU':'#b7b7b7','CLEAR':'#6fb6ff','DOOR':'#d2b48c'
+    'DESK':'#8ad1ff','TVU':'#b7b7b7','CLEAR':'#6fb6ff','DOOR':'#8b4513'
 }
 
 # Living room elements (complimenting tones)
@@ -2161,8 +2161,11 @@ ITEM_LABELS = {
 }
 
 
-WALL_COLOR='#f7a8a8'
-WIN_COLOR='#95c8ff'
+WALL_COLOR='#000000'
+WIN_COLOR='#000000'
+WALL_FILL='#ff0000'
+DOOR_FILL='#8b4513'
+WIN_FILL='#95c8ff'
 HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
 
@@ -2573,7 +2576,8 @@ class GenerateView:
         self.oy = bed_oy
         bath_ox = bed_ox + bed_gw * scale
         bath_oy = (ch - bath_gh * scale) / 2
-        thick = max(4, int(scale * 0.12)) * 3
+        wall_width = max(4, int(scale * 0.12)) * 3
+        open_width = max(1, wall_width // 3)
 
         def draw_room(plan, openings, ox, oy):
             gw, gh = plan.gw, plan.gh
@@ -2609,8 +2613,9 @@ class GenerateView:
                                     outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
             cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
-                                outline=WALL_COLOR, width=thick)
-            self._draw_room_openings(cv, openings, ox, oy, scale, thick)
+                                outline=WALL_COLOR, fill=WALL_FILL, width=wall_width)
+            self._draw_room_openings(cv, openings, ox, oy, scale,
+                                     wall_width, open_width)
         draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
@@ -2656,42 +2661,61 @@ class GenerateView:
         self.canvas.delete('tooltip')
 
 
-    def _draw_room_openings(self, cv, openings, ox, oy, scale, thick):
+    def _draw_room_openings(self, cv, openings, ox, oy, scale,
+                            wall_width, open_width):
         if openings is None:
             return
         gw, gh = openings.p.gw, openings.p.gh
-        def seg(wall, start, length, color):
+
+        def seg(wall, start, length, fill_color):
             if wall < 0 or length <= 0:
                 return
             w = gw * scale
             h = gh * scale
             s = start * scale
             L = length * scale
+            half = wall_width / 2
             if wall == 0:
-                cv.create_line(ox + s, oy + h, ox + s + L, oy + h, fill=color, width=thick)
+                x0 = ox + s
+                x1 = ox + s + L
+                y0 = oy + h - half
+                y1 = oy + h + half
             elif wall == 2:
-                cv.create_line(ox + s, oy, ox + s + L, oy, fill=color, width=thick)
+                x0 = ox + s
+                x1 = ox + s + L
+                y0 = oy - half
+                y1 = oy + half
             elif wall == 3:
-                cv.create_line(ox, oy + h - (s + L), ox, oy + h - s, fill=color, width=thick)
+                x0 = ox - half
+                x1 = ox + half
+                y0 = oy + h - (s + L)
+                y1 = oy + h - s
             else:
-                cv.create_line(ox + w, oy + h - (s + L), ox + w, oy + h - s, fill=color, width=thick)
-        dwall, dstart, dwidth = openings.door_span_cells()
-        seg(dwall, dstart, dwidth, PALETTE['DOOR'])
-        for wall, start, length in openings.window_spans_cells():
-            seg(wall, start, length, WIN_COLOR)
+                x0 = ox + w - half
+                x1 = ox + w + half
+                y0 = oy + h - (s + L)
+                y1 = oy + h - s
+            cv.create_rectangle(x0, y0, x1, y1,
+                                outline=WALL_COLOR, width=open_width,
+                                fill=fill_color)
 
-    def _draw_opening_segment(self, cv, wall, start, length, color, thick):
+        dwall, dstart, dwidth = openings.door_span_cells()
+        seg(dwall, dstart, dwidth, DOOR_FILL)
+        for wall, start, length in openings.window_spans_cells():
+            seg(wall, start, length, WIN_FILL)
+
+    def _draw_opening_segment(self, cv, wall, start, length, color, width):
         if wall<0 or length<=0: return
         x0=self.ox; y0=self.oy; w=self.plan.gw*self.scale; h=self.plan.gh*self.scale
         s=start*self.scale; L=length*self.scale
         if wall==0:
-            cv.create_line(x0+s, y0+h, x0+s+L, y0+h, fill=color, width=thick)
+            cv.create_line(x0+s, y0+h, x0+s+L, y0+h, fill=color, width=width)
         elif wall==2:
-            cv.create_line(x0+s, y0, x0+s+L, y0, fill=color, width=thick)
+            cv.create_line(x0+s, y0, x0+s+L, y0, fill=color, width=width)
         elif wall==3:
-            cv.create_line(x0, y0+h-(s+L), x0, y0+h-s, fill=color, width=thick)
+            cv.create_line(x0, y0+h-(s+L), x0, y0+h-s, fill=color, width=width)
         else:
-            cv.create_line(x0+w, y0+h-(s+L), x0+w, y0+h-s, fill=color, width=thick)
+            cv.create_line(x0+w, y0+h-(s+L), x0+w, y0+h-s, fill=color, width=width)
 
     def _draw_human_block(self, i, j, color, which=1):
         # small square centered in cell
