@@ -2022,6 +2022,7 @@ class GenerateView:
             self.Wm=Wm; self.Hm=Hm
 
         self.plan=GridPlan(self.Wm,self.Hm)
+
         self.openings=Openings(self.plan)
         self.bed_openings=Openings(GridPlan(self.bed_Wm,self.bed_Hm))
         self.bed_plan = GridPlan(self.bed_Wm,self.bed_Hm)
@@ -2115,6 +2116,7 @@ class GenerateView:
                 ('CLEAR','Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
+
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
@@ -3171,17 +3173,25 @@ class App:
         mode = md.result
 
         # 2) Room input dialogs (bedroom then bathroom)
-        ad = AreaDialog(self.root, 'Bedroom', include_bed=True)
-        self.root.wait_window(ad)
-        if not getattr(ad, 'result', None):
-            return
-        bed_res = ad.result
 
-        bd = AreaDialog(self.root, 'Bathroom', include_bed=False)
-        self.root.wait_window(bd)
-        if not getattr(bd, 'result', None):
-            return
-        bath_res = bd.result
+        label = 'Sketch' if mode == 'sketch' else 'Generate'
+        try:
+            ad = AreaDialog(self.root, label, include_bed=True)
+            self.root.wait_window(ad)
+            if not getattr(ad, 'result', None):
+                return
+            bed_res = ad.result
+        except Exception:
+            bed_res = {"mode": "dims", "W": 4.2, "H": 3.0, "len_units": "m", "bed": "Auto"}
+
+        try:
+            bd = AreaDialog(self.root, 'Bathroom', include_bed=False)
+            self.root.wait_window(bd)
+            if not getattr(bd, 'result', None):
+                return
+            bath_res = bd.result
+        except Exception:
+            bath_res = {"mode": "dims", "W": 2.4, "H": 1.8, "len_units": "m", "bed": "Auto"}
 
         bed_dims = self._compute_dims_from_result(bed_res)
         bath_dims = self._compute_dims_from_result(bath_res)
@@ -3220,6 +3230,10 @@ class App:
             Wb, Hb, bed_key = bed_dims
             Wc, Hc, _ = bath_dims
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Plan', bath_dims=(Wc, Hc), pack_side=tk.LEFT, on_back=self._back_to_landing)
+
+            GenerateView(self.root, Wb, Hb, bed_key, room_label='Bedroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
+            GenerateView(self.root, Wc, Hc, None, room_label='Bathroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
+
 
     def _back_to_landing(self):
         # remove any leftover top-level frames that views added
