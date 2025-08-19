@@ -2194,7 +2194,7 @@ class GenerateView:
         tb=ttk.Frame(self.container); tb.pack(fill=tk.X)
         ttk.Button(tb, text='← Back', command=self._go_back).pack(side=tk.LEFT, padx=6, pady=4)
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
-        self.canvas=tk.Canvas(self.container, bg='#111', highlightthickness=0, cursor='hand2')
+        self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Tooltip elements are managed via the 'tooltip' tag
@@ -2580,10 +2580,10 @@ class GenerateView:
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
-                cv.create_line(x, oy, x, oy + gh * scale, fill='#2c2c2c')
+                cv.create_line(x, oy, x, oy + gh * scale, fill='#dddddd', tags=('grid',))
             for j in range(gh + 1):
                 y = oy + j * scale
-                cv.create_line(ox, y, ox + gw * scale, y, fill='#2c2c2c')
+                cv.create_line(ox, y, ox + gw * scale, y, fill='#dddddd', tags=('grid',))
             bound = set()
             for j in range(gh):
                 for i in range(gw):
@@ -2615,6 +2615,8 @@ class GenerateView:
         draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
+
+        cv.tag_lower('grid')
 
         def draw_path(poly, color):
             if len(poly) >= 2:
