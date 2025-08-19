@@ -2023,10 +2023,6 @@ class GenerateView:
 
         self.plan=GridPlan(self.Wm,self.Hm)
 
-    def __init__(self, root: tk.Misc, Wm: float, Hm: float, bed_key: Optional[str], room_label: str = 'Bedroom', pack_side=tk.LEFT, on_back=None):
-        self.root=root; self.Wm=Wm; self.Hm=Hm; self.on_back=on_back
-        self.room_label = room_label
-        self.plan=GridPlan(Wm,Hm)
         self.openings=Openings(self.plan)
         self.bed_openings=Openings(GridPlan(self.bed_Wm,self.bed_Hm))
         self.bed_plan = GridPlan(self.bed_Wm,self.bed_Hm)
@@ -2121,7 +2117,6 @@ class GenerateView:
             ]
         elif self.room_label.lower() == 'bathroom':
 
-        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
@@ -3170,18 +3165,15 @@ class App:
         self.root.update()
 
         # 1) Mode dialog
-        try:
-            md = ModeDialog(self.root)
-            self.root.wait_window(md)
-            if not getattr(md, 'result', None):
-                # user cancelled; keep landing visible
-                return
-            mode = md.result
-        except Exception:
-            # If something odd happens, keep going with default
-            mode = 'generate'
+        md = ModeDialog(self.root)
+        self.root.wait_window(md)
+        if not getattr(md, 'result', None):
+            # user cancelled; keep landing visible
+            return
+        mode = md.result
 
         # 2) Room input dialogs (bedroom then bathroom)
+
         label = 'Sketch' if mode == 'sketch' else 'Generate'
         try:
             ad = AreaDialog(self.root, label, include_bed=True)
@@ -3238,8 +3230,10 @@ class App:
             Wb, Hb, bed_key = bed_dims
             Wc, Hc, _ = bath_dims
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Plan', bath_dims=(Wc, Hc), pack_side=tk.LEFT, on_back=self._back_to_landing)
+
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Bedroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
             GenerateView(self.root, Wc, Hc, None, room_label='Bathroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
+
 
     def _back_to_landing(self):
         # remove any leftover top-level frames that views added
