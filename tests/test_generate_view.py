@@ -1,12 +1,21 @@
 import os
 import sys
 import pytest
+import tkinter as tk
 
 # Ensure the repository root is importable when tests are executed from the
 # ``tests`` directory.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import GenerateView, Openings, GridPlan, WALL_RIGHT, WALL_LEFT
+from vastu_all_in_one import (
+    GenerateView,
+    Openings,
+    GridPlan,
+    WALL_RIGHT,
+    WALL_LEFT,
+    WALL_TOP,
+    WALL_BOTTOM,
+)
 
 
 class DummyStatus:
@@ -17,57 +26,91 @@ class DummyStatus:
         self.msg = msg
 
 
+class DummyRoot:
+    def after_cancel(self, *_):
+        pass
+
+
 def make_generate_view(bath_dims=(2.0, 2.0)):
+    master = tk.Tcl()
+    tk._default_root = master
     gv = GenerateView.__new__(GenerateView)
     gv.bath_dims = bath_dims
     gv.bed_openings = Openings(GridPlan(4.0, 4.0))
     gv.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
     gv.status = DummyStatus()
+    gv.sim_timer = None
+    gv.sim2_timer = None
+    gv.root = DummyRoot()
+    gv.sim_path = gv.sim_poly = gv.sim2_path = gv.sim2_poly = []
+    gv._apply_openings_from_ui = lambda: None
+    gv.bed_Wm = gv.bed_Hm = 4.0
+    gv.Wm = gv.bed_Wm + (bath_dims[0] if bath_dims else 0)
+    gv.Hm = max(gv.bed_Hm, bath_dims[1] if bath_dims else gv.bed_Hm)
+    gv._draw = lambda: None
+    gv._log_run = lambda meta: None
+    gv.bed_key = None
+    gv.mlp = gv.transformer = None
+    gv.force_bst_pair = type('V', (), {'get': lambda self: False})()
     return gv
 
 
-def test_shared_wall_door_alignment_passes():
+def test_bedroom_door_on_shared_wall_sets_status(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
     gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    assert gv.status.msg == 'Bedroom door cannot be on shared wall.'
+    assert getattr(gv, 'bath_plan', None) is None
+
+
+def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.bed_openings.door_wall = WALL_BOTTOM
     gv.bed_openings.door_center = 1.0
-    gv.bath_openings.door_center = 1.25  # 1 cell offset
     gv.bed_openings.door_width = 0.9
-    gv.bath_openings.door_width = 1.15  # width differs by 1 cell
+    gv.bath_openings.door_wall = WALL_TOP
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
 
-    assert gv._validate_shared_wall_door() is True
-    assert gv.status.msg == ''
+    gv._solve_and_draw()
 
-
-@pytest.mark.parametrize(
-    'bath_dims,bath_center,expected_msg',
-    [
-        (
-            (2.0, 2.0),
-            1.5,
-            'Doors on shared wall must overlap (±1 cell tolerance).',
-        ),
-        (
-            None,
-            None,
-            'Door on right wall requires adjacent bathroom.',
-        ),
-    ],
-)
-def test_misaligned_or_nonshared_door_sets_status(bath_dims, bath_center, expected_msg):
-    gv = make_generate_view(bath_dims)
-    gv.bed_openings.door_wall = WALL_RIGHT
-    gv.bed_openings.door_center = 1.0
-    gv.bed_openings.door_width = 0.9
-
-    if bath_dims:
-        gv.bath_openings.door_wall = WALL_LEFT
-        gv.bath_openings.door_center = bath_center
-        gv.bath_openings.door_width = 0.9
-
-    result = gv._validate_shared_wall_door()
-    assert result is False
-    assert gv.status.msg == expected_msg
+    assert gv.status.msg == 'Bathroom door must be on shared wall.'
+    assert getattr(gv, 'bath_plan', None) is None
 
 
 def test_furniture_controls_present_for_generator_label(monkeypatch):
