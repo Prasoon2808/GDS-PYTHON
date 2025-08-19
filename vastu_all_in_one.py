@@ -2035,7 +2035,7 @@ def add_door_clearance(p: GridPlan, op: Openings, owner: str):
 # Bathroom arranger (very light – placeholder)
 # -----------------------
 
-def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
+def arrange_bathroom(Wm: float, Hm: float, rules: Dict, rng: Optional[random.Random] = None) -> GridPlan:
     """Generate a bathroom layout honouring clearance rules.
 
     The function is intentionally lightweight – its goal is simply to place the
@@ -2071,6 +2071,9 @@ def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
             p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
         return True
 
+    if rng is None:
+        rng = random.Random()
+
     p = GridPlan(Wm, Hm)
     units = rules.get('units', {})
     in_m = units.get('IN_M', 0.0254)
@@ -2086,35 +2089,35 @@ def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
         'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
     }
 
-    # --- Tub ---
-    tub_len = fx.get('bathtub', {}).get('common_lengths_m', [1.5])[0]
-    tw = p.meters_to_cells(tub_len)
-    td = p.meters_to_cells(0.75)
-    if not _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
-        return p
+    tub_lengths = fx.get('bathtub', {}).get('common_lengths_m', [1.5])
+    shr_opts = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w': 36, 'd': 36}])
+    rng.shuffle(tub_lengths)
+    rng.shuffle(shr_opts)
 
-    # --- Shower ---
-    shr_size = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w': 36, 'd': 36}])[0]
-    sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
-    sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
-    if not _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
-                             'SHR', clear['shr_front'], True):
-        return p
-
-    # --- Water closet ---
-    ww = p.meters_to_cells(clear['wc_side'] * 2)
-    wd = p.meters_to_cells(0.76)
-    if not _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False):
-        return p
-
-    # --- Lavatory ---
-    lw = p.meters_to_cells(clear['lav_side'] * 2)
-    ld = p.meters_to_cells(0.6)
-    gap_req = p.meters_to_cells(clear['lav_to_fixture'])
-    if p.gw - ww - lw < gap_req:
-        return p  # no space for required gap
-    if not _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False):
-        return p
+    for tub_len in tub_lengths:
+        for shr_size in shr_opts:
+            p = GridPlan(Wm, Hm)
+            tw = p.meters_to_cells(tub_len)
+            td = p.meters_to_cells(0.75)
+            if not _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
+                continue
+            sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
+            sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
+            if not _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
+                                     'SHR', clear['shr_front'], True):
+                continue
+            ww = p.meters_to_cells(clear['wc_side'] * 2)
+            wd = p.meters_to_cells(0.76)
+            if not _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False):
+                continue
+            lw = p.meters_to_cells(clear['lav_side'] * 2)
+            ld = p.meters_to_cells(0.6)
+            gap_req = p.meters_to_cells(clear['lav_to_fixture'])
+            if p.gw - ww - lw < gap_req:
+                continue
+            if not _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False):
+                continue
+            return p
 
     return p
 
@@ -2487,15 +2490,22 @@ class GenerateView:
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
         sticky = []
+        bath_sticky = []
         if getattr(self, 'selected_locked', False) and getattr(self, 'selected', None):
             x, y, w, h = self.selected['rect']
             code = self.selected['code']
             wall = self._infer_wall(x, y, w, h)
-            sticky.append((code, x, y, w, h, wall))
+            bed_gw = getattr(self.bed_plan, 'gw', 0)
+            if getattr(self, 'bath_plan', None) and x >= bed_gw:
+                bath_sticky.append((code, x - bed_gw, y, w, h, wall))
+            else:
+                sticky.append((code, x, y, w, h, wall))
         self._sticky_items = sticky  # only keep the locked item (if any)
+        self._sticky_bath_items = bath_sticky
         # (2) RUN THE SOLVER to regenerate
         self._apply_openings_from_ui()
         self._solve_and_draw()
+        self.status.set('Bedroom and bathroom regenerated.')
 
     def _solve_and_draw(self):
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
@@ -2554,8 +2564,36 @@ class GenerateView:
         bed_plan = best
         self.bed_plan = bed_plan
         if self.bath_dims and bath_ok:
-            self.bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+            self.bath_plan = arrange_bathroom(
+                self.bath_dims[0], self.bath_dims[1], BATH_RULES, random.Random()
+            )
             add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
+            bath_sticky = getattr(self, '_sticky_bath_items', [])
+            if bath_sticky:
+                fx = BATH_RULES.get('fixtures', {})
+                clear = {
+                    'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                    'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                    'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
+                    'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
+                }
+                FRONT_BATH_DEFAULT = {
+                    'WC': clear['wc_front'],
+                    'LAV': clear['lav_front'],
+                    'TUB': clear['tub_front'],
+                    'SHR': clear['shr_front'],
+                }
+                for (code, x, y, w, h, wall) in bath_sticky:
+                    self.bath_plan.clear(x, y, w, h)
+                    self.bath_plan.place(x, y, w, h, code)
+                    fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
+                    if fc_m > 0.0:
+                        fc = self.bath_plan.meters_to_cells(fc_m)
+                        if wall == 0:
+                            self.bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
+                        elif wall == 2:
+                            self.bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+                self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
         else:
             self.bath_plan = None
 
