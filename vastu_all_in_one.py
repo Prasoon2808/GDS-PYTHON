@@ -2273,7 +2273,13 @@ class GenerateView:
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
         self.bed_door_wall=tk.StringVar(value='Left')
         ttk.Label(f, text='Door wall').grid(row=0,column=0,sticky='w')
-        ttk.Combobox(f, textvariable=self.bed_door_wall, values=['Bottom','Right','Top','Left'], state='readonly', width=8).grid(row=1,column=0)
+        ttk.Combobox(
+            f,
+            textvariable=self.bed_door_wall,
+            values=['Bottom','Top','Left'],
+            state='readonly',
+            width=8,
+        ).grid(row=1, column=0)
         self.bed_door_w=tk.DoubleVar(value=0.9); self.bed_door_c=tk.DoubleVar(value=self.bed_Hm*0.25)
         ttk.Label(f, text='Door width').grid(row=0,column=1,sticky='w')
         ttk.Scale(f, variable=self.bed_door_w, from_=0.7, to=1.2, orient='horizontal').grid(row=1,column=1,sticky='we', padx=4)
@@ -2283,8 +2289,14 @@ class GenerateView:
 
         wbox=ttk.Frame(self.sidebar); wbox.pack(fill=tk.X, pady=(6,2))
         ttk.Label(wbox, text='Window 1').grid(row=0,column=0,sticky='w')
-        self.bed_w1_wall=tk.StringVar(value='Left'); self.bed_w1_len=tk.DoubleVar(value=1.2); self.bed_w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
-        ttk.Combobox(wbox, textvariable=self.bed_w1_wall, values=['Bottom','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0,sticky='w')
+        self.bed_w1_wall=tk.StringVar(value='Bottom'); self.bed_w1_len=tk.DoubleVar(value=1.2); self.bed_w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
+        ttk.Combobox(
+            wbox,
+            textvariable=self.bed_w1_wall,
+            values=['Bottom','Top','Left','None'],
+            state='readonly',
+            width=8,
+        ).grid(row=1, column=0, sticky='w')
         ttk.Label(wbox, text='Width').grid(row=0,column=1,sticky='w')
         ttk.Scale(wbox, variable=self.bed_w1_len, from_=0.8, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
         ttk.Label(wbox, text='Center (m)').grid(row=0,column=2,sticky='w')

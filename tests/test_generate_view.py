@@ -81,6 +81,7 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
     class FakeWidget:
         def __init__(self, master=None, **kwargs):
             self.children = []
+            self.kwargs = kwargs
             if master is not None and hasattr(master, 'children'):
                 master.children.append(self)
         def pack(self, *args, **kwargs):
@@ -119,3 +120,70 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
 
     GenerateView._build_sidebar(gv)
     assert hasattr(gv, 'furn_kind'), 'Furniture controls missing'
+
+
+def test_opening_control_limits(monkeypatch):
+    import types
+    import tkinter as tk
+    import vastu_all_in_one
+
+    master = tk.Tcl()
+    tk._default_root = master
+
+    comboboxes = []
+
+    class FakeWidget:
+        def __init__(self, master=None, **kwargs):
+            self.children = []
+            self.kwargs = kwargs
+            if master is not None and hasattr(master, 'children'):
+                master.children.append(self)
+        def pack(self, *args, **kwargs):
+            return self
+        def grid(self, *args, **kwargs):
+            return self
+        def destroy(self):
+            pass
+        def winfo_children(self):
+            return self.children
+        def grid_columnconfigure(self, *args, **kwargs):
+            pass
+
+    class FakeCombobox(FakeWidget):
+        def __init__(self, master=None, **kwargs):
+            super().__init__(master, **kwargs)
+            comboboxes.append(self)
+
+    fake_ttk = types.SimpleNamespace(
+        Frame=FakeWidget,
+        Label=FakeWidget,
+        Combobox=FakeCombobox,
+        Scale=FakeWidget,
+        Button=FakeWidget,
+        Checkbutton=FakeWidget,
+    )
+    monkeypatch.setattr(vastu_all_in_one, 'ttk', fake_ttk)
+
+    gv = GenerateView.__new__(GenerateView)
+    gv.room_label = 'Bedroom'
+    gv.sidebar = FakeWidget()
+    gv.bed_Hm = 4.0
+    gv.bed_Wm = 4.0
+    gv.bath_dims = (2.0, 2.0)
+
+    for name in [
+        '_solve_and_draw', '_apply_batch_and_generate', '_add_furniture',
+        '_remove_furniture', '_simulate_one', '_simulate_two',
+        'simulate_circulation', '_export_png']:
+        setattr(gv, name, lambda *a, **kw: None)
+
+    GenerateView._build_sidebar(gv)
+
+    assert 'Right' not in comboboxes[0].kwargs['values']
+    assert gv.bed_w1_wall.get() == 'Bottom'
+    assert 'Right' not in comboboxes[1].kwargs['values']
+    assert 'Right' not in comboboxes[2].kwargs['values']
+
+    assert comboboxes[3].kwargs['values'] == ['Left']
+    assert 'Left' not in comboboxes[4].kwargs['values']
+    assert 'Left' not in comboboxes[5].kwargs['values']
