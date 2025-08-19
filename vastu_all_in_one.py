@@ -2474,49 +2474,6 @@ class GenerateView:
                 if w is not None
             ]
 
-    def _validate_shared_wall_door(
-        self,
-        bed_span: Optional[Tuple[int, int, int]] = None,
-        bath_span: Optional[Tuple[int, int, int]] = None,
-    ) -> bool:
-        """Validate bedroom/bathroom door alignment and update status.
-
-        Returns ``True`` if doors are validly aligned or no bathroom exists.
-        Otherwise, sets a status message and returns ``False``.
-
-        Parameters
-        ----------
-        bed_span, bath_span:
-            Optional precomputed ``door_span_cells`` results for the bedroom
-            and bathroom respectively. When provided, the helper avoids
-            recomputing the spans.
-        """
-        if self.bath_dims:
-            if bed_span is None:
-                bed_span = self.bed_openings.door_span_cells()
-            if bath_span is None:
-                bath_span = self.bath_openings.door_span_cells()
-            b_wall, b_start, b_width = bed_span
-            bath_wall, bath_start, bath_width = bath_span
-            if b_wall == WALL_RIGHT or bath_wall == WALL_LEFT:
-                if not (
-                    b_wall == WALL_RIGHT
-                    and bath_wall == WALL_LEFT
-                    and abs(b_start - bath_start) <= 1
-                    and abs(b_width - bath_width) <= 1
-                ):
-                    self.status.set(
-                        'Doors on shared wall must overlap (±1 cell tolerance).'
-                    )
-                    return False
-        else:
-            if bed_span is None:
-                bed_span = self.bed_openings.door_span_cells()
-            b_wall, _, _ = bed_span
-            if b_wall == WALL_RIGHT:
-                self.status.set('Door on right wall requires adjacent bathroom.')
-                return False
-        return True
 
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
@@ -2529,9 +2486,6 @@ class GenerateView:
         self._sticky_items = sticky  # only keep the locked item (if any)
         # (2) RUN THE SOLVER to regenerate
         self._apply_openings_from_ui()
-        if not self._validate_shared_wall_door():
-            self._draw()
-            return
         self._solve_and_draw()
 
     def _solve_and_draw(self):
@@ -2539,11 +2493,17 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
-        bed_span = self.bed_openings.door_span_cells()
-        bath_span = self.bath_openings.door_span_cells() if self.bath_dims else None
-        if not self._validate_shared_wall_door(bed_span, bath_span):
+        bed_wall, _, _ = self.bed_openings.door_span_cells()
+        if bed_wall == WALL_RIGHT:
+            self.status.set('Bedroom door cannot be on shared wall.')
             self._draw()
             return
+        bath_ok = True
+        if self.bath_dims:
+            bath_wall, _, _ = self.bath_openings.door_span_cells()
+            if bath_wall != WALL_LEFT:
+                self.status.set('Bathroom door must be on shared wall.')
+                bath_ok = False
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         solver=BedroomSolver(
             bed_plan,
@@ -2580,7 +2540,7 @@ class GenerateView:
             best.clearzones = merge_clearances(best.clearzones)
 
         bed_plan=best
-        if self.bath_dims:
+        if self.bath_dims and bath_ok:
             bath_plan=arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
             combined=GridPlan(self.Wm,self.Hm)
             # copy bedroom
@@ -2601,10 +2561,12 @@ class GenerateView:
         else:
             self.plan=bed_plan
             self.bed_plan=bed_plan
+            self.bath_plan=None
 
         self.meta=meta; self._log_run(meta); self._draw()
         sc=meta.get('score',0.0)
-        self.status.set(f"Coverage {meta.get('coverage',0)*100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} · Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}")
+        if bath_ok:
+            self.status.set(f"Coverage {meta.get('coverage',0)*100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} · Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}")
 
     # ----------------- draw & helpers
 
@@ -3123,9 +3085,17 @@ class GenerateView:
 
         # Re-apply door/window positions from UI (doesn't add furniture)
         self._apply_openings_from_ui()
-        if not self._validate_shared_wall_door():
+        bed_wall, _, _ = self.bed_openings.door_span_cells()
+        if bed_wall == WALL_RIGHT:
+            self.status.set('Bedroom door cannot be on shared wall.')
             self._draw()
             return
+        if self.bath_dims:
+            bath_wall, _, _ = self.bath_openings.door_span_cells()
+            if bath_wall != WALL_LEFT:
+                self.status.set('Bathroom door must be on shared wall.')
+                self._draw()
+                return
 
         # New empty grid, then re-place exactly what the user already had
         best = GridPlan(self.Wm, self.Hm)
