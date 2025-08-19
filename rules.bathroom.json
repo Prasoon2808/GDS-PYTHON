@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "name": "VASTU Bathroom Rules",
+    "version": "1.0.0",
+    "updated_at": "2025-08-17T00:00:00Z",
+    "notes": "Consolidated from scanned pages IMG_0221–IMG_0236. Dimensions in meters unless a key says *_in. Nearest practical values chosen where the print was faint."
+  },
+
+  "units": {
+    "IN_M": 0.0254,
+    "ROUND_MM": 5
+  },
+
+  "planning": {
+    "arrangement": [
+      "Group fixtures to minimize cross-traffic; keep major lanes clear of wet zones.",
+      "For privacy, use compartmented layouts separating WC, tub/shower, and lavatory.",
+      "Provide ventilated, point-of-use storage for linens, paper goods, and toiletries."
+    ],
+    "ventilation": [
+      "Natural ventilation desirable; mechanical exhaust is essential for interior baths and showers.",
+      "Place shower exhaust close to the steam source; it may serve as the room exhaust."
+    ],
+    "materials": [
+      "All finishes must be moisture-resistant and easily cleanable.",
+      "Provide radiant/auxiliary heat directed toward open floor area where needed."
+    ],
+    "sound_control": [
+      "Favor solid-core doors; use gasketed stops and resilient/staggered stud walls at shared partitions.",
+      "Avoid adjacency to quiet rooms when possible."
+    ]
+  },
+
+  "anthro": {
+    "vanity_top_height_normal_m": 0.787,
+    "vanity_top_height_recommended_m": 0.838,
+    "mirror_upper_band_m": [1.752, 1.880],
+    "notes": "From the standing-at-lavatory section: 31 in normal, 33 in recommended; mirror top band ~69–74 in above floor."
+  },
+
+  "fixtures": {
+    "lavatory": {
+      "side_clear_to_wall_m": { "fha_min": 0.381, "min": 0.508, "adequate": 0.559 },
+      "front_clear_to_opposite_m": { "fha_min": 0.533, "min": 0.610, "adequate": 0.762 },
+      "to_adjacent_fixture_edge_m": { "min": 0.406, "adequate": 0.457 },
+      "mounting_notes": "Medicine cabinet/mirror above lavatory; avoid sharp projecting rims; provide GFCI outlets near but outside splash."
+    },
+
+    "water_closet": {
+      "center_to_side_obstruction_m": { "fha_min": 0.381, "min": 0.406, "adequate": 0.457, "better": 0.508 },
+      "front_clear_to_opposite_m": { "fha_min": 0.533, "min": 0.610, "adequate": 0.762, "best": 0.864 },
+      "notes": "Dimensions reflect repeated plan callouts and Tables for one/two-person use."
+    },
+
+    "bathtub": {
+      "common_lengths_m": [1.372, 1.524, 1.676],
+      "front_clear_to_opposite_wall_m": { "min": 0.762, "adequate": 0.864 },
+      "entry_front_clear_m": 0.762,
+      "controls_reach": "Locate controls reachable from tub entry; keep curtain inside the tub lip or use a glass enclosure."
+    },
+
+    "shower": {
+      "stall_nominal_sizes_in": [{ "w": 32, "d": 32, "h": 81 }, { "w": 36, "d": 36, "h": 81 }, { "w": 40, "d": 40, "h": 81 }],
+      "head_height_m": { "range": [1.829, 2.032], "default": 1.981 },
+      "valves_location_rule": "Place mixing valves near the entrance so they are operable from outside.",
+      "curtain_rod_position": "Inside face of tub lip; alternate is framed/frameless glass panel system.",
+      "stall_light": { "allowed": true, "type": "vapor-proof only" },
+      "ventilation": "Dedicated shower ventilator recommended; may share with room exhaust."
+    }
+  },
+
+  "grab_bars": {
+    "straight_lengths_mm": [229, 305, 381, 457, 610, 762],
+    "angle_bar_mm": { "w": 406, "h": 813 },
+    "vertical_bars_recommended": true,
+    "combo_soap_grab_bar": { "draining_lip": true, "note": "Use draining-lip type at tub and shower for runoff control." }
+  },
+
+  "accessories": {
+    "towel_bars": {
+      "bath_bar_width_m": 0.610,
+      "bath_bar_spacing_vertical_m": 0.203,
+      "small_face_bar_width_m": 0.305,
+      "small_face_pair_spacing_vertical_m": 0.152,
+      "small_bath_or_large_face_width_m_range": [0.381, 0.457],
+      "small_bath_or_large_face_pair_spacing_vertical_m": 0.178,
+      "mounting_tip": "Keep bars out of direct spray; do not mount a towel bar above a tub with shower."
+    },
+    "towel_ring": true,
+    "tissue_holder": { "mount": ["surface", "recessed"] },
+    "robe_hook": true,
+    "electric_towel_rack_nominal_mm": { "w": 660, "h": 330, "d": 76 },
+    "utility_rod_telescoping_range_mm": [102, 356],
+    "medicine_cabinet": { "types": ["recessed", "surface"], "mirror": "Yes", "note": "Size to user; avoid sharp projections." }
+  },
+
+  "storage_and_linen": {
+    "min_shelf_depth_m": 0.254,
+    "linen_cubby_internal_m": { "w": 0.305, "d": 0.305, "h": 0.254 },
+    "par_levels_everyday": {
+      "bath_towels": 12,
+      "hand_towels": 10,
+      "washcloths": 8
+    },
+    "par_levels_guest": {
+      "bath_towels": 6,
+      "washcloths": 6
+    },
+    "notes": "Provide separate storage per user for towel, face cloth, and reserves; place cabinets in plumbing chases or full-height closets."
+  },
+
+  "doors_and_windows": {
+    "door_width_min_m": 0.610,
+    "door_width_preferred_m": 0.711,
+    "equipment_passage_min_clear_m": 1.219,
+    "swing_rules": "Pocket or outswing doors favored in tight layouts; keep door swings out of fixture clearances.",
+    "window_rules": [
+      "No window directly over the tub unless awning/casement with crank.",
+      "Avoid windows behind the WC.",
+      "Skylights acceptable if sized for light and venting; otherwise provide mechanical exhaust.",
+      "Use obscure/tempered glazing as required near wet areas."
+    ]
+  },
+
+  "heights_at_tub_and_shower": {
+    "tub_controls_height_m_range": [0.910, 1.220],
+    "towel_bar_over_tub_prohibited": true,
+    "mirror_band_above_floor_m": [1.750, 1.880]
+  }
+  
+  ,
+    "layout_modules": {
+      "notes": "Modules summarize repeated dimensions from Figs. 4–7 (IMG_0230–IMG_0233). Values show inches for fidelity and are also converted to meters.",
+      "two_fixture_examples": [
+        { "pair": "WC+Lav", "typical_dims_in": { "wc_center_to_wall": 16, "wc_to_lav_edge": 18, "front_lane": 30 }, "typical_dims_m": { "wc_center_to_wall": 0.406, "wc_to_lav_edge": 0.457, "front_lane": 0.762 }, "source_img": "IMG_0230" },
+        { "pair": "WC+Tub", "typical_dims_in": { "wc_center_to_wall": 18, "tub_front_lane": 30 }, "typical_dims_m": { "wc_center_to_wall": 0.457, "tub_front_lane": 0.762 }, "source_img": "IMG_0230" },
+        { "pair": "Lav+Tub", "typical_dims_in": { "lav_front": 24, "tub_front": 30, "lav_to_tub": 20 }, "typical_dims_m": { "lav_front": 0.610, "tub_front": 0.762, "lav_to_tub": 0.508 }, "source_img": "IMG_0230" }
+      ],
+      "three_fixture_examples": [
+        { "set": "WC+Lav+Tub", "typical_dims_in": { "wc_center_to_wall": 16, "lav_front": 24, "tub_front": 30, "lav_to_wc": 18 }, "typical_dims_m": { "wc_center_to_wall": 0.406, "lav_front": 0.610, "tub_front": 0.762, "lav_to_wc": 0.457 }, "source_img": "IMG_0231" },
+        { "set": "WC+Lav+Shower", "typical_dims_in": { "wc_center_to_wall": 18, "lav_front": 24, "shower_clear": 30 }, "typical_dims_m": { "wc_center_to_wall": 0.457, "lav_front": 0.610, "shower_clear": 0.762 }, "source_img": "IMG_0231" }
+      ],
+      "compartmented_examples": [
+        { "note": "Dual lavs + separate WC compartment", "lanes_in": { "wc_front": 30, "tub_front": 30 }, "lanes_m": { "wc_front": 0.762, "tub_front": 0.762 }, "source_img": "IMG_0232" },
+        { "note": "Linen closet integrated; repeated 30–34 in lanes", "lanes_in": { "main": 34, "compartment": 30 }, "lanes_m": { "main": 0.864, "compartment": 0.762 }, "source_img": "IMG_0232" },
+        { "note": "Bedroom/dressing + WC compartment options", "lanes_in": { "main": 30 }, "lanes_m": { "main": 0.762 }, "source_img": "IMG_0233" }
+      ]
+    },
+
+    "fixture_catalog": {
+      "notes": "Stock sizes transcribed from IMG_0234–IMG_0236. Metric values rounded to nearest 1 mm (approx=false unless stated).",
+      "lavatories": {
+        "shelf_back":   { "width_in_range": [18, 26], "depth_in_range": [14, 22], "materials": ["vitreous_china", "steel", "cast_iron"], "width_m_range": [0.457, 0.660], "depth_m_range": [0.356, 0.559] },
+        "plain_back":   { "width_in_range": [18, 26], "depth_in_range": [14, 22], "materials": ["vitreous_china", "cast_iron"], "width_m_range": [0.457, 0.660], "depth_m_range": [0.356, 0.559] },
+        "ledge_back":   { "width_in_range": [18, 27], "depth_in_range": [15, 21], "materials": ["vitreous_china", "steel"], "width_m_range": [0.457, 0.686], "depth_m_range": [0.381, 0.533] },
+        "flat_slab":    { "width_in_range": [20, 42], "depth_in_range": [18, 32], "materials": ["vitreous_china", "steel", "cast_iron"], "width_m_range": [0.508, 1.067], "depth_m_range": [0.457, 0.813] },
+        "open_front_built_in": { "width_in_range": [20, 30], "depth_in_range": [18, 22], "materials": ["vitreous_china"], "width_m_range": [0.508, 0.762], "depth_m_range": [0.457, 0.559] },
+        "round_or_oval_built_in": { "width_in_options_in": [19, 16, 15], "depth_in_options_in": [16, 14, 15], "materials": ["vitreous_china"], "width_m_options": [0.483, 0.406, 0.381], "depth_m_options": [0.406, 0.356, 0.381] },
+        "flat_rim_built_in": { "width_in_range": [16, 20], "depth_in_range": [14, 18], "materials": ["vitreous_china", "steel", "cast_iron"], "width_m_range": [0.406, 0.508], "depth_m_range": [0.356, 0.457] },
+        "corner": { "length_in_options": [12, 14, 17], "depth_in_options": [15, 16, 21], "materials": ["vitreous_china", "cast_iron"], "length_m_options": [0.305, 0.356, 0.432], "depth_m_options": [0.381, 0.406, 0.533] },
+        "lavatory_dressing_tables": {
+          "cabinet_width_in": [24, 36, 48, 63],
+          "cabinet_depth_in": [22, 18, 18, 18],
+          "bowl_sizes_in": ["20x18", "16x13", "20x18", "20x18"],
+          "cabinet_width_m": [0.610, 0.914, 1.219, 1.600],
+          "cabinet_depth_m": [0.559, 0.457, 0.457, 0.457]
+        }
+      },
+
+      "toilets": {
+        "one_piece_close_coupled": {
+          "width_in_range": [18, 20],
+          "length_in_range": [26, 29],
+          "seat_height_in_range": [14, 15],
+          "overall_height_in_range": [29, 30],
+          "width_m_range": [0.457, 0.508],
+          "length_m_range": [0.660, 0.737],
+          "seat_height_m_range": [0.356, 0.381],
+          "overall_height_m_range": [0.737, 0.762]
+        },
+        "flush_tank": {
+          "width_in_range": [20, 22],
+          "length_in_range": [27, 29],
+          "seat_height_in_range": [15, 16],
+          "overall_height_in_approx": 36,
+          "width_m_range": [0.508, 0.559],
+          "length_m_range": [0.686, 0.737],
+          "seat_height_m_range": [0.381, 0.406],
+          "overall_height_m_approx": 0.914
+        }
+      },
+
+      "bidets": {
+        "length_in_options": [26, 25, 24],
+        "height_in_options": [14.5, 15, 15],
+        "length_m_options": [0.660, 0.635, 0.610],
+        "height_m_options": [0.368, 0.381, 0.381]
+      },
+
+      "shower_stalls": {
+        "sizes_in": [
+          { "w": 32, "d": 32, "h": 81 },
+          { "w": 36, "d": 36, "h": 81 },
+          { "w": 40, "d": 40, "h": 81 }
+        ],
+        "sizes_m": [
+          { "w": 0.813, "d": 0.813, "h": 2.057 },
+          { "w": 0.914, "d": 0.914, "h": 2.057 },
+          { "w": 1.016, "d": 1.016, "h": 2.057 }
+        ],
+        "notes": "Prefabricated metal stalls with/without receptor base; corner and built-in models available."
+      },
+
+      "shower_receptors": {
+        "sizes_in": [
+          { "w": 32, "d": 32 }, { "w": 36, "d": 36 }, { "w": 40, "d": 40 }, { "w": 42, "d": 44 }
+        ],
+        "sizes_m": [
+          { "w": 0.813, "d": 0.813 }, { "w": 0.914, "d": 0.914 }, { "w": 1.016, "d": 1.016 }, { "w": 1.067, "d": 1.118 }
+        ],
+        "notes": "Preformed/pressed; steel/terrazzo common; marble/slate special order."
+      },
+
+      "bathtubs": {
+        "square_recessed": [
+          { "w_in": 38, "l_in": 39, "h_in": 12, "material": "cast_iron", "w_m": 0.965, "l_m": 0.991, "h_m": 0.305 },
+          { "w_in": 51, "l_in": 48, "h_in": 16, "material": "cast_iron", "w_m": 1.295, "l_m": 1.219, "h_m": 0.406 }
+        ],
+        "free_standing": [
+          { "w_in": 30, "l_in": 54, "h_in": 23, "material": "cast_iron", "w_m": 0.762, "l_m": 1.372, "h_m": 0.584 },
+          { "w_in": 30, "l_in": 60, "h_in": 23, "material": "cast_iron", "w_m": 0.762, "l_m": 1.524, "h_m": 0.584 }
+        ],
+        "corner": [
+          { "w_in": 31, "l_in": 54, "h_in": 16, "material": "cast_iron", "w_m": 0.787, "l_m": 1.372, "h_m": 0.406 },
+          { "w_in": 32, "l_in": 60, "h_in": 16, "material": "steel",     "w_m": 0.813, "l_m": 1.524, "h_m": 0.406 },
+          { "w_in": 31, "l_in": 66, "h_in": 16, "material": "steel",     "w_m": 0.787, "l_m": 1.676, "h_m": 0.406 }
+        ],
+        "recessed": [
+          { "w_in": 28.5, "l_in": 60, "h_in": 16, "material": "cast_iron", "w_m": 0.724, "l_m": 1.524, "h_m": 0.406 },
+          { "w_in": 30,   "l_in": 60, "h_in": 14, "material": "steel",     "w_m": 0.762, "l_m": 1.524, "h_m": 0.356 },
+          { "w_in": 29,   "l_in": 60, "h_in": 16, "material": "steel",     "w_m": 0.737, "l_m": 1.524, "h_m": 0.406 },
+          { "w_in": 32,   "l_in": 60, "h_in": 16, "material": "steel",     "w_m": 0.813, "l_m": 1.524, "h_m": 0.406 },
+          { "w_in": 31,   "l_in": 54, "h_in": 14, "material": "cast_iron", "w_m": 0.787, "l_m": 1.372, "h_m": 0.356 },
+          { "w_in": 31,   "l_in": 60, "h_in": 14, "material": "cast_iron", "w_m": 0.787, "l_m": 1.524, "h_m": 0.356 },
+          { "w_in": 31,   "l_in": 66, "h_in": 14, "material": "cast_iron", "w_m": 0.787, "l_m": 1.676, "h_m": 0.356 }
+        ],
+        "square_corner": [
+          { "w_in": 50, "l_in": 50, "h_in": 16, "material": "cast_iron", "w_m": 1.270, "l_m": 1.270, "h_m": 0.406 }
+        ],
+        "recessed_two_way": [
+          { "w_in": 35, "l_in": 60, "h_in": 15, "material": "steel", "w_m": 0.889, "l_m": 1.524, "h_m": 0.381 }
+        ],
+        "stock_glass_enclosures": {
+          "notes": "Common framed door/enclosure sets matching recessed tubs.",
+          "openings_in": [33, 32, 31, 30, 29],
+          "panel_width_in": [31, 29, 30, 28, 28],
+          "lengths_in": [54, 60, 66],
+          "heights_in": [14, 16, 17],
+          "openings_m": [0.838, 0.813, 0.787, 0.762, 0.737],
+          "panel_width_m": [0.787, 0.737, 0.762, 0.711, 0.711],
+          "lengths_m": [1.372, 1.524, 1.676],
+          "heights_m": [0.356, 0.406, 0.432],
+          "approx": true
+        }
+      }
+    },
+
+    "accessories_tile_sizes": {
+      "source": "Table 4 (IMG_0225–IMG_0226)",
+      "notes": "Minimum block-out/tile panel sizes for in-wall accessories; nearest practical metric given.",
+      "tile_modules_in": [ "12x26", "9x6", "6x6", "3x6", "3x3", "8-1/2x4-1/4", "4-1/4x4-1/4" ],
+      "tile_modules_mm_nearest": [
+        { "w": 305, "h": 660 },
+        { "w": 229, "h": 152 },
+        { "w": 152, "h": 152 },
+        { "w": 76,  "h": 152 },
+        { "w": 76,  "h": 76  },
+        { "w": 216, "h": 108 },
+        { "w": 108, "h": 108 }
+      ]
+    },
+
+    "solver": {
+      "hard_mins_m": {
+        "wc_side_each": 0.381,
+        "wc_front": 0.5334,
+        "lav_front": 0.5334,
+        "tub_front": 0.762,
+        "main_lane": 0.762
+      },
+      "preferred_m": {
+        "wc_side_each": 0.4572,
+        "wc_front": 0.762,
+        "lav_front": 0.6096,
+        "tub_front": 0.8636,
+        "main_lane": 0.8636
+      },
+      "weights": {
+        "privacy_compartmenting": 0.6,
+        "traffic_efficiency": 1.0,
+        "safety": 1.2,
+        "storage_near_use": 0.5,
+        "ventilation": 0.7
+      }
+    },
+
+    "provenance": [
+      { "img": "IMG_0221", "section": "Overview: arrangement, ventilation, materials, heat, lighting, sound." },
+      { "img": "IMG_0222", "section": "Fig. 1 Fixture clearances; side-of-tub to opposite wall ≥30 in; FHA mins." },
+      { "img": "IMG_0223", "section": "Table 1 Lavatory & Bathtub spaces (adequate / minimum / FHA)." },
+      { "img": "IMG_0224", "section": "Table 2 Toilet spaces, 1–2 persons; 24–34 in front; 15–18 in side." },
+      { "img": "IMG_0225", "section": "Table 3 Linen storage; Table 4 Accessory tile sizes." },
+      { "img": "IMG_0226", "section": "Arrangement types; compartmented baths; doors & windows; equipment passage." },
+      { "img": "IMG_0227", "section": "Standing/vanity + seated-at-tub sections; accessory placements." },
+      { "img": "IMG_0228", "section": "Accessory catalog: towel bars, racks, tissue, magazine rack, recessed units." },
+      { "img": "IMG_0229", "section": "Fig. 3 shower/tub control notes; grab bar lengths and formats." },
+      { "img": "IMG_0230", "section": "Two-fixture plans (¼\"=1'-0\")." },
+      { "img": "IMG_0231", "section": "Three-fixture plans (¼\"=1'-0\")." },
+      { "img": "IMG_0232", "section": "Compartmented plans (¼\"=1'-0\")." },
+      { "img": "IMG_0233", "section": "More compartmented examples with dressing links." },
+      { "img": "IMG_0234", "section": "Lavatory types & sizes." },
+      { "img": "IMG_0235", "section": "Toilets, bidet, shower stalls; lavatory-dressing tables." },
+      { "img": "IMG_0236", "section": "Shower receptors & bathtub families with stock sizes." }
+    ]
+  }
+
