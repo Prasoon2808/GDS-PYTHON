@@ -11,6 +11,7 @@ from vastu_all_in_one import (
     GenerateView,
     Openings,
     GridPlan,
+    components_by_code,
     WALL_RIGHT,
     WALL_LEFT,
     WALL_TOP,
@@ -82,6 +83,7 @@ def test_bedroom_door_on_shared_wall_sets_status(monkeypatch):
 
     assert gv.status.msg == 'Bedroom door cannot be on shared wall.'
     assert getattr(gv, 'bath_plan', None) is None
+    assert getattr(gv, 'bed_plan', None) is None
 
 
 def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
@@ -111,6 +113,42 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
 
     assert gv.status.msg == 'Bathroom door must be on shared wall.'
     assert getattr(gv, 'bath_plan', None) is None
+    assert isinstance(gv.bed_plan, GridPlan)
+
+
+def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules):
+        plan = GridPlan(w, h)
+        plan.place(0, 0, 1, 1, 'WC')
+        return plan
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bed_openings.windows = [[WALL_TOP, 0.5, 0.5], [-1, 0.0, 0.0]]
+
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+    gv.bath_openings.windows = [[WALL_TOP, 0.5, 0.5], [-1, 0.0, 0.0]]
+
+    gv._solve_and_draw()
+
+    assert components_by_code(gv.bed_plan, 'BED'), 'Bedroom furniture missing'
+    assert components_by_code(gv.bath_plan, 'WC'), 'Bathroom furniture missing'
 
 
 def test_furniture_controls_present_for_generator_label(monkeypatch):
