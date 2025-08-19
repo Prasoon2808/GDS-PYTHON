@@ -2145,7 +2145,9 @@ class GenerateView:
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
         self.canvas=tk.Canvas(self.container, bg='#111', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.tooltip_id = None
+
+        # Tooltip elements are managed via the 'tooltip' tag
+
         self.sidebar=ttk.Frame(self.container, width=360, padding=10)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y)
         self._build_sidebar()
@@ -2459,17 +2461,24 @@ class GenerateView:
         label = ITEM_LABELS.get(base, code)
         color = PALETTE.get(base, '#fff')
         self._hide_tooltip()
-        self.tooltip_id = self.canvas.create_text(event.x + 12, event.y + 12,
-                                                 text=label, fill=color,
-                                                 anchor='nw', tags=('tooltip',))
+
+        x = event.x + 12
+        y = event.y + 12
+        text_id = self.canvas.create_text(x + 16, y, text=label, fill='black',
+                                          anchor='nw', tags=('tooltip',))
+        bbox = self.canvas.bbox(text_id)
+        rect_id = self.canvas.create_rectangle(
+            x, y - 4, bbox[2] + 4, max(bbox[3], y + 14) + 4,
+            fill='white', outline='black', tags=('tooltip',))
+        self.canvas.tag_raise(text_id, rect_id)
+        color_id = self.canvas.create_rectangle(
+            x + 2, y + 2, x + 14, y + 14,
+            fill=color, outline='black', tags=('tooltip',))
+        self.canvas.tag_raise(color_id, rect_id)
 
     def _hide_tooltip(self, event=None):
-        if hasattr(self, 'tooltip_id') and self.tooltip_id:
-            try:
-                self.canvas.delete(self.tooltip_id)
-            except Exception:
-                pass
-            self.tooltip_id = None
+        self.canvas.delete('tooltip')
+
 
     def _draw_opening_segment(self, cv, wall, start, length, color, thick):
         if wall<0 or length<=0: return
