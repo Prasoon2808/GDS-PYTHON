@@ -1899,17 +1899,7 @@ class BedroomSolver:
         return None
 
     def _add_door_clearance(self, p:GridPlan, owner:str):
-        wall,start,width=self.op.door_span_cells()
-        depth = p.meters_to_cells(self.op.swing_depth) + max(1,PATH_WIDTH_CELLS-1)
-        # zero-gap: clearance touches interior immediately
-        if wall==0:
-            p.mark_clear(start, depth, width, max(1,PATH_WIDTH_CELLS), 'DOOR_CLEAR', owner)
-        elif wall==2:
-            p.mark_clear(start, p.gh - depth - max(1,PATH_WIDTH_CELLS), width, max(1,PATH_WIDTH_CELLS), 'DOOR_CLEAR', owner)
-        elif wall==3:
-            p.mark_clear(max(1,PATH_WIDTH_CELLS), start, max(1,PATH_WIDTH_CELLS), width, 'DOOR_CLEAR', owner)
-        else:
-            p.mark_clear(p.gw - depth - max(1,PATH_WIDTH_CELLS), start, max(1,PATH_WIDTH_CELLS), width, 'DOOR_CLEAR', owner)
+        add_door_clearance(p, self.op, owner)
 
     def _add_window_clearances(self, p:GridPlan):
         depth = max(1, p.meters_to_cells(0.40))
@@ -2024,6 +2014,22 @@ def rects_touch_or_overlap(a,b)->bool:
     if ax+aw < bx or bx+bw < ax: return False
     if ay+ah < by or by+bh < ay: return False
     return True
+
+def add_door_clearance(p: GridPlan, op: Openings, owner: str):
+    """Mark clearance for a door defined by ``op`` onto plan ``p``."""
+    wall, start, width = op.door_span_cells()
+    depth = p.meters_to_cells(op.swing_depth) + max(1, PATH_WIDTH_CELLS - 1)
+    if wall == 0:
+        p.mark_clear(start, depth, width, max(1, PATH_WIDTH_CELLS), 'DOOR_CLEAR', owner)
+    elif wall == 2:
+        p.mark_clear(start, p.gh - depth - max(1, PATH_WIDTH_CELLS), width,
+                     max(1, PATH_WIDTH_CELLS), 'DOOR_CLEAR', owner)
+    elif wall == 3:
+        p.mark_clear(max(1, PATH_WIDTH_CELLS), start, max(1, PATH_WIDTH_CELLS), width,
+                     'DOOR_CLEAR', owner)
+    else:
+        p.mark_clear(p.gw - depth - max(1, PATH_WIDTH_CELLS), start,
+                     max(1, PATH_WIDTH_CELLS), width, 'DOOR_CLEAR', owner)
 
 # -----------------------
 # Bathroom arranger (very light – placeholder)
@@ -2190,7 +2196,7 @@ class GenerateView:
 
         self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
-        self.bath_openings = Openings(GridPlan(self.bath_Wm, self.bath_Hm)) if bath_dims else None
+        self.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -2452,7 +2458,7 @@ class GenerateView:
 
         # Bathroom
         if self.bath_dims and self.bath_openings:
-            self.bath_openings.door_wall = wall_map['Left']
+            self.bath_openings.door_wall = wall_map.get(self.bath_door_wall.get(), 3)
             self.bath_openings.door_width = float(self.bath_door_w.get())
             self.bath_openings.door_center = float(self.bath_door_c.get())
             bath_allowed = {wall_map['Bottom'], wall_map['Right'], wall_map['Top']}
@@ -2547,11 +2553,37 @@ class GenerateView:
 
         bed_plan = best
         self.bed_plan = bed_plan
-        self.plan = bed_plan
         if self.bath_dims and bath_ok:
             self.bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+            add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
         else:
             self.bath_plan = None
+
+        # Combine bedroom and bathroom into a single plan for downstream ops
+        if self.bath_plan:
+            total_wm = self.bed_Wm + self.bath_dims[0]
+            total_hm = max(self.bed_Hm, self.bath_dims[1])
+            combined = GridPlan(total_wm, total_hm)
+            # copy bedroom
+            for j in range(bed_plan.gh):
+                for i in range(bed_plan.gw):
+                    code = bed_plan.occ[j][i]
+                    if code:
+                        combined.occ[j][i] = code
+            combined.clearzones.extend(bed_plan.clearzones)
+            # copy bathroom with horizontal offset
+            xoff = bed_plan.gw
+            for j in range(self.bath_plan.gh):
+                for i in range(self.bath_plan.gw):
+                    code = self.bath_plan.occ[j][i]
+                    if code:
+                        combined.occ[j][i + xoff] = code
+            for x, y, w, h, kind, owner in self.bath_plan.clearzones:
+                combined.clearzones.append((x + xoff, y, w, h, kind, owner))
+            combined.clearzones = merge_clearances(combined.clearzones)
+            self.plan = combined
+        else:
+            self.plan = bed_plan
 
         self.meta=meta; self._log_run(meta); self._draw()
         sc=meta.get('score',0.0)
