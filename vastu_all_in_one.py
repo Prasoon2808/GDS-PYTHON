@@ -2915,7 +2915,7 @@ class GenerateView:
 
 
         comp = self._hit_component(e.x, e.y)
-        if comp and comp[4] in ('WRD','DRS','DESK','TVU','BST','BED'):
+        if comp and comp[4] in ('WRD','DRS','DESK','TVU','BST','BED','WC','SHR','TUB','LAV'):
             x, y, w, h = comp[:4]
             self.selected = {'rect': [x, y, w, h], 'code': comp[4]}
 
@@ -2983,6 +2983,7 @@ class GenerateView:
 
         self.plan.clearzones = merge_clearances(self.plan.clearzones)
         self.drag_item = None
+        self._sync_room_plans()
         self._draw()
 
 
@@ -3075,6 +3076,7 @@ class GenerateView:
             self.plan.place(x, y, w, h, code)
 
         self.plan.clearzones = merge_clearances(self.plan.clearzones)
+        self._sync_room_plans()
         self._draw()
 
     def _rotate_selected(self, direction=+1):
@@ -3099,7 +3101,34 @@ class GenerateView:
             self.plan.place(x, y, w, h, code)
 
         self.plan.clearzones = merge_clearances(self.plan.clearzones)
+        self._sync_room_plans()
         self._draw()
+
+
+    def _sync_room_plans(self):
+        """Synchronize per-room plans with the combined plan."""
+        # Bedroom snapshot
+        if getattr(self, 'bed_plan', None):
+            gw, gh = self.bed_plan.gw, self.bed_plan.gh
+            for j in range(gh):
+                for i in range(gw):
+                    self.bed_plan.occ[j][i] = self.plan.occ[j][i]
+            self.bed_plan.clearzones = [
+                (x, y, w, h, k, o)
+                for (x, y, w, h, k, o) in self.plan.clearzones
+                if x + w <= gw
+            ]
+        # Bathroom snapshot
+        if getattr(self, 'bath_plan', None):
+            xoff = self.bed_plan.gw if getattr(self, 'bed_plan', None) else 0
+            bw, bh = self.bath_plan.gw, self.bath_plan.gh
+            for j in range(bh):
+                for i in range(bw):
+                    self.bath_plan.occ[j][i] = self.plan.occ[j][i + xoff]
+            self.bath_plan.clearzones = []
+            for (x, y, w, h, k, o) in self.plan.clearzones:
+                if x >= xoff and x + w <= xoff + bw:
+                    self.bath_plan.clearzones.append((x - xoff, y, w, h, k, o))
 
 
     def _solve_and_draw_preserve(self):
