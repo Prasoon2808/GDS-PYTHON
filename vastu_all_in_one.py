@@ -2385,6 +2385,20 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
+        if self.bath_dims:
+            b_wall, b_start, b_width = self.bed_openings.door_span_cells()
+            bath_wall, bath_start, bath_width = self.bath_openings.door_span_cells()
+            if b_wall == 1 or bath_wall == 3:
+                if not (b_wall == 1 and bath_wall == 3 and b_start == bath_start and b_width == bath_width):
+                    self.status.set('Door must align on shared wall between bedroom and bathroom.')
+                    self._draw()
+                    return
+        else:
+            b_wall, _, _ = self.bed_openings.door_span_cells()
+            if b_wall == 1:
+                self.status.set('Door on right wall requires adjacent bathroom.')
+                self._draw()
+                return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         solver=BedroomSolver(
             bed_plan,
