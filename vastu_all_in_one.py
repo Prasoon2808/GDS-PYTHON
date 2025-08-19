@@ -2401,36 +2401,77 @@ class GenerateView:
     # ----------------- solve / openings
 
     def _apply_openings_from_ui(self):
-        wall_map={'Bottom':0,'Right':1,'Top':2,'Left':3}
+        wall_map = {'Bottom': 0, 'Right': 1, 'Top': 2, 'Left': 3}
 
         # Bedroom
-        self.bed_openings.door_wall=wall_map.get(self.bed_door_wall.get(),3)
-        self.bed_openings.door_width=float(self.bed_door_w.get())
-        self.bed_openings.door_center=float(self.bed_door_c.get())
+        self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
+        self.bed_openings.door_width = float(self.bed_door_w.get())
+        self.bed_openings.door_center = float(self.bed_door_c.get())
 
-        def parse(wall_s, len_v, cen_v):
-            if wall_s=='None' or (len_v<=0.0):
-                return [-1,0.0,0.0]
+        def parse_window(kind: str, wall_s, len_v, cen_v, allowed):
+            """Parse a window definition from UI state.
+
+            Returns ``None`` if the window should be ignored.
+            """
+
+            if wall_s == 'None' or (len_v <= 0.0):
+                return None
             wall = wall_map.get(wall_s)
-            if wall is None:
-                return [-1,0.0,0.0]
-            length=float(len_v); center=float(cen_v)
-            start=max(0.0, center - 0.5*length)
+            if wall is None or wall not in allowed:
+                print(f"Ignoring invalid {kind} window wall: {wall_s}")
+                return None
+            length = float(len_v)
+            center = float(cen_v)
+            start = max(0.0, center - 0.5 * length)
             return [wall, start, length]
 
-        self.bed_openings.windows=[
-            parse(self.bed_w1_wall.get(), self.bed_w1_len.get(), self.bed_w1_c.get()),
-            parse(self.bed_w2_wall.get(), self.bed_w2_len.get(), self.bed_w2_c.get())
+        bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
+        self.bed_openings.windows = [
+            w
+            for w in [
+                parse_window(
+                    'bedroom',
+                    self.bed_w1_wall.get(),
+                    self.bed_w1_len.get(),
+                    self.bed_w1_c.get(),
+                    bed_allowed,
+                ),
+                parse_window(
+                    'bedroom',
+                    self.bed_w2_wall.get(),
+                    self.bed_w2_len.get(),
+                    self.bed_w2_c.get(),
+                    bed_allowed,
+                ),
+            ]
+            if w is not None
         ]
 
         # Bathroom
         if self.bath_dims and self.bath_openings:
             self.bath_openings.door_wall = wall_map['Left']
-            self.bath_openings.door_width=float(self.bath_door_w.get())
-            self.bath_openings.door_center=float(self.bath_door_c.get())
-            self.bath_openings.windows=[
-                parse(self.bath_w1_wall.get(), self.bath_w1_len.get(), self.bath_w1_c.get()),
-                parse(self.bath_w2_wall.get(), self.bath_w2_len.get(), self.bath_w2_c.get())
+            self.bath_openings.door_width = float(self.bath_door_w.get())
+            self.bath_openings.door_center = float(self.bath_door_c.get())
+            bath_allowed = {wall_map['Bottom'], wall_map['Right'], wall_map['Top']}
+            self.bath_openings.windows = [
+                w
+                for w in [
+                    parse_window(
+                        'bathroom',
+                        self.bath_w1_wall.get(),
+                        self.bath_w1_len.get(),
+                        self.bath_w1_c.get(),
+                        bath_allowed,
+                    ),
+                    parse_window(
+                        'bathroom',
+                        self.bath_w2_wall.get(),
+                        self.bath_w2_len.get(),
+                        self.bath_w2_c.get(),
+                        bath_allowed,
+                    ),
+                ]
+                if w is not None
             ]
 
     def _validate_shared_wall_door(
