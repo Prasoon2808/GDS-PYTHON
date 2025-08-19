@@ -2164,7 +2164,6 @@ ITEM_LABELS = {
 WALL_COLOR='#000000'
 WIN_COLOR='#000000'
 
-WALL_FILL='#ff0000'
 DOOR_FILL='#8b4513'
 WIN_FILL='#95c8ff'
 
@@ -2615,8 +2614,7 @@ class GenerateView:
                                     outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
             cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
-
-                                outline=WALL_COLOR, fill=WALL_FILL, width=wall_width)
+                    outline=WALL_COLOR, fill='', width=wall_width)
             self._draw_room_openings(cv, openings, ox, oy, scale,
                                      wall_width, open_width)
 
