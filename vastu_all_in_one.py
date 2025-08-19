@@ -2161,10 +2161,14 @@ ITEM_LABELS = {
 }
 
 
-WALL_COLOR='#000000'
-WIN_COLOR='#000000'
-HUMAN1_COLOR='#ff6262'
-HUMAN2_COLOR='#ffdd55'
+WALL_COLOR = '#000000'
+WIN_COLOR = '#000000'
+WALL_FILL = '#ffcccc'
+EXT_WALL_THICK = 0.23
+INT_WALL_THICK = 0.11
+OPENING_THICK = 0.07
+HUMAN1_COLOR = '#ff6262'
+HUMAN2_COLOR = '#ffdd55'
 
 class GenerateView:
     def __init__(self, root: tk.Misc, Wm: float, Hm: float, bed_key: Optional[str], room_label: str = 'Bedroom', bath_dims: Optional[Tuple[float,float]] = None, pack_side=tk.LEFT, on_back=None):
@@ -2194,7 +2198,7 @@ class GenerateView:
         tb=ttk.Frame(self.container); tb.pack(fill=tk.X)
         ttk.Button(tb, text='← Back', command=self._go_back).pack(side=tk.LEFT, padx=6, pady=4)
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
-        self.canvas=tk.Canvas(self.container, bg='#111', highlightthickness=0, cursor='hand2')
+        self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Tooltip elements are managed via the 'tooltip' tag
@@ -2573,22 +2577,23 @@ class GenerateView:
         self.oy = bed_oy
         bath_ox = bed_ox + bed_gw * scale
         bath_oy = (ch - bath_gh * scale) / 2
-        wall_width = max(4, int(scale * 0.12)) * 3
-        open_width = max(1, wall_width // 3)
+        ext_wall = max(1, int(scale * EXT_WALL_THICK))
+        int_wall = max(1, int(scale * INT_WALL_THICK))
+        open_width = max(1, int(scale * OPENING_THICK))
 
-        def draw_room(plan, openings, ox, oy):
+        def draw_room(plan, ox, oy):
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
-                cv.create_line(x, oy, x, oy + gh * scale, fill='#2c2c2c')
+                cv.create_line(x, oy, x, oy + gh * scale, fill='#dddddd', tags=('grid',))
             for j in range(gh + 1):
                 y = oy + j * scale
-                cv.create_line(ox, y, ox + gw * scale, y, fill='#2c2c2c')
+                cv.create_line(ox, y, ox + gw * scale, y, fill='#dddddd', tags=('grid',))
             bound = set()
             for j in range(gh):
                 for i in range(gw):
                     code = plan.occ[j][i]
-                    if not code or code == 'DOOR':
+                    if not code or code in ('DOOR', 'WALL'):
                         continue
                     base = code.split(':')[0]
                     tag = base.split('_')[0]
@@ -2609,12 +2614,30 @@ class GenerateView:
                 cv.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
                                     outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
-            cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
-                                outline=WALL_COLOR, width=wall_width)
-            self._draw_room_openings(cv, openings, ox, oy, scale, open_width)
-        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
+        draw_room(self.bed_plan, bed_ox, bed_oy)
         if self.bath_plan:
-            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
+            draw_room(self.bath_plan, bath_ox, bath_oy)
+
+        total_w_px = total_w * scale
+        max_h_px = max_h * scale
+        cv.create_rectangle(bed_ox, bed_oy, bed_ox + total_w_px, bed_oy + max_h_px,
+                            outline=WALL_FILL, width=ext_wall, tags=('wall',))
+        cv.create_rectangle(bed_ox, bed_oy, bed_ox + total_w_px, bed_oy + max_h_px,
+                            outline=WALL_COLOR, width=1, tags=('wall_outline',))
+        if self.bath_plan:
+            x = bed_ox + bed_gw * scale
+            cv.create_rectangle(x - int_wall/2, bed_oy, x + int_wall/2, bed_oy + max_h_px,
+                                outline=WALL_FILL, width=int_wall, tags=('wall',))
+            cv.create_rectangle(x - int_wall/2, bed_oy, x + int_wall/2, bed_oy + max_h_px,
+                                outline=WALL_COLOR, width=1, tags=('wall_outline',))
+
+        self._draw_room_openings(cv, self.bed_openings, bed_ox, bed_oy, scale, open_width)
+        if self.bath_plan:
+            self._draw_room_openings(cv, self.bath_openings, bath_ox, bath_oy, scale, open_width)
+
+        cv.tag_lower('wall_outline')
+        cv.tag_lower('wall')
+        cv.tag_lower('grid')
 
         def draw_path(poly, color):
             if len(poly) >= 2:
