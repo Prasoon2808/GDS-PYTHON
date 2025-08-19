@@ -2117,6 +2117,8 @@ class GenerateView:
                 ('CLEAR','Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
+
+        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
@@ -3171,8 +3173,10 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
+        ]
 
         # 2) Room input dialogs (bedroom then bathroom)
+
 
         label = 'Sketch' if mode == 'sketch' else 'Generate'
         try:
@@ -3218,11 +3222,21 @@ class App:
         return Wm, Hm, (None if bed_key == 'Auto' else bed_key)
 
     def _open_workspace(self, mode: str, bed_dims: Tuple[float,float,Optional[str]], bath_dims: Tuple[float,float,Optional[str]]):
-        # clear landing
+      
+        # clear landing and any previous workspaces so only one view remains
+        for child in self.root.winfo_children():
+            if child is not self.landing:
+                try:
+                    child.destroy()
+                except Exception:
+                    pass
+
         self.landing.pack_forget()
         for w in list(self.landing.children.values()):
-            try: w.destroy()
-            except: pass
+            try:
+                w.destroy()
+            except Exception:
+                pass
         if mode == 'sketch':
             Wm, Hm, _ = bed_dims
             SketchGrid(self.root, int(round((Wm*Hm)/(CELL_M*CELL_M))), 'm', on_back=self._back_to_landing)
@@ -3230,6 +3244,7 @@ class App:
             Wb, Hb, bed_key = bed_dims
             Wc, Hc, _ = bath_dims
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Plan', bath_dims=(Wc, Hc), pack_side=tk.LEFT, on_back=self._back_to_landing)
+
 
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Bedroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
             GenerateView(self.root, Wc, Hc, None, room_label='Bathroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
