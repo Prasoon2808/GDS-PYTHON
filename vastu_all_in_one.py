@@ -2106,6 +2106,7 @@ class GenerateView:
         sw.create_rectangle(1,1,17,17, fill=color, outline='')
         ttk.Label(r, text=label).pack(side=tk.LEFT, padx=8)
 
+# ...existing code...
     def _build_sidebar(self):
         ttk.Label(self.sidebar, text='Legend', font=('SF Pro Text', 13, 'bold')).pack(anchor='w')
         if self.bath_dims:
@@ -2116,16 +2117,14 @@ class GenerateView:
                 ('CLEAR','Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
-
-        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
                      ('DRS','Dresser'),('DESK','Desk'),('TVU','TV Unit'),
                      ('CLEAR','Clearances (merged)')]
-        for k,label in items:
+        for k, label in items:
             self._legend_row(label, PALETTE[k] if k in PALETTE else '#888')
-        ttk.Separator(self.sidebar).pack(fill=tk.X, pady=6)
+# ...existing code...        ttk.Separator(self.sidebar).pack(fill=tk.X, pady=6)
 
         ttk.Label(self.sidebar, text='Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
