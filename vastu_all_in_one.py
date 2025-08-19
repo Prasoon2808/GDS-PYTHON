@@ -2035,14 +2035,22 @@ def add_door_clearance(p: GridPlan, op: Openings, owner: str):
 # Bathroom arranger (very light – placeholder)
 # -----------------------
 
-def arrange_bathroom(Wm: float, Hm: float, rules: Dict, rng: Optional[random.Random] = None) -> GridPlan:
+def arrange_bathroom(
+    Wm: float,
+    Hm: float,
+    rules: Dict,
+    openings: Optional[Openings] = None,
+    rng: Optional[random.Random] = None,
+) -> GridPlan:
     """Generate a bathroom layout honouring clearance rules.
 
     The function is intentionally lightweight – its goal is simply to place the
     four common fixtures (tub, shower, water closet and lavatory) while
     respecting the minimum clearances encoded in ``rules``.  It is **not** an
     optimiser; if the room is too small to satisfy the hard minimums a partially
-    filled plan may be returned.
+    filled plan may be returned.  ``openings`` describes door and window
+    positions that the caller may wish to honour (currently unused but accepted
+    for API compatibility).
     """
 
     def _intersects_clear(p: GridPlan, x: int, y: int, w: int, h: int) -> bool:
@@ -2563,7 +2571,9 @@ class GenerateView:
         self.bed_plan = bed_plan
         if self.bath_dims and bath_ok:
             self.bath_plan = arrange_bathroom(
+
                 self.bath_dims[0], self.bath_dims[1], BATH_RULES
+
             )
             add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
             bath_sticky = getattr(self, '_sticky_bath_items', [])
@@ -3232,7 +3242,12 @@ class GenerateView:
         self.plan = best
         self.bed_plan = best
         if self.bath_dims:
-            self.bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+            self.bath_plan = arrange_bathroom(
+                self.bath_dims[0],
+                self.bath_dims[1],
+                BATH_RULES,
+                self.bath_openings,
+            )
         meta = {
             'coverage': getattr(best, 'coverage', lambda: 0.0)(),
             'paths_ok': True,

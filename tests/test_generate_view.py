@@ -67,7 +67,7 @@ def test_bedroom_door_on_shared_wall_sets_status(monkeypatch):
         def run(self):
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -97,7 +97,7 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
         def run(self):
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -128,7 +128,7 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         plan = GridPlan(w, h)
         plan.place(0, 0, 1, 1, 'WC')
         return plan
@@ -187,7 +187,7 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
     seen = {}
-    def dummy_arrange_bathroom(w, h, rules, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         seen['rng'] = rng
         return GridPlan(w, h)
 
@@ -210,7 +210,7 @@ def test_locked_bath_item_reapplied_after_generate(monkeypatch):
         def run(self):
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
