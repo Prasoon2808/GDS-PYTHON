@@ -1,0 +1,1 @@
+{"bst_pair": 3.0, "has_wr": 0.9, "has_dr": 0.7, "privacy": 0.7, "symmetry": 0.5, "paths_ok": 1.2, "use_rec_clear": 0.5, "bed_not_bottom": 0.2, "coverage": 1.0, "reach_windows": 1.0, "door_align": 0.6, "longedge_wall": 0.4, "near_window_desk": 0.3, "adjacency": 0.725, "short_time": 0.0, "sim_len": -30.0}
