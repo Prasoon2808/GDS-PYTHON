@@ -3260,7 +3260,7 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
-        ]
+        
 
         # 2) Room input dialog capturing both rooms
         label = 'Sketch' if mode == 'sketch' else 'Generate'
