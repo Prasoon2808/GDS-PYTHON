@@ -30,8 +30,10 @@ def test_shared_wall_door_alignment_passes():
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_RIGHT
     gv.bath_openings.door_wall = WALL_LEFT
-    gv.bed_openings.door_center = gv.bath_openings.door_center = 1.0
-    gv.bed_openings.door_width = gv.bath_openings.door_width = 0.9
+    gv.bed_openings.door_center = 1.0
+    gv.bath_openings.door_center = 1.25  # 1 cell offset
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_width = 1.15  # width differs by 1 cell
 
     assert gv._validate_shared_wall_door() is True
     assert gv.status.msg == ''
@@ -42,8 +44,8 @@ def test_shared_wall_door_alignment_passes():
     [
         (
             (2.0, 2.0),
-            1.25,
-            'Door must align on shared wall between bedroom and bathroom.',
+            1.5,
+            'Doors on shared wall must overlap (±1 cell tolerance).',
         ),
         (
             None,
