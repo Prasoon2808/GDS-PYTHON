@@ -2089,6 +2089,28 @@ PALETTE.setdefault('SHR', '#a3d5ff')
 PALETTE.setdefault('TUB', '#fff3b0')
 PALETTE.setdefault('LAV', '#c5e1a5')
 
+ITEM_LABELS = {
+    'BED': 'Bed',
+    'BST': 'Night Table',
+    'WRD': 'Wardrobe',
+    'DRS': 'Dresser',
+    'DESK': 'Desk',
+    'TVU': 'TV Unit',
+    'WC': 'Toilet',
+    'SHR': 'Shower',
+    'TUB': 'Tub',
+    'LAV': 'Lavatory',
+    'CLEAR': 'Clearance',
+    'SOFA': 'Sofa',
+    'CTAB': 'Coffee Table',
+    'STAB': 'Side Table',
+    'RUG': 'Rug',
+    'DTAB': 'Dining Table',
+    'DCHAIR': 'Dining Chair',
+    'DSIDE': 'Sideboard',
+    'CHEST': 'Chest'
+}
+
 
 WALL_COLOR='#f7a8a8'
 WIN_COLOR='#95c8ff'
@@ -2123,6 +2145,7 @@ class GenerateView:
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
         self.canvas=tk.Canvas(self.container, bg='#111', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Tooltip elements are managed via the 'tooltip' tag
         self.sidebar=ttk.Frame(self.container, width=360, padding=10)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y)
         self._build_sidebar()
@@ -2186,34 +2209,10 @@ class GenerateView:
         self._solve_and_draw()
     # ----------------- sidebar
 
-    def _legend_row(self, label, color):
-        r = ttk.Frame(self.sidebar)
-        r.pack(fill=tk.X, pady=1)
-        sw = tk.Canvas(r, width=18, height=18, highlightthickness=0)
-        sw.pack(side=tk.LEFT)
-        sw.create_rectangle(1, 1, 17, 17, fill=color, outline='')
-        ttk.Label(r, text=label).pack(side=tk.LEFT, padx=8)
-
     def _build_sidebar(self):
-        ttk.Label(self.sidebar, text='Legend', font=('SF Pro Text', 13, 'bold')).pack(anchor='w')
-        if self.bath_dims:
-            items = [
-                ('BED', 'Bed'), ('BST', 'Night Table'), ('WRD', 'Wardrobe'),
-                ('DRS', 'Dresser'), ('DESK', 'Desk'), ('TVU', 'TV Unit'),
-                ('WC', 'Toilet'), ('SHR', 'Shower'), ('TUB', 'Tub'),
-                ('LAV', 'Lavatory'), ('CLEAR', 'Clearances (merged)')
-            ]
-        elif self.room_label.lower() == 'bathroom':
-            items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
-        else:
-            items = [
-                ('BED', 'Bed'), ('BST', 'Night Table'), ('WRD', 'Wardrobe'),
-                ('DRS', 'Dresser'), ('DESK', 'Desk'), ('TVU', 'TV Unit'),
-                ('CLEAR', 'Clearances (merged)')
-            ]
-        for k, label in items:
-            self._legend_row(label, PALETTE[k] if k in PALETTE else '#888')
-        ttk.Separator(self.sidebar).pack(fill=tk.X, pady=6)
+        # Clear any existing widgets so sidebar can be rebuilt cleanly
+        for child in self.sidebar.winfo_children():
+            child.destroy()
 
         ttk.Label(self.sidebar, text='Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
@@ -2417,13 +2416,21 @@ class GenerateView:
             self._draw_opening_segment(cv, wall, start, length, WIN_COLOR, thick)
 
         # fills
+        bound = set()
         for j in range(gh):
             for i in range(gw):
                 code=self.plan.occ[j][i]
-                if not code or code=='DOOR': continue
-                color=PALETTE.get(code.split(':')[0],'#888')
-                x0,y0,x1,y1=cell_rect(i,j)
-                cv.create_rectangle(x0,y0,x1,y1, outline='', fill=color)
+                if not code or code=='DOOR':
+                    continue
+                base = code.split(':')[0]
+                tag = base.split('_')[0]
+                color = PALETTE.get(tag, '#888')
+                x0,y0,x1,y1 = cell_rect(i,j)
+                cv.create_rectangle(x0,y0,x1,y1, outline='', fill=color, tags=(tag,))
+                if tag not in bound:
+                    cv.tag_bind(tag, '<Enter>', lambda e, c=tag: self._show_tooltip(e, c))
+                    cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
+                    bound.add(tag)
 
         # merged clearances (zero-gap outlines)
         for (x,y,w,h,kind,owner) in self.plan.clearzones:
@@ -2446,6 +2453,28 @@ class GenerateView:
         if self.sim2_path:
             i,j=self.sim2_path[min(self.sim2_index, len(self.sim2_path)-1)]
             self._draw_human_block(i,j, HUMAN2_COLOR, which=2)
+
+    def _show_tooltip(self, event, code):
+        base = code.split('_')[0]
+        label = ITEM_LABELS.get(base, code)
+        color = PALETTE.get(base, '#fff')
+        self._hide_tooltip()
+        x = event.x + 12
+        y = event.y + 12
+        text_id = self.canvas.create_text(x + 16, y, text=label, fill='black',
+                                          anchor='nw', tags=('tooltip',))
+        bbox = self.canvas.bbox(text_id)
+        rect_id = self.canvas.create_rectangle(
+            x, y - 4, bbox[2] + 4, max(bbox[3], y + 14) + 4,
+            fill='white', outline='black', tags=('tooltip',))
+        self.canvas.tag_raise(text_id, rect_id)
+        color_id = self.canvas.create_rectangle(
+            x + 2, y + 2, x + 14, y + 14,
+            fill=color, outline='black', tags=('tooltip',))
+        self.canvas.tag_raise(color_id, rect_id)
+
+    def _hide_tooltip(self, event=None):
+        self.canvas.delete('tooltip')
 
     def _draw_opening_segment(self, cv, wall, start, length, color, thick):
         if wall<0 or length<=0: return
@@ -3260,7 +3289,6 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
-        ]
 
         # 2) Room input dialog capturing both rooms
         label = 'Sketch' if mode == 'sketch' else 'Generate'
