@@ -2126,16 +2126,19 @@ class GenerateView:
         self.bath_dims=bath_dims
         if bath_dims:
             bw,bh=bath_dims
+            self.bath_Wm=bw; self.bath_Hm=bh
             self.Wm=Wm+bw; self.Hm=max(Hm,bh)
         else:
+            self.bath_Wm=self.bath_Hm=0.0
             self.Wm=Wm; self.Hm=Hm
 
         self.plan=GridPlan(self.Wm,self.Hm)
 
-        self.openings=Openings(self.plan)
         self.bed_openings=Openings(GridPlan(self.bed_Wm,self.bed_Hm))
+        self.openings=self.bed_openings  # maintain compatibility for bedroom ops
         self.bed_plan = GridPlan(self.bed_Wm,self.bed_Hm)
         self.bath_plan = None
+        self.bath_openings = Openings(GridPlan(self.bath_Wm,self.bath_Hm)) if bath_dims else None
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -2216,37 +2219,73 @@ class GenerateView:
         for child in self.sidebar.winfo_children():
             child.destroy()
 
-        ttk.Label(self.sidebar, text='Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
+        # --- Bedroom controls ---
+        ttk.Label(self.sidebar, text='Bedroom Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
-        self.door_wall=tk.StringVar(value='Left')
+        self.bed_door_wall=tk.StringVar(value='Left')
         ttk.Label(f, text='Door wall').grid(row=0,column=0,sticky='w')
-        ttk.Combobox(f, textvariable=self.door_wall, values=['Bottom','Right','Top','Left'], state='readonly', width=8).grid(row=1,column=0)
-        self.door_w=tk.DoubleVar(value=0.9); self.door_c=tk.DoubleVar(value=self.bed_Hm*0.25)
+        ttk.Combobox(f, textvariable=self.bed_door_wall, values=['Bottom','Right','Top','Left'], state='readonly', width=8).grid(row=1,column=0)
+        self.bed_door_w=tk.DoubleVar(value=0.9); self.bed_door_c=tk.DoubleVar(value=self.bed_Hm*0.25)
         ttk.Label(f, text='Door width').grid(row=0,column=1,sticky='w')
-        ttk.Scale(f, variable=self.door_w, from_=0.7, to=1.2, orient='horizontal').grid(row=1,column=1,sticky='we', padx=4)
+        ttk.Scale(f, variable=self.bed_door_w, from_=0.7, to=1.2, orient='horizontal').grid(row=1,column=1,sticky='we', padx=4)
         ttk.Label(f, text='Door center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(f, variable=self.door_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we', padx=4)
+        ttk.Scale(f, variable=self.bed_door_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we', padx=4)
         for i in range(3): f.grid_columnconfigure(i, weight=1)
 
         wbox=ttk.Frame(self.sidebar); wbox.pack(fill=tk.X, pady=(6,2))
         ttk.Label(wbox, text='Window 1').grid(row=0,column=0,sticky='w')
-        self.w1_wall=tk.StringVar(value='Right'); self.w1_len=tk.DoubleVar(value=1.2); self.w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
-        ttk.Combobox(wbox, textvariable=self.w1_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0,sticky='w')
+        self.bed_w1_wall=tk.StringVar(value='Right'); self.bed_w1_len=tk.DoubleVar(value=1.2); self.bed_w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
+        ttk.Combobox(wbox, textvariable=self.bed_w1_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0,sticky='w')
         ttk.Label(wbox, text='Width').grid(row=0,column=1,sticky='w')
-        ttk.Scale(wbox, variable=self.w1_len, from_=0.8, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
+        ttk.Scale(wbox, variable=self.bed_w1_len, from_=0.8, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
         ttk.Label(wbox, text='Center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(wbox, variable=self.w1_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
+        ttk.Scale(wbox, variable=self.bed_w1_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
         for i in range(3): wbox.grid_columnconfigure(i, weight=1)
 
         wbox2=ttk.Frame(self.sidebar); wbox2.pack(fill=tk.X, pady=(4,6))
         ttk.Label(wbox2, text='Window 2').grid(row=0,column=0,sticky='w')
-        self.w2_wall=tk.StringVar(value='None'); self.w2_len=tk.DoubleVar(value=0.0); self.w2_c=tk.DoubleVar(value=0.0)
-        ttk.Combobox(wbox2, textvariable=self.w2_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0)
+        self.bed_w2_wall=tk.StringVar(value='None'); self.bed_w2_len=tk.DoubleVar(value=0.0); self.bed_w2_c=tk.DoubleVar(value=0.0)
+        ttk.Combobox(wbox2, textvariable=self.bed_w2_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0)
         ttk.Label(wbox2, text='Width').grid(row=0,column=1,sticky='w')
-        ttk.Scale(wbox2, variable=self.w2_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
+        ttk.Scale(wbox2, variable=self.bed_w2_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
         ttk.Label(wbox2, text='Center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(wbox2, variable=self.w2_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
+        ttk.Scale(wbox2, variable=self.bed_w2_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
         for i in range(3): wbox2.grid_columnconfigure(i, weight=1)
+
+        # --- Bathroom controls ---
+        if self.bath_dims:
+            ttk.Label(self.sidebar, text='Bathroom Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(8,2))
+            bw, bh = self.bath_dims
+            bf = ttk.Frame(self.sidebar); bf.pack(fill=tk.X)
+            self.bath_door_wall = tk.StringVar(value='Left')
+            ttk.Label(bf, text='Door wall').grid(row=0, column=0, sticky='w')
+            ttk.Combobox(bf, textvariable=self.bath_door_wall, values=['Bottom','Right','Top','Left'], state='readonly', width=8).grid(row=1, column=0)
+            self.bath_door_w = tk.DoubleVar(value=0.7); self.bath_door_c = tk.DoubleVar(value=bh*0.25)
+            ttk.Label(bf, text='Door width').grid(row=0, column=1, sticky='w')
+            ttk.Scale(bf, variable=self.bath_door_w, from_=0.7, to=1.2, orient='horizontal').grid(row=1, column=1, sticky='we', padx=4)
+            ttk.Label(bf, text='Door center (m)').grid(row=0, column=2, sticky='w')
+            ttk.Scale(bf, variable=self.bath_door_c, from_=0.0, to=max(bw,bh), orient='horizontal').grid(row=1, column=2, sticky='we', padx=4)
+            for i in range(3): bf.grid_columnconfigure(i, weight=1)
+
+            bw1 = ttk.Frame(self.sidebar); bw1.pack(fill=tk.X, pady=(6,2))
+            ttk.Label(bw1, text='Window 1').grid(row=0, column=0, sticky='w')
+            self.bath_w1_wall = tk.StringVar(value='None'); self.bath_w1_len = tk.DoubleVar(value=0.0); self.bath_w1_c = tk.DoubleVar(value=0.0)
+            ttk.Combobox(bw1, textvariable=self.bath_w1_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1, column=0, sticky='w')
+            ttk.Label(bw1, text='Width').grid(row=0, column=1, sticky='w')
+            ttk.Scale(bw1, variable=self.bath_w1_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1, column=1, sticky='we', padx=4)
+            ttk.Label(bw1, text='Center (m)').grid(row=0, column=2, sticky='w')
+            ttk.Scale(bw1, variable=self.bath_w1_c, from_=0.0, to=max(bw,bh), orient='horizontal').grid(row=1, column=2, sticky='we', padx=4)
+            for i in range(3): bw1.grid_columnconfigure(i, weight=1)
+
+            bw2 = ttk.Frame(self.sidebar); bw2.pack(fill=tk.X, pady=(4,6))
+            ttk.Label(bw2, text='Window 2').grid(row=0, column=0, sticky='w')
+            self.bath_w2_wall = tk.StringVar(value='None'); self.bath_w2_len = tk.DoubleVar(value=0.0); self.bath_w2_c = tk.DoubleVar(value=0.0)
+            ttk.Combobox(bw2, textvariable=self.bath_w2_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1, column=0)
+            ttk.Label(bw2, text='Width').grid(row=0, column=1, sticky='w')
+            ttk.Scale(bw2, variable=self.bath_w2_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1, column=1, sticky='we', padx=4)
+            ttk.Label(bw2, text='Center (m)').grid(row=0, column=2, sticky='w')
+            ttk.Scale(bw2, variable=self.bath_w2_c, from_=0.0, to=max(bw,bh), orient='horizontal').grid(row=1, column=2, sticky='we', padx=4)
+            for i in range(3): bw2.grid_columnconfigure(i, weight=1)
 
         ttk.Button(self.sidebar, text='↻ Generate', style='Primary.TButton', command=self._apply_batch_and_generate).pack(fill=tk.X)
 
@@ -2274,8 +2313,19 @@ class GenerateView:
         ttk.Button(self.sidebar, text='Export PNG', command=self._export_png).pack(fill=tk.X, pady=(6,0))
         self.status=tk.StringVar(value=''); ttk.Label(self.sidebar, textvariable=self.status, wraplength=320).pack(anchor='w', pady=(6,0))
 
-        for v in (self.door_wall,self.door_w,self.door_c,self.w1_wall,self.w1_len,self.w1_c,self.w2_wall,self.w2_len,self.w2_c):
-            if hasattr(v,'trace_add'):
+        vars_to_trace = [
+            self.bed_door_wall, self.bed_door_w, self.bed_door_c,
+            self.bed_w1_wall, self.bed_w1_len, self.bed_w1_c,
+            self.bed_w2_wall, self.bed_w2_len, self.bed_w2_c,
+        ]
+        if self.bath_dims:
+            vars_to_trace.extend([
+                self.bath_door_wall, self.bath_door_w, self.bath_door_c,
+                self.bath_w1_wall, self.bath_w1_len, self.bath_w1_c,
+                self.bath_w2_wall, self.bath_w2_len, self.bath_w2_c,
+            ])
+        for v in vars_to_trace:
+            if hasattr(v, 'trace_add'):
                 v.trace_add('write', lambda *args: self._solve_and_draw())
 
         if self.force_bst_pair is not None and hasattr(self.force_bst_pair, 'trace_add'):
@@ -2291,20 +2341,32 @@ class GenerateView:
 
     def _apply_openings_from_ui(self):
         wall_map={'Bottom':0,'Right':1,'Top':2,'Left':3}
-        self.openings.door_wall=wall_map.get(self.door_wall.get(),3)
-        self.openings.door_width=float(self.door_w.get())
-        self.openings.door_center=float(self.door_c.get())
-        self.bed_openings.door_wall=self.openings.door_wall
-        self.bed_openings.door_width=self.openings.door_width
-        self.bed_openings.door_center=self.openings.door_center
+
+        # Bedroom
+        self.bed_openings.door_wall=wall_map.get(self.bed_door_wall.get(),3)
+        self.bed_openings.door_width=float(self.bed_door_w.get())
+        self.bed_openings.door_center=float(self.bed_door_c.get())
+
         def parse(wall_s, len_v, cen_v):
             if wall_s=='None' or (len_v<=0.0): return [-1,0.0,0.0]
             wall=wall_map[wall_s]; length=float(len_v); center=float(cen_v)
             start=max(0.0, center - 0.5*length)
             return [wall, start, length]
-        self.openings.windows=[parse(self.w1_wall.get(), self.w1_len.get(), self.w1_c.get()),
-                               parse(self.w2_wall.get(), self.w2_len.get(), self.w2_c.get())]
-        self.bed_openings.windows=list(self.openings.windows)
+
+        self.bed_openings.windows=[
+            parse(self.bed_w1_wall.get(), self.bed_w1_len.get(), self.bed_w1_c.get()),
+            parse(self.bed_w2_wall.get(), self.bed_w2_len.get(), self.bed_w2_c.get())
+        ]
+
+        # Bathroom
+        if self.bath_dims and self.bath_openings:
+            self.bath_openings.door_wall=wall_map.get(self.bath_door_wall.get(),3)
+            self.bath_openings.door_width=float(self.bath_door_w.get())
+            self.bath_openings.door_center=float(self.bath_door_c.get())
+            self.bath_openings.windows=[
+                parse(self.bath_w1_wall.get(), self.bath_w1_len.get(), self.bath_w1_c.get()),
+                parse(self.bath_w2_wall.get(), self.bath_w2_len.get(), self.bath_w2_c.get())
+            ]
 
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
@@ -2410,12 +2472,10 @@ class GenerateView:
         if self.bath_dims:
             x = self.ox + self.bed_plan.gw * scale
             cv.create_line(x, self.oy, x, self.oy+gh*scale, fill=WALL_COLOR, width=thick)
-        # door gap (bold)
-        dwall,dstart,dwidth=self.openings.door_span_cells()
-        self._draw_opening_segment(cv, dwall, dstart, dwidth, PALETTE['DOOR'], thick)
-        # windows (bold)
-        for wall,start,length in self.openings.window_spans_cells():
-            self._draw_opening_segment(cv, wall, start, length, WIN_COLOR, thick)
+        # openings for each room
+        self._draw_room_openings(cv, self.bed_openings, 0, thick)
+        if self.bath_dims and self.bath_openings:
+            self._draw_room_openings(cv, self.bath_openings, self.bed_plan.gw, thick)
 
         # fills
         bound = set()
@@ -2479,6 +2539,32 @@ class GenerateView:
     def _hide_tooltip(self, event=None):
         self.canvas.delete('tooltip')
 
+
+    def _draw_room_openings(self, cv, openings, xoff, thick):
+        if openings is None:
+            return
+        ox = self.ox + xoff * self.scale
+        oy = self.oy
+        gw, gh = openings.p.gw, openings.p.gh
+        def seg(wall, start, length, color):
+            if wall < 0 or length <= 0:
+                return
+            w = gw * self.scale
+            h = gh * self.scale
+            s = start * self.scale
+            L = length * self.scale
+            if wall == 0:
+                cv.create_line(ox + s, oy + h, ox + s + L, oy + h, fill=color, width=thick)
+            elif wall == 2:
+                cv.create_line(ox + s, oy, ox + s + L, oy, fill=color, width=thick)
+            elif wall == 3:
+                cv.create_line(ox, oy + h - (s + L), ox, oy + h - s, fill=color, width=thick)
+            else:
+                cv.create_line(ox + w, oy + h - (s + L), ox + w, oy + h - s, fill=color, width=thick)
+        dwall, dstart, dwidth = openings.door_span_cells()
+        seg(dwall, dstart, dwidth, PALETTE['DOOR'])
+        for wall, start, length in openings.window_spans_cells():
+            seg(wall, start, length, WIN_COLOR)
 
     def _draw_opening_segment(self, cv, wall, start, length, color, thick):
         if wall<0 or length<=0: return
