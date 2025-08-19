@@ -2295,7 +2295,7 @@ class GenerateView:
 
         ttk.Button(self.sidebar, text='↻ Generate', style='Primary.TButton', command=self._apply_batch_and_generate).pack(fill=tk.X)
 
-        if self.room_label.lower() == 'bedroom':
+        if 'bedroom' in self.room_label.lower():
             ttk.Label(self.sidebar, text='Furniture', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(8,2))
             fb=ttk.Frame(self.sidebar); fb.pack(fill=tk.X, pady=(0,2))
             self.furn_kind=tk.StringVar(value='TVU'); self.auto_place=tk.BooleanVar(value=True)

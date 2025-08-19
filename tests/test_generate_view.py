@@ -66,3 +66,54 @@ def test_misaligned_or_nonshared_door_sets_status(bath_dims, bath_center, expect
     result = gv._validate_shared_wall_door()
     assert result is False
     assert gv.status.msg == expected_msg
+
+
+def test_furniture_controls_present_for_generator_label(monkeypatch):
+    import types
+    import tkinter as tk
+    import vastu_all_in_one
+
+    master = tk.Tcl()
+    tk._default_root = master
+
+    class FakeWidget:
+        def __init__(self, master=None, **kwargs):
+            self.children = []
+            if master is not None and hasattr(master, 'children'):
+                master.children.append(self)
+        def pack(self, *args, **kwargs):
+            return self
+        def grid(self, *args, **kwargs):
+            return self
+        def destroy(self):
+            pass
+        def winfo_children(self):
+            return self.children
+        def grid_columnconfigure(self, *args, **kwargs):
+            pass
+
+    fake_ttk = types.SimpleNamespace(
+        Frame=FakeWidget,
+        Label=FakeWidget,
+        Combobox=FakeWidget,
+        Scale=FakeWidget,
+        Button=FakeWidget,
+        Checkbutton=FakeWidget,
+    )
+    monkeypatch.setattr(vastu_all_in_one, 'ttk', fake_ttk)
+
+    gv = GenerateView.__new__(GenerateView)
+    gv.room_label = 'Bedroom (Generator)'
+    gv.sidebar = FakeWidget()
+    gv.bed_Hm = 4.0
+    gv.bed_Wm = 4.0
+    gv.bath_dims = None
+
+    for name in [
+        '_solve_and_draw', '_apply_batch_and_generate', '_add_furniture',
+        '_remove_furniture', '_simulate_one', '_simulate_two',
+        'simulate_circulation', '_export_png']:
+        setattr(gv, name, lambda *a, **kw: None)
+
+    GenerateView._build_sidebar(gv)
+    assert hasattr(gv, 'furn_kind'), 'Furniture controls missing'
