@@ -2449,11 +2449,11 @@ class GenerateView:
                 if not (
                     b_wall == WALL_RIGHT
                     and bath_wall == WALL_LEFT
-                    and b_start == bath_start
-                    and b_width == bath_width
+                    and abs(b_start - bath_start) <= 1
+                    and abs(b_width - bath_width) <= 1
                 ):
                     self.status.set(
-                        'Door must align on shared wall between bedroom and bathroom.'
+                        'Doors on shared wall must overlap (±1 cell tolerance).'
                     )
                     return False
         else:
