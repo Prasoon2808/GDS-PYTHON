@@ -67,7 +67,7 @@ def test_bedroom_door_on_shared_wall_sets_status(monkeypatch):
         def run(self):
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules):
+    def dummy_arrange_bathroom(w, h, rules, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -97,7 +97,7 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
         def run(self):
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules):
+    def dummy_arrange_bathroom(w, h, rules, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -128,7 +128,7 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules):
+    def dummy_arrange_bathroom(w, h, rules, rng=None):
         plan = GridPlan(w, h)
         plan.place(0, 0, 1, 1, 'WC')
         return plan
@@ -175,6 +175,71 @@ def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
 
     assert components_by_code(gv.bed_plan, 'BED'), 'Bedroom furniture missing after regenerate'
     assert components_by_code(gv.bath_plan, 'WC'), 'Bathroom furniture missing after regenerate'
+
+
+def test_apply_batch_and_generate_uses_rng_and_updates_status(monkeypatch):
+    import random
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
+
+    seen = {}
+    def dummy_arrange_bathroom(w, h, rules, rng=None):
+        seen['rng'] = rng
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv._apply_batch_and_generate()
+
+    assert isinstance(seen.get('rng'), random.Random), 'arrange_bathroom missing RNG'
+    assert gv.status.msg == 'Bedroom and bathroom regenerated.'
+
+
+def test_locked_bath_item_reapplied_after_generate(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+
+    bed = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    bath = GridPlan(gv.bath_dims[0], gv.bath_dims[1])
+    bath.place(0, 0, 1, 1, 'WC')
+
+    combined = GridPlan(bed.gw + bath.gw, max(bed.gh, bath.gh))
+    for j in range(bed.gh):
+        for i in range(bed.gw):
+            combined.occ[j][i] = bed.occ[j][i]
+    for j in range(bath.gh):
+        for i in range(bath.gw):
+            combined.occ[j][i + bed.gw] = bath.occ[j][i]
+
+    gv.plan = combined
+    gv.bed_plan = bed
+    gv.bath_plan = bath
+    gv.selected = {'rect': [bed.gw, 0, 1, 1], 'code': 'WC'}
+    gv.selected_locked = True
+
+    gv._apply_batch_and_generate()
+
+    assert components_by_code(gv.bath_plan, 'WC'), 'Locked bathroom item missing after regenerate'
 
 
 def test_furniture_controls_present_for_generator_label(monkeypatch):
