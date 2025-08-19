@@ -177,8 +177,7 @@ def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
     assert components_by_code(gv.bath_plan, 'WC'), 'Bathroom furniture missing after regenerate'
 
 
-def test_apply_batch_and_generate_uses_rng_and_updates_status(monkeypatch):
-    import random
+def test_apply_batch_and_generate_updates_status(monkeypatch):
     import vastu_all_in_one
 
     class DummyBedroomSolver:
@@ -198,7 +197,7 @@ def test_apply_batch_and_generate_uses_rng_and_updates_status(monkeypatch):
     gv = make_generate_view((2.0, 2.0))
     gv._apply_batch_and_generate()
 
-    assert isinstance(seen.get('rng'), random.Random), 'arrange_bathroom missing RNG'
+    assert seen.get('rng') is None, 'arrange_bathroom should be deterministic'
     assert gv.status.msg == 'Bedroom and bathroom regenerated.'
 
 
