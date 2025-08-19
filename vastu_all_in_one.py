@@ -2163,9 +2163,11 @@ ITEM_LABELS = {
 
 WALL_COLOR='#000000'
 WIN_COLOR='#000000'
+
 WALL_FILL='#ff0000'
 DOOR_FILL='#8b4513'
 WIN_FILL='#95c8ff'
+
 HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
 
@@ -2197,7 +2199,7 @@ class GenerateView:
         tb=ttk.Frame(self.container); tb.pack(fill=tk.X)
         ttk.Button(tb, text='← Back', command=self._go_back).pack(side=tk.LEFT, padx=6, pady=4)
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
-        self.canvas=tk.Canvas(self.container, bg='#111', highlightthickness=0, cursor='hand2')
+        self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Tooltip elements are managed via the 'tooltip' tag
@@ -2583,10 +2585,10 @@ class GenerateView:
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
-                cv.create_line(x, oy, x, oy + gh * scale, fill='#2c2c2c')
+                cv.create_line(x, oy, x, oy + gh * scale, fill='#dddddd', tags=('grid',))
             for j in range(gh + 1):
                 y = oy + j * scale
-                cv.create_line(ox, y, ox + gw * scale, y, fill='#2c2c2c')
+                cv.create_line(ox, y, ox + gw * scale, y, fill='#dddddd', tags=('grid',))
             bound = set()
             for j in range(gh):
                 for i in range(gw):
@@ -2613,12 +2615,16 @@ class GenerateView:
                                     outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
             cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
+
                                 outline=WALL_COLOR, fill=WALL_FILL, width=wall_width)
             self._draw_room_openings(cv, openings, ox, oy, scale,
                                      wall_width, open_width)
+
         draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
+
+        cv.tag_lower('grid')
 
         def draw_path(poly, color):
             if len(poly) >= 2:
@@ -2661,8 +2667,10 @@ class GenerateView:
         self.canvas.delete('tooltip')
 
 
+
     def _draw_room_openings(self, cv, openings, ox, oy, scale,
                             wall_width, open_width):
+
         if openings is None:
             return
         gw, gh = openings.p.gw, openings.p.gh
@@ -2676,6 +2684,7 @@ class GenerateView:
             L = length * scale
             half = wall_width / 2
             if wall == 0:
+
                 x0 = ox + s
                 x1 = ox + s + L
                 y0 = oy + h - half
@@ -2701,6 +2710,7 @@ class GenerateView:
 
         dwall, dstart, dwidth = openings.door_span_cells()
         seg(dwall, dstart, dwidth, DOOR_FILL)
+
         for wall, start, length in openings.window_spans_cells():
             seg(wall, start, length, WIN_FILL)
 
