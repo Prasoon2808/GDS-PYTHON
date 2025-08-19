@@ -1047,6 +1047,93 @@ class AreaDialog(tk.Toplevel):
         self.destroy()
     def _cancel(self): self.result=None; self.destroy()
 
+class AreaDialogCombined(tk.Toplevel):
+    """Dialog for capturing bedroom and bathroom dimensions at once."""
+    UNITS = AreaDialog.UNITS
+    def __init__(self, parent: tk.Misc, mode_label: str):
+        super().__init__(parent)
+        self.title('Room Inputs')
+        self.transient(parent); self.grab_set(); self.resizable(False, False)
+        self.result=None
+        w,h=640,600; self._center(parent,w,h)
+        f=ttk.Frame(self, padding=24); f.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(f, text=f'{mode_label}: set room inputs', font=('SF Pro Text', 14, 'bold')).pack(anchor='w')
+
+        ttk.Label(f, text='Bedroom', font=('SF Pro Text', 12, 'bold')).pack(anchor='w', pady=(10,0))
+        bed_body=ttk.Frame(f); bed_body.pack(fill=tk.X, pady=(5,0))
+        self.bed_method=tk.StringVar(value='area')
+        ttk.Radiobutton(bed_body, text='Area', variable=self.bed_method, value='area').grid(row=0, column=0, sticky='w')
+        ttk.Radiobutton(bed_body, text='W × H', variable=self.bed_method, value='dims').grid(row=0, column=1, sticky='w', padx=10)
+        ttk.Label(bed_body, text='Area').grid(row=1, column=0, sticky='w')
+        self.bed_area=tk.StringVar(value='12'); ttk.Entry(bed_body, textvariable=self.bed_area, width=10).grid(row=2, column=0, sticky='we')
+        ttk.Label(bed_body, text='Units').grid(row=1, column=1, sticky='w')
+        self.bed_area_units=tk.StringVar(value='m²'); ttk.Combobox(bed_body, textvariable=self.bed_area_units, values=self.UNITS, state='readonly', width=10).grid(row=2, column=1)
+        ttk.Label(bed_body, text='W (for W×H)').grid(row=1, column=2, sticky='w')
+        self.bed_W=tk.StringVar(value='4.2'); ttk.Entry(bed_body, textvariable=self.bed_W, width=10).grid(row=2, column=2)
+        ttk.Label(bed_body, text='H (for W×H)').grid(row=1, column=3, sticky='w')
+        self.bed_H=tk.StringVar(value='3.0'); ttk.Entry(bed_body, textvariable=self.bed_H, width=10).grid(row=2, column=3)
+        ttk.Label(bed_body, text='Len units').grid(row=1, column=4, sticky='w')
+        self.bed_len_units=tk.StringVar(value='m'); ttk.Combobox(bed_body, textvariable=self.bed_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
+        for i in range(5): bed_body.grid_columnconfigure(i, weight=1)
+        bed_opts=ttk.Frame(f); bed_opts.pack(fill=tk.X, pady=(5,0))
+        ttk.Label(bed_opts, text='Bed Size').grid(row=0, column=0, sticky='w')
+        self.bed_size=tk.StringVar(value='Auto')
+        ttk.Combobox(bed_opts, textvariable=self.bed_size,
+                     values=['Auto','SINGLE','TWIN','THREE_Q_SMALL','DOUBLE'], state='readonly', width=16).grid(row=1, column=0, sticky='w')
+
+        ttk.Label(f, text='Bathroom', font=('SF Pro Text', 12, 'bold')).pack(anchor='w', pady=(20,0))
+        bath_body=ttk.Frame(f); bath_body.pack(fill=tk.X, pady=(5,0))
+        self.bath_method=tk.StringVar(value='area')
+        ttk.Radiobutton(bath_body, text='Area', variable=self.bath_method, value='area').grid(row=0, column=0, sticky='w')
+        ttk.Radiobutton(bath_body, text='W × H', variable=self.bath_method, value='dims').grid(row=0, column=1, sticky='w', padx=10)
+        ttk.Label(bath_body, text='Area').grid(row=1, column=0, sticky='w')
+        self.bath_area=tk.StringVar(value='4'); ttk.Entry(bath_body, textvariable=self.bath_area, width=10).grid(row=2, column=0, sticky='we')
+        ttk.Label(bath_body, text='Units').grid(row=1, column=1, sticky='w')
+        self.bath_area_units=tk.StringVar(value='m²'); ttk.Combobox(bath_body, textvariable=self.bath_area_units, values=self.UNITS, state='readonly', width=10).grid(row=2, column=1)
+        ttk.Label(bath_body, text='W (for W×H)').grid(row=1, column=2, sticky='w')
+        self.bath_W=tk.StringVar(value='2.4'); ttk.Entry(bath_body, textvariable=self.bath_W, width=10).grid(row=2, column=2)
+        ttk.Label(bath_body, text='H (for W×H)').grid(row=1, column=3, sticky='w')
+        self.bath_H=tk.StringVar(value='1.8'); ttk.Entry(bath_body, textvariable=self.bath_H, width=10).grid(row=2, column=3)
+        ttk.Label(bath_body, text='Len units').grid(row=1, column=4, sticky='w')
+        self.bath_len_units=tk.StringVar(value='m'); ttk.Combobox(bath_body, textvariable=self.bath_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
+        for i in range(5): bath_body.grid_columnconfigure(i, weight=1)
+
+        a=ttk.Frame(f); a.pack(fill=tk.X, pady=(12,0))
+        ttk.Button(a, text='Continue', style='Primary.TButton', command=self._ok).pack(side=tk.RIGHT)
+        ttk.Button(a, text='Cancel', command=self._cancel).pack(side=tk.RIGHT, padx=(0,8))
+        self.wait_visibility(); self.focus_set()
+
+    def _center(self, parent, w, h):
+        self.update_idletasks()
+        try:
+            x = parent.winfo_rootx() + max(0,(parent.winfo_width()-w)//2)
+            y = parent.winfo_rooty() + max(0,(parent.winfo_height()-h)//2)
+            self.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception:
+            sw,sh=self.winfo_screenwidth(), self.winfo_screenheight()
+            self.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+    def _ok(self):
+        try:
+            if self.bed_method.get()=='area':
+                A=float(self.bed_area.get()); assert A>0
+                bed_res={"mode":"area","area":A,"area_units":self.bed_area_units.get(),"bed":self.bed_size.get()}
+            else:
+                W=float(self.bed_W.get()); H=float(self.bed_H.get()); assert W>0 and H>0
+                bed_res={"mode":"dims","W":W,"H":H,"len_units":self.bed_len_units.get(),"bed":self.bed_size.get()}
+            if self.bath_method.get()=='area':
+                A=float(self.bath_area.get()); assert A>0
+                bath_res={"mode":"area","area":A,"area_units":self.bath_area_units.get(),"bed":"Auto"}
+            else:
+                W=float(self.bath_W.get()); H=float(self.bath_H.get()); assert W>0 and H>0
+                bath_res={"mode":"dims","W":W,"H":H,"len_units":self.bath_len_units.get(),"bed":"Auto"}
+            self.result={"bedroom":bed_res,"bathroom":bath_res}
+        except Exception:
+            self.bell(); self.title('Room Inputs – enter valid numbers'); return
+        self.destroy()
+
+    def _cancel(self): self.result=None; self.destroy()
+
 # -----------------------
 # Sketch grid (quick painter)
 # -----------------------
@@ -2117,8 +2204,6 @@ class GenerateView:
                 ('LAV', 'Lavatory'), ('CLEAR', 'Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
-
-        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [
@@ -3175,28 +3260,18 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
-        ]
 
-        # 2) Room input dialogs (bedroom then bathroom)
-
-
+        # 2) Room input dialog capturing both rooms
         label = 'Sketch' if mode == 'sketch' else 'Generate'
         try:
-            ad = AreaDialog(self.root, label, include_bed=True)
-            self.root.wait_window(ad)
-            if not getattr(ad, 'result', None):
+            cd = AreaDialogCombined(self.root, label)
+            self.root.wait_window(cd)
+            if not getattr(cd, 'result', None):
                 return
-            bed_res = ad.result
+            bed_res = cd.result.get('bedroom', {})
+            bath_res = cd.result.get('bathroom', {})
         except Exception:
             bed_res = {"mode": "dims", "W": 4.2, "H": 3.0, "len_units": "m", "bed": "Auto"}
-
-        try:
-            bd = AreaDialog(self.root, 'Bathroom', include_bed=False)
-            self.root.wait_window(bd)
-            if not getattr(bd, 'result', None):
-                return
-            bath_res = bd.result
-        except Exception:
             bath_res = {"mode": "dims", "W": 2.4, "H": 1.8, "len_units": "m", "bed": "Auto"}
 
         bed_dims = self._compute_dims_from_result(bed_res)
