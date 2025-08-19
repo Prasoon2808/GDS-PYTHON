@@ -2030,42 +2030,85 @@ def rects_touch_or_overlap(a,b)->bool:
 # -----------------------
 
 def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
-    """Generate a simple bathroom layout using fixture sizes from ``rules``.
+    """Generate a bathroom layout honouring clearance rules.
 
-    This is a minimal placeholder and does not attempt full optimisation; it
-    merely positions common fixtures against the walls so that a combined plan
-    can be displayed alongside the bedroom.
+    The function is intentionally lightweight – its goal is simply to place the
+    four common fixtures (tub, shower, water closet and lavatory) while
+    respecting the minimum clearances encoded in ``rules``.  It is **not** an
+    optimiser; if the room is too small to satisfy the hard minimums a partially
+    filled plan may be returned.
     """
+
+    def _intersects_clear(p: GridPlan, x: int, y: int, w: int, h: int) -> bool:
+        for cx, cy, cw, ch, *_ in p.clearzones:
+            if (x < cx + cw and x + w > cx and y < cy + ch and y + h > cy):
+                return True
+        return False
+
+    def _place_with_front(p: GridPlan, x: int, y: int, w: int, h: int,
+                          code: str, front_m: float, against_top: bool) -> bool:
+        """Place an element and reserve the required front clearance."""
+        if not p.fits(x, y, w, h) or _intersects_clear(p, x, y, w, h):
+            return False
+        fc = p.meters_to_cells(front_m)
+        if fc > 0:
+            if against_top:
+                fx, fy, fw, fh = x, y - fc, w, fc
+            else:
+                fx, fy, fw, fh = x, y + h, w, fc
+            if fy < 0 or fy + fh > p.gh:
+                return False
+            if not p.fits(fx, fy, fw, fh) or _intersects_clear(p, fx, fy, fw, fh):
+                return False
+        p.place(x, y, w, h, code)
+        if fc > 0:
+            p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
+        return True
+
     p = GridPlan(Wm, Hm)
     units = rules.get('units', {})
     in_m = units.get('IN_M', 0.0254)
 
     fx = rules.get('fixtures', {})
+    clear = {
+        'lav_side': fx.get('lavatory', {}).get('side_clear_to_wall_m', {}).get('min', 0.508),
+        'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+        'lav_to_fixture': fx.get('lavatory', {}).get('to_adjacent_fixture_edge_m', {}).get('min', 0.406),
+        'wc_side': fx.get('water_closet', {}).get('center_to_side_obstruction_m', {}).get('min', 0.406),
+        'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+        'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
+        'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
+    }
 
     # --- Tub ---
     tub_len = fx.get('bathtub', {}).get('common_lengths_m', [1.5])[0]
     tw = p.meters_to_cells(tub_len)
-    td = p.meters_to_cells(0.75)  # approximate width
-    p.place(0, p.gh - td, tw, td, 'TUB')
+    td = p.meters_to_cells(0.75)
+    if not _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
+        return p
 
     # --- Shower ---
-    shr_size = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w':36,'d':36}])[0]
+    shr_size = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w': 36, 'd': 36}])[0]
     sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
     sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
-    p.place(max(0, p.gw - sw), p.gh - sd, sw, sd, 'SHR')
+    if not _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
+                             'SHR', clear['shr_front'], True):
+        return p
 
     # --- Water closet ---
-    wc_side = fx.get('water_closet', {}).get('center_to_side_obstruction_m', {}).get('min', 0.406)
-    wc_front = fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.61)
-    ww = p.meters_to_cells(wc_side * 2)
+    ww = p.meters_to_cells(clear['wc_side'] * 2)
     wd = p.meters_to_cells(0.76)
-    p.place(0, 0, ww, wd, 'WC')
+    if not _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False):
+        return p
 
     # --- Lavatory ---
-    lav_side = fx.get('lavatory', {}).get('to_adjacent_fixture_edge_m', {}).get('min', 0.406)
-    lw = p.meters_to_cells(lav_side * 2)
+    lw = p.meters_to_cells(clear['lav_side'] * 2)
     ld = p.meters_to_cells(0.6)
-    p.place(max(0, p.gw - lw), 0, lw, ld, 'LAV')
+    gap_req = p.meters_to_cells(clear['lav_to_fixture'])
+    if p.gw - ww - lw < gap_req:
+        return p  # no space for required gap
+    if not _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False):
+        return p
 
     return p
 
