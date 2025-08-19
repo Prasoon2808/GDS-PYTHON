@@ -6,9 +6,10 @@ from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
 
-RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
+BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
+BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
 
-def load_rules(path: str = RULES_FILE) -> Dict:
+def load_rules(path: str) -> Dict:
     """
     Load rule configuration from ``path``. If the file is missing or invalid
     an empty dictionary is returned so that built-in defaults remain in effect.
@@ -21,7 +22,8 @@ def load_rules(path: str = RULES_FILE) -> Dict:
     except Exception:
         return {}
 
-RULES = load_rules()
+RULES = load_rules(BED_RULES_FILE)
+BATH_RULES = load_rules(BATH_RULES_FILE)
 
 """
 VASTU – Sketch + Generate (Bedroom) – ALL-IN-ONE ADVANCED – FINAL (Aug-2025)
@@ -1931,6 +1933,50 @@ def rects_touch_or_overlap(a,b)->bool:
     return True
 
 # -----------------------
+# Bathroom arranger (very light – placeholder)
+# -----------------------
+
+def arrange_bathroom(Wm: float, Hm: float, rules: Dict) -> GridPlan:
+    """Generate a simple bathroom layout using fixture sizes from ``rules``.
+
+    This is a minimal placeholder and does not attempt full optimisation; it
+    merely positions common fixtures against the walls so that a combined plan
+    can be displayed alongside the bedroom.
+    """
+    p = GridPlan(Wm, Hm)
+    units = rules.get('units', {})
+    in_m = units.get('IN_M', 0.0254)
+
+    fx = rules.get('fixtures', {})
+
+    # --- Tub ---
+    tub_len = fx.get('bathtub', {}).get('common_lengths_m', [1.5])[0]
+    tw = p.meters_to_cells(tub_len)
+    td = p.meters_to_cells(0.75)  # approximate width
+    p.place(0, p.gh - td, tw, td, 'TUB')
+
+    # --- Shower ---
+    shr_size = fx.get('shower', {}).get('stall_nominal_sizes_in', [{'w':36,'d':36}])[0]
+    sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
+    sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
+    p.place(max(0, p.gw - sw), p.gh - sd, sw, sd, 'SHR')
+
+    # --- Water closet ---
+    wc_side = fx.get('water_closet', {}).get('center_to_side_obstruction_m', {}).get('min', 0.406)
+    wc_front = fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.61)
+    ww = p.meters_to_cells(wc_side * 2)
+    wd = p.meters_to_cells(0.76)
+    p.place(0, 0, ww, wd, 'WC')
+
+    # --- Lavatory ---
+    lav_side = fx.get('lavatory', {}).get('to_adjacent_fixture_edge_m', {}).get('min', 0.406)
+    lw = p.meters_to_cells(lav_side * 2)
+    ld = p.meters_to_cells(0.6)
+    p.place(max(0, p.gw - lw), 0, lw, ld, 'LAV')
+
+    return p
+
+# -----------------------
 # UI – Generate view
 # -----------------------
 
@@ -1963,11 +2009,28 @@ HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
 
 class GenerateView:
+    def __init__(self, root: tk.Misc, Wm: float, Hm: float, bed_key: Optional[str], room_label: str = 'Bedroom', bath_dims: Optional[Tuple[float,float]] = None, pack_side=tk.LEFT, on_back=None):
+        self.root=root; self.on_back=on_back
+        self.room_label = room_label
+
+        self.bed_Wm=Wm; self.bed_Hm=Hm
+        self.bath_dims=bath_dims
+        if bath_dims:
+            bw,bh=bath_dims
+            self.Wm=Wm+bw; self.Hm=max(Hm,bh)
+        else:
+            self.Wm=Wm; self.Hm=Hm
+
+        self.plan=GridPlan(self.Wm,self.Hm)
+
     def __init__(self, root: tk.Misc, Wm: float, Hm: float, bed_key: Optional[str], room_label: str = 'Bedroom', pack_side=tk.LEFT, on_back=None):
         self.root=root; self.Wm=Wm; self.Hm=Hm; self.on_back=on_back
         self.room_label = room_label
         self.plan=GridPlan(Wm,Hm)
         self.openings=Openings(self.plan)
+        self.bed_openings=Openings(GridPlan(self.bed_Wm,self.bed_Hm))
+        self.bed_plan = GridPlan(self.bed_Wm,self.bed_Hm)
+        self.bath_plan = None
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -2049,6 +2112,15 @@ class GenerateView:
 
     def _build_sidebar(self):
         ttk.Label(self.sidebar, text='Legend', font=('SF Pro Text', 13, 'bold')).pack(anchor='w')
+        if self.bath_dims:
+            items = [
+                ('BED','Bed'),('BST','Night Table'),('WRD','Wardrobe'),
+                ('DRS','Dresser'),('DESK','Desk'),('TVU','TV Unit'),
+                ('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),
+                ('CLEAR','Clearances (merged)')
+            ]
+        elif self.room_label.lower() == 'bathroom':
+
         if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
@@ -2064,21 +2136,21 @@ class GenerateView:
         self.door_wall=tk.StringVar(value='Left')
         ttk.Label(f, text='Door wall').grid(row=0,column=0,sticky='w')
         ttk.Combobox(f, textvariable=self.door_wall, values=['Bottom','Right','Top','Left'], state='readonly', width=8).grid(row=1,column=0)
-        self.door_w=tk.DoubleVar(value=0.9); self.door_c=tk.DoubleVar(value=self.Hm*0.25)
+        self.door_w=tk.DoubleVar(value=0.9); self.door_c=tk.DoubleVar(value=self.bed_Hm*0.25)
         ttk.Label(f, text='Door width').grid(row=0,column=1,sticky='w')
         ttk.Scale(f, variable=self.door_w, from_=0.7, to=1.2, orient='horizontal').grid(row=1,column=1,sticky='we', padx=4)
         ttk.Label(f, text='Door center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(f, variable=self.door_c, from_=0.0, to=max(self.Wm,self.Hm), orient='horizontal').grid(row=1,column=2,sticky='we', padx=4)
+        ttk.Scale(f, variable=self.door_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we', padx=4)
         for i in range(3): f.grid_columnconfigure(i, weight=1)
 
         wbox=ttk.Frame(self.sidebar); wbox.pack(fill=tk.X, pady=(6,2))
         ttk.Label(wbox, text='Window 1').grid(row=0,column=0,sticky='w')
-        self.w1_wall=tk.StringVar(value='Right'); self.w1_len=tk.DoubleVar(value=1.2); self.w1_c=tk.DoubleVar(value=self.Hm*0.40)
+        self.w1_wall=tk.StringVar(value='Right'); self.w1_len=tk.DoubleVar(value=1.2); self.w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
         ttk.Combobox(wbox, textvariable=self.w1_wall, values=['Bottom','Right','Top','Left','None'], state='readonly', width=8).grid(row=1,column=0,sticky='w')
         ttk.Label(wbox, text='Width').grid(row=0,column=1,sticky='w')
         ttk.Scale(wbox, variable=self.w1_len, from_=0.8, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
         ttk.Label(wbox, text='Center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(wbox, variable=self.w1_c, from_=0.0, to=max(self.Wm,self.Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
+        ttk.Scale(wbox, variable=self.w1_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
         for i in range(3): wbox.grid_columnconfigure(i, weight=1)
 
         wbox2=ttk.Frame(self.sidebar); wbox2.pack(fill=tk.X, pady=(4,6))
@@ -2088,7 +2160,7 @@ class GenerateView:
         ttk.Label(wbox2, text='Width').grid(row=0,column=1,sticky='w')
         ttk.Scale(wbox2, variable=self.w2_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1,column=1,sticky='we',padx=4)
         ttk.Label(wbox2, text='Center (m)').grid(row=0,column=2,sticky='w')
-        ttk.Scale(wbox2, variable=self.w2_c, from_=0.0, to=max(self.Wm,self.Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
+        ttk.Scale(wbox2, variable=self.w2_c, from_=0.0, to=max(self.bed_Wm,self.bed_Hm), orient='horizontal').grid(row=1,column=2,sticky='we',padx=4)
         for i in range(3): wbox2.grid_columnconfigure(i, weight=1)
 
         ttk.Button(self.sidebar, text='↻ Generate', style='Primary.TButton', command=self._apply_batch_and_generate).pack(fill=tk.X)
@@ -2137,6 +2209,9 @@ class GenerateView:
         self.openings.door_wall=wall_map.get(self.door_wall.get(),3)
         self.openings.door_width=float(self.door_w.get())
         self.openings.door_center=float(self.door_c.get())
+        self.bed_openings.door_wall=self.openings.door_wall
+        self.bed_openings.door_width=self.openings.door_width
+        self.bed_openings.door_center=self.openings.door_center
         def parse(wall_s, len_v, cen_v):
             if wall_s=='None' or (len_v<=0.0): return [-1,0.0,0.0]
             wall=wall_map[wall_s]; length=float(len_v); center=float(cen_v)
@@ -2144,6 +2219,7 @@ class GenerateView:
             return [wall, start, length]
         self.openings.windows=[parse(self.w1_wall.get(), self.w1_len.get(), self.w1_c.get()),
                                parse(self.w2_wall.get(), self.w2_len.get(), self.w2_c.get())]
+        self.bed_openings.windows=list(self.openings.windows)
 
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
@@ -2162,10 +2238,10 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
-        self.plan=GridPlan(self.Wm,self.Hm)
+        bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         solver=BedroomSolver(
-            self.plan,
-            self.openings,
+            bed_plan,
+            self.bed_openings,
             self.bed_key,
             random.Random(),
             load_weights(),
@@ -2197,7 +2273,30 @@ class GenerateView:
                     elif wall == 1: best.mark_clear(x-fc,y,fc,h,'FRONT',code)
             best.clearzones = merge_clearances(best.clearzones)
 
-        self.plan=best; self.meta=meta; self._log_run(meta); self._draw()
+        bed_plan=best
+        if self.bath_dims:
+            bath_plan=arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+            combined=GridPlan(self.Wm,self.Hm)
+            # copy bedroom
+            for j in range(bed_plan.gh):
+                for i in range(bed_plan.gw):
+                    combined.occ[j][i]=bed_plan.occ[j][i]
+            combined.clearzones.extend(bed_plan.clearzones)
+            xoff=bed_plan.gw
+            # copy bathroom
+            for j in range(bath_plan.gh):
+                for i in range(bath_plan.gw):
+                    combined.occ[j][i+xoff]=bath_plan.occ[j][i]
+            for (x,y,w,h,k,o) in bath_plan.clearzones:
+                combined.clearzones.append((x+xoff,y,w,h,k,o))
+            self.plan=combined
+            self.bath_plan=bath_plan
+            self.bed_plan=bed_plan
+        else:
+            self.plan=bed_plan
+            self.bed_plan=bed_plan
+
+        self.meta=meta; self._log_run(meta); self._draw()
         sc=meta.get('score',0.0)
         self.status.set(f"Coverage {meta.get('coverage',0)*100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} · Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}")
 
@@ -2223,6 +2322,9 @@ class GenerateView:
         # wall outline (3× thicker)
         thick=max(4,int(scale*0.12))*3
         cv.create_rectangle(self.ox, self.oy, self.ox+gw*scale, self.oy+gh*scale, outline=WALL_COLOR, width=thick)
+        if self.bath_dims:
+            x = self.ox + self.bed_plan.gw * scale
+            cv.create_line(x, self.oy, x, self.oy+gh*scale, fill=WALL_COLOR, width=thick)
         # door gap (bold)
         dwall,dstart,dwidth=self.openings.door_span_cells()
         self._draw_opening_segment(cv, dwall, dstart, dwidth, PALETTE['DOOR'], thick)
@@ -2662,6 +2764,15 @@ class GenerateView:
 
         # New empty grid, then re-place exactly what the user already had
         best = GridPlan(self.Wm, self.Hm)
+        if self.bath_dims and self.bath_plan:
+            xoff = self.bed_plan.gw
+            for j in range(self.bath_plan.gh):
+                for i in range(self.bath_plan.gw):
+                    code = self.bath_plan.occ[j][i]
+                    if code:
+                        best.occ[j][i+xoff] = code
+            for (x,y,w,h,k,o) in self.bath_plan.clearzones:
+                best.clearzones.append((x+xoff,y,w,h,k,o))
 
         # Place back snapshot exactly (with front/bed clearances)
         sticky = getattr(self, '_sticky_items', [])
@@ -2686,6 +2797,10 @@ class GenerateView:
 
         # Adopt as current plan, compute META minimally, draw
         self.plan = best
+        self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
+        for j in range(self.bed_plan.gh):
+            for i in range(self.bed_plan.gw):
+                self.bed_plan.occ[j][i] = best.occ[j][i]
         meta = {'coverage': getattr(best, 'coverage', lambda:0.0)(),
                 'paths_ok': True,
                 'reach_windows': True,
@@ -3122,6 +3237,7 @@ class App:
         else:
             Wb, Hb, bed_key = bed_dims
             Wc, Hc, _ = bath_dims
+            GenerateView(self.root, Wb, Hb, bed_key, room_label='Plan', bath_dims=(Wc, Hc), pack_side=tk.LEFT, on_back=self._back_to_landing)
             GenerateView(self.root, Wb, Hb, bed_key, room_label='Bedroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
             GenerateView(self.root, Wc, Hc, None, room_label='Bathroom', pack_side=tk.LEFT, on_back=self._back_to_landing)
 
