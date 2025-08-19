@@ -2171,23 +2171,22 @@ class GenerateView:
         self.root=root; self.on_back=on_back
         self.room_label = room_label
 
-        self.bed_Wm=Wm; self.bed_Hm=Hm
-        self.bath_dims=bath_dims
+        self.bed_Wm = Wm; self.bed_Hm = Hm
+        self.bath_dims = bath_dims
         if bath_dims:
-            bw,bh=bath_dims
-            self.bath_Wm=bw; self.bath_Hm=bh
-            self.Wm=Wm+bw; self.Hm=max(Hm,bh)
+            bw, bh = bath_dims
+            self.bath_Wm = bw; self.bath_Hm = bh
         else:
-            self.bath_Wm=self.bath_Hm=0.0
-            self.Wm=Wm; self.Hm=Hm
+            self.bath_Wm = self.bath_Hm = 0.0
 
-        self.plan=GridPlan(self.Wm,self.Hm)
+        # Maintain separate plans for bedroom and bathroom.
+        self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
+        self.plan = self.bed_plan  # legacy attribute used by bedroom-only helpers
+        self.bath_plan = GridPlan(self.bath_Wm, self.bath_Hm) if bath_dims else None
 
-        self.bed_openings=Openings(GridPlan(self.bed_Wm,self.bed_Hm))
-        self.openings=self.bed_openings  # maintain compatibility for bedroom ops
-        self.bed_plan = GridPlan(self.bed_Wm,self.bed_Hm)
-        self.bath_plan = None
-        self.bath_openings = Openings(GridPlan(self.bath_Wm,self.bath_Hm)) if bath_dims else None
+        self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
+        self.openings = self.bed_openings  # maintain compatibility for bedroom ops
+        self.bath_openings = Openings(GridPlan(self.bath_Wm, self.bath_Hm)) if bath_dims else None
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -2488,31 +2487,6 @@ class GenerateView:
         self._apply_openings_from_ui()
         self._solve_and_draw()
 
-        # If a bathroom is present, always re-run its generator so that both
-        # rooms refresh together.  ``_solve_and_draw`` focuses on the bedroom
-        # arrangement; calling ``arrange_bathroom`` here ensures the bathroom
-        # layout is newly generated and then merged with the bedroom plan.
-        if self.bath_dims:
-            bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
-            if getattr(self, 'bed_plan', None):
-                combined = GridPlan(self.Wm, self.Hm)
-                for j in range(self.bed_plan.gh):
-                    for i in range(self.bed_plan.gw):
-                        combined.occ[j][i] = self.bed_plan.occ[j][i]
-                combined.clearzones.extend(self.bed_plan.clearzones)
-                xoff = self.bed_plan.gw
-                for j in range(bath_plan.gh):
-                    for i in range(bath_plan.gw):
-                        combined.occ[j][i + xoff] = bath_plan.occ[j][i]
-                for (x, y, w, h, k, o) in bath_plan.clearzones:
-                    combined.clearzones.append((x + xoff, y, w, h, k, o))
-                self.plan = combined
-            else:
-                self.plan = bath_plan
-            self.bath_plan = bath_plan
-            # redraw so the canvas shows the new bedroom+bathroom combo
-            self._draw()
-
     def _solve_and_draw(self):
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
@@ -2521,6 +2495,9 @@ class GenerateView:
         bed_wall, _, _ = self.bed_openings.door_span_cells()
         if bed_wall == WALL_RIGHT:
             self.status.set('Bedroom door cannot be on shared wall.')
+            self.bed_plan = None
+            self.bath_plan = None
+            self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
             self._draw()
             return
         bath_ok = True
@@ -2564,29 +2541,13 @@ class GenerateView:
                     elif wall == 1: best.mark_clear(x-fc,y,fc,h,'FRONT',code)
             best.clearzones = merge_clearances(best.clearzones)
 
-        bed_plan=best
+        bed_plan = best
+        self.bed_plan = bed_plan
+        self.plan = bed_plan
         if self.bath_dims and bath_ok:
-            bath_plan=arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
-            combined=GridPlan(self.Wm,self.Hm)
-            # copy bedroom
-            for j in range(bed_plan.gh):
-                for i in range(bed_plan.gw):
-                    combined.occ[j][i]=bed_plan.occ[j][i]
-            combined.clearzones.extend(bed_plan.clearzones)
-            xoff=bed_plan.gw
-            # copy bathroom
-            for j in range(bath_plan.gh):
-                for i in range(bath_plan.gw):
-                    combined.occ[j][i+xoff]=bath_plan.occ[j][i]
-            for (x,y,w,h,k,o) in bath_plan.clearzones:
-                combined.clearzones.append((x+xoff,y,w,h,k,o))
-            self.plan=combined
-            self.bath_plan=bath_plan
-            self.bed_plan=bed_plan
+            self.bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
         else:
-            self.plan=bed_plan
-            self.bed_plan=bed_plan
-            self.bath_plan=None
+            self.bath_plan = None
 
         self.meta=meta; self._log_run(meta); self._draw()
         sc=meta.get('score',0.0)
@@ -2596,71 +2557,81 @@ class GenerateView:
     # ----------------- draw & helpers
 
     def _draw(self):
-        cv=self.canvas; cv.delete('all')
-        gw,gh=self.plan.gw,self.plan.gh
-        cw,ch=cv.winfo_width() or 1, cv.winfo_height() or 1
-        margin=26
-        scale=min((cw-2*margin)/gw,(ch-2*margin)/gh)
-        self.scale=scale; self.ox=(cw-gw*scale)/2; self.oy=(ch-gh*scale)/2
-        def cell_rect(i,j):
-            x0=self.ox+i*scale; y0=self.oy+(gh-1-j)*scale
-            return x0,y0,x0+scale,y0+scale
+        cv = self.canvas; cv.delete('all')
+        bed_gw, bed_gh = self.bed_plan.gw, self.bed_plan.gh
+        bath_gw = self.bath_plan.gw if self.bath_plan else 0
+        bath_gh = self.bath_plan.gh if self.bath_plan else 0
+        total_w = bed_gw + bath_gw
+        max_h = max(bed_gh, bath_gh)
+        cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
+        margin = 26
+        scale = min((cw - 2*margin) / max(1, total_w), (ch - 2*margin) / max(1, max_h))
+        self.scale = scale
+        bed_ox = (cw - total_w * scale) / 2
+        bed_oy = (ch - bed_gh * scale) / 2
+        self.ox = bed_ox
+        self.oy = bed_oy
+        bath_ox = bed_ox + bed_gw * scale
+        bath_oy = (ch - bath_gh * scale) / 2
+        thick = max(4, int(scale * 0.12)) * 3
 
-        # grid
-        for i in range(gw+1):
-            x=self.ox+i*scale; cv.create_line(x,self.oy,x,self.oy+gh*scale, fill='#2c2c2c')
-        for j in range(gh+1):
-            y=self.oy+j*scale; cv.create_line(self.ox,y,self.ox+gw*scale,y, fill='#2c2c2c')
+        def draw_room(plan, openings, ox, oy):
+            gw, gh = plan.gw, plan.gh
+            for i in range(gw + 1):
+                x = ox + i * scale
+                cv.create_line(x, oy, x, oy + gh * scale, fill='#2c2c2c')
+            for j in range(gh + 1):
+                y = oy + j * scale
+                cv.create_line(ox, y, ox + gw * scale, y, fill='#2c2c2c')
+            cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
+                                outline=WALL_COLOR, width=thick)
+            self._draw_room_openings(cv, openings, ox, oy, scale, thick)
 
-        # wall outline (3× thicker)
-        thick=max(4,int(scale*0.12))*3
-        cv.create_rectangle(self.ox, self.oy, self.ox+gw*scale, self.oy+gh*scale, outline=WALL_COLOR, width=thick)
-        if self.bath_dims:
-            x = self.ox + self.bed_plan.gw * scale
-            cv.create_line(x, self.oy, x, self.oy+gh*scale, fill=WALL_COLOR, width=thick)
-        # openings for each room
-        self._draw_room_openings(cv, self.bed_openings, 0, thick)
-        if self.bath_dims and self.bath_openings:
-            self._draw_room_openings(cv, self.bath_openings, self.bed_plan.gw, thick)
+            bound = set()
+            for j in range(gh):
+                for i in range(gw):
+                    code = plan.occ[j][i]
+                    if not code or code == 'DOOR':
+                        continue
+                    base = code.split(':')[0]
+                    tag = base.split('_')[0]
+                    color = PALETTE.get(tag, '#888')
+                    x0 = ox + i * scale
+                    y0 = oy + (gh - 1 - j) * scale
+                    cv.create_rectangle(x0, y0, x0 + scale, y0 + scale,
+                                        outline='', fill=color, tags=(tag,))
+                    if tag not in bound:
+                        cv.tag_bind(tag, '<Enter>',
+                                    lambda e, c=tag: self._show_tooltip(e, c))
+                        cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
+                        bound.add(tag)
 
-        # fills
-        bound = set()
-        for j in range(gh):
-            for i in range(gw):
-                code=self.plan.occ[j][i]
-                if not code or code=='DOOR':
-                    continue
-                base = code.split(':')[0]
-                tag = base.split('_')[0]
-                color = PALETTE.get(tag, '#888')
-                x0,y0,x1,y1 = cell_rect(i,j)
-                cv.create_rectangle(x0,y0,x1,y1, outline='', fill=color, tags=(tag,))
-                if tag not in bound:
-                    cv.tag_bind(tag, '<Enter>', lambda e, c=tag: self._show_tooltip(e, c))
-                    cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
-                    bound.add(tag)
+            for (x, y, w, h, kind, owner) in plan.clearzones:
+                x0 = ox + x * scale
+                y0 = oy + (gh - (y + h)) * scale
+                cv.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
+                                    outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
-        # merged clearances (zero-gap outlines)
-        for (x,y,w,h,kind,owner) in self.plan.clearzones:
-            x0,y0,_,_ = cell_rect(x,y); _,_,x1,y1 = cell_rect(x+w-1, y+h-1)
-            cv.create_rectangle(x0,y0,x1,y1, outline=PALETTE['CLEAR'], dash=(8,6), width=2)
+        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
+        if self.bath_plan:
+            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
 
-        # simulation footprints
         def draw_path(poly, color):
-            if len(poly)>=2:
-                for k in range(1,len(poly)):
-                    x0,y0=poly[k-1]; x1,y1=poly[k]
-                    cv.create_line(x0,y0,x1,y1, fill=color, width=2, capstyle=tk.ROUND)
+            if len(poly) >= 2:
+                for k in range(1, len(poly)):
+                    x0, y0 = poly[k - 1]
+                    x1, y1 = poly[k]
+                    cv.create_line(x0, y0, x1, y1, fill=color, width=2,
+                                   capstyle=tk.ROUND)
         draw_path(self.sim_poly, HUMAN1_COLOR)
         draw_path(self.sim2_poly, HUMAN2_COLOR)
 
-        # draw human blocks
         if self.sim_path:
-            i,j=self.sim_path[min(self.sim_index, len(self.sim_path)-1)]
-            self._draw_human_block(i,j, HUMAN1_COLOR, which=1)
+            i, j = self.sim_path[min(self.sim_index, len(self.sim_path) - 1)]
+            self._draw_human_block(i, j, HUMAN1_COLOR, which=1)
         if self.sim2_path:
-            i,j=self.sim2_path[min(self.sim2_index, len(self.sim2_path)-1)]
-            self._draw_human_block(i,j, HUMAN2_COLOR, which=2)
+            i, j = self.sim2_path[min(self.sim2_index, len(self.sim2_path) - 1)]
+            self._draw_human_block(i, j, HUMAN2_COLOR, which=2)
 
     def _show_tooltip(self, event, code):
         base = code.split('_')[0]
@@ -2686,19 +2657,17 @@ class GenerateView:
         self.canvas.delete('tooltip')
 
 
-    def _draw_room_openings(self, cv, openings, xoff, thick):
+    def _draw_room_openings(self, cv, openings, ox, oy, scale, thick):
         if openings is None:
             return
-        ox = self.ox + xoff * self.scale
-        oy = self.oy
         gw, gh = openings.p.gw, openings.p.gh
         def seg(wall, start, length, color):
             if wall < 0 or length <= 0:
                 return
-            w = gw * self.scale
-            h = gh * self.scale
-            s = start * self.scale
-            L = length * self.scale
+            w = gw * scale
+            h = gh * scale
+            s = start * scale
+            L = length * scale
             if wall == 0:
                 cv.create_line(ox + s, oy + h, ox + s + L, oy + h, fill=color, width=thick)
             elif wall == 2:
@@ -3106,29 +3075,8 @@ class GenerateView:
 
 
     def _sync_room_plans(self):
-        """Synchronize per-room plans with the combined plan."""
-        # Bedroom snapshot
-        if getattr(self, 'bed_plan', None):
-            gw, gh = self.bed_plan.gw, self.bed_plan.gh
-            for j in range(gh):
-                for i in range(gw):
-                    self.bed_plan.occ[j][i] = self.plan.occ[j][i]
-            self.bed_plan.clearzones = [
-                (x, y, w, h, k, o)
-                for (x, y, w, h, k, o) in self.plan.clearzones
-                if x + w <= gw
-            ]
-        # Bathroom snapshot
-        if getattr(self, 'bath_plan', None):
-            xoff = self.bed_plan.gw if getattr(self, 'bed_plan', None) else 0
-            bw, bh = self.bath_plan.gw, self.bath_plan.gh
-            for j in range(bh):
-                for i in range(bw):
-                    self.bath_plan.occ[j][i] = self.plan.occ[j][i + xoff]
-            self.bath_plan.clearzones = []
-            for (x, y, w, h, k, o) in self.plan.clearzones:
-                if x >= xoff and x + w <= xoff + bw:
-                    self.bath_plan.clearzones.append((x - xoff, y, w, h, k, o))
+        """Synchronize per-room plans with current bedroom plan."""
+        self.bed_plan = self.plan
 
 
     def _solve_and_draw_preserve(self):
@@ -3151,17 +3099,14 @@ class GenerateView:
                 self._draw()
                 return
 
-        # New empty grid, then re-place exactly what the user already had
-        best = GridPlan(self.Wm, self.Hm)
-        if self.bath_dims and self.bath_plan:
-            xoff = self.bed_plan.gw
-            for j in range(self.bath_plan.gh):
-                for i in range(self.bath_plan.gw):
-                    code = self.bath_plan.occ[j][i]
-                    if code:
-                        best.occ[j][i+xoff] = code
-            for (x,y,w,h,k,o) in self.bath_plan.clearzones:
-                best.clearzones.append((x+xoff,y,w,h,k,o))
+        # New empty grid for bedroom, then re-place exactly what the user already had
+        best = GridPlan(self.bed_Wm, self.bed_Hm)
+        for j in range(self.plan.gh):
+            for i in range(self.plan.gw):
+                code = self.plan.occ[j][i]
+                if code:
+                    best.occ[j][i] = code
+        best.clearzones.extend(self.plan.clearzones)
 
         # Place back snapshot exactly (with front/bed clearances)
         sticky = getattr(self, '_sticky_items', [])
@@ -3186,14 +3131,15 @@ class GenerateView:
 
         # Adopt as current plan, compute META minimally, draw
         self.plan = best
-        self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
-        for j in range(self.bed_plan.gh):
-            for i in range(self.bed_plan.gw):
-                self.bed_plan.occ[j][i] = best.occ[j][i]
-        meta = {'coverage': getattr(best, 'coverage', lambda:0.0)(),
-                'paths_ok': True,
-                'reach_windows': True,
-                'score': 0.0}
+        self.bed_plan = best
+        if self.bath_dims:
+            self.bath_plan = arrange_bathroom(self.bath_dims[0], self.bath_dims[1], BATH_RULES)
+        meta = {
+            'coverage': getattr(best, 'coverage', lambda: 0.0)(),
+            'paths_ok': True,
+            'reach_windows': True,
+            'score': 0.0,
+        }
         self.meta = meta
         self._log_run(meta)
         self._draw()
@@ -3475,25 +3421,46 @@ class GenerateView:
         obj['ts'] = time.time()
         append_jsonl_locked(SIM_FILE, obj)
 
-    def _grid_for_log(self):
-        p=self.plan
-        mapping={'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
-        H=min(16,p.gh); W=min(16,p.gw)
-        sx=max(1,p.gw//W); sy=max(1,p.gh//H)
-        arr=[]
-        jcount=0
-        for y in range(0,p.gh,sy):
-            row=[]; icount=0
-            for x in range(0,p.gw,sx):
-                c=p.occ[y][x]
-                v=0
+    def _grid_snapshot(self, plan: 'GridPlan', max_hw: int = 16):
+        mapping = {'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
+        H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
+        sx = max(1, plan.gw // W); sy = max(1, plan.gh // H)
+        G = np.zeros((H, W), dtype=np.int8)
+        jj = 0
+        for y in range(0, plan.gh, sy):
+            ii = 0
+            for x in range(0, plan.gw, sx):
+                c = plan.occ[y][x]
                 if c:
-                    base=c.split(':')[0]; v=mapping.get(base,7)
-                row.append(int(v)); icount+=1
-                if icount>=W: break
-            arr.append(row); jcount+=1
-            if jcount>=H: break
-        return arr
+                    base = c.split(':')[0]
+                    G[jj, ii] = mapping.get(base, 7)
+                ii += 1
+                if ii >= W:
+                    break
+            jj += 1
+            if jj >= H:
+                break
+        return G
+
+    def _grid_for_log(self):
+        plans = [self.bed_plan]
+        if self.bath_plan:
+            plans.append(self.bath_plan)
+        grids = [self._grid_snapshot(p, 16) for p in plans if p is not None]
+        if not grids:
+            return []
+        max_h = max(g.shape[0] for g in grids)
+        combined = []
+        for j in range(max_h):
+            row = []
+            for g in grids:
+                h, w = g.shape
+                if j < h:
+                    row.extend(int(v) for v in g[j])
+                else:
+                    row.extend([0] * w)
+            combined.append(row)
+        return combined
 
 
     def _log_run(self, meta):
