@@ -1,0 +1,608 @@
+{
+  "meta": {
+    "name": "VASTU Bedroom Rules",
+    "version": "1.6.0",
+    "updated_at": "2025-08-14T00:00:00Z",
+    "notes": "Centralized decision, logic, and UI constants for the bedroom sketch+generate app.  Added MB Tour File 7: bed placement best-practice (see door but not foot-to-door), avoid chandelier/shelves/gallery over head, soothing headboard wall options, bedside table height (+0.10 m), clearances (0.4–0.75 m sides, 1.0 m wardrobe/dresser), avoid wardrobe at entry, mirror not facing bed, two nightstands or balanced alternatives, avoid neon; prefer neutrals/pastels/earthy; rug sizing 0.6–0.7 m each side or runners.  Added MB Tour File 8: wall art centerline 57–60 in, trim contrast by sheen/color, curtain rod 4–6 in above frame (prefer ceiling mount), nightstand sizing by bed type, rug extension 12–18 in on sides & foot (plus layering option), lighting layers = ambient+accent+task, and accent color variation across shades.  Added MB Tour File 9: light wall shades/optional limewash; cool vs warm palette guidance; accent wall for depth; color sampling under different lights; rug two-thirds feet-on rule and 80 sq ft cap for small rooms; avoid false ceiling if budget/wiring issues—prefer panel/COB and floor lamps; light marble/wood-look tiles for compact rooms; mirrors/gloss to bounce light; curtains in light/neutral colors with sheer layer; minimal decor with one statement piece and balanced distribution; functional decor boxes; pendant over bedside allowed; glass-topped side tables allowed.  Added MB Tour File 10: center bed on entry wall when possible; daybed (with trundle) recommended when corner placement is necessary; if bed on window wall, prefer low-profile headboard and full wall-to-wall drapes hung high; reduce heavy matching sets; allow dresser-in-closet and under-bed storage; neutral/simple core bedding; rug under bed spanning between nightstands (avoid floating rugs); nightstands scaled to bed; simplify busy headboards via upholstery/slipcovers; bold colors as accents only.  Added MB Tour File 11: command-position bed (see door, not inline), update clearances (24–36 in ideal), avoid matching nightstand with bed, closed-storage nightstands preferred, dresser/desk as bedside when tight, layered lighting with bedside source required, plug-in sconces allowed, LED strips concealed/diffused, warm CT 2700–3000K (≤3500K ok), dimmers/smart bulbs and bedside switch/remote, window treatments: blockout+sheer ideal; roman/roller/shutters based on schedule, storage strategies: built-ins for sloped/awkward, tallboy and underbed storage, cable management near bedside, ventilation via operable windows, rug 18–24 in on three sides option, bedding materials/weaves guidance, two pillows per person preferred.  Imported bedroom book clearances and furniture dimensions (IMG_0162)."
+  },
+  "units": {
+    "CELL_M": 0.25,
+    "ROUND_MM": 5
+  },
+  "ui": {
+    "SHOW_RULER_DEFAULT": true,
+    "thumbs_reset_on_generate": true,
+    "scroll_sidebar": true,
+    "stroke": {
+      "wall_px": 3,
+      "door_px": 3,
+      "window_px": 3,
+      "furniture_px": 2,
+      "clearance_px": 1
+    },
+    "grid": {
+      "show": true,
+      "major_every_cells": 4
+    },
+    "selection": {
+      "outline_dash": [3, 2],
+      "outline_px": 2
+    },
+    "lighting": {
+      "layers_required": ["ambient", "accent", "task"],
+      "false_ceiling_optional": true,
+      "surface_panel_lights_possible": true,
+      "cob_downlights_possible": true,
+      "pendant_over_bedside_allowed": true,
+      "bedside_light_required": true,
+      "sconce_plugin_allowed": true,
+      "led_strips_must_be_concealed": true,
+      "ct_preferred_kelvin_range": [2700, 3000],
+      "ct_acceptable_kelvin_max": 3500,
+      "dimmers_preferred": true,
+      "smart_bulbs_allowed": true,
+      "bedside_remote_or_switch_preferred": true
+    },
+    "materials": {
+      "color_sampling_under_multiple_lights_required": true
+    },
+    "ventilation": {
+      "operable_window_preferred": true
+    },
+    "cable_management": {
+      "cable_boxes_allowed": true,
+      "cable_clips_preferred": true,
+      "wireless_charging_preferred": true
+    }
+  },
+  "learning": {
+    "LEARNING_RATE": 0.06,
+    "mlp": { "hidden": [48, 32], "activation": "relu" },
+    "transformer": { "d_model": 64, "n_head": 4, "n_layer": 2, "ff_mult": 2 }
+  },
+  "solver": {
+    "PATH_WIDTH_CELLS": 2,
+    "beam_width": 18,
+    "max_iters": 8000,
+    "random_seed": 42,
+    "hard_constraints": {
+      "no_overlap": true,
+      "stay_inside_walls": true,
+      "respect_openings": true
+    },
+    "score_weights": {
+      "reachability": 1.0,
+      "clearance_satisfied": 1.0,
+      "overlap_penalty": -3.0,
+      "path_block_penalty": -2.0,
+      "door_swing_penalty": -1.5,
+      "window_block_penalty": -1.2,
+      "wall_alignment_bonus": 0.6,
+      "bed_head_to_wall_bonus": 0.9,
+      "wardrobe_front_free_bonus": 0.7,
+      "desk_front_free_bonus": 0.5,
+      "dresser_front_free_bonus": 0.5,
+      "tvu_front_free_bonus": 0.4,
+      "foot_facing_door_penalty": -0.8,
+      "head_next_to_door_penalty": -0.6,
+      "head_under_window_penalty": -0.4,
+      "bed_solid_wall_bonus": 0.5,
+      "bed_view_of_entrance_bonus": 0.4,
+      "chandelier_over_head_penalty": -0.8,
+      "open_shelves_over_head_penalty": -0.5,
+      "gallery_over_head_penalty": -0.4,
+      "headboard_soothing_treatment_bonus": 0.2,
+      "wardrobe_to_bed_gap_violation_penalty": -0.8,
+      "dresser_front_gap_violation_penalty": -0.6,
+      "bulky_furniture_small_room_penalty": -0.5,
+      "too_many_small_items_large_room_penalty": -0.3,
+      "full_matching_set_penalty": -0.2,
+      "curated_mix_bonus": 0.2,
+      "wardrobe_at_entry_penalty": -0.5,
+      "work_gym_visible_penalty": -0.4,
+      "mirror_facing_bed_penalty": -0.6,
+      "two_nightstands_bonus": 0.4,
+      "neon_color_penalty": -0.3,
+      "nature_palette_bonus": 0.2,
+      "missing_lighting_layers_penalty": -0.5,
+      "accent_layer_bonus": 0.2,
+      "art_centerline_height_bonus": 0.2,
+      "bst_height_align_mattress_bonus": 0.2,
+      "no_false_ceiling_solution_bonus": 0.2,
+      "glossy_light_bounce_bonus": 0.2,
+      "decor_overcrowding_penalty": -0.3,
+      "statement_piece_bonus": 0.2,
+      "balanced_decor_distribution_bonus": 0.2,
+      "bed_center_on_entry_wall_bonus": 0.4,
+      "standard_bed_in_corner_penalty": -0.6,
+      "daybed_in_corner_bonus": 0.5,
+      "low_profile_bed_on_window_bonus": 0.4,
+      "full_wall_drapes_on_bed_wall_bonus": 0.3,
+      "dresser_in_closet_bonus": 0.3,
+      "underbed_storage_bonus": 0.3,
+      "dresser_removed_when_underbed_storage_bonus": 0.2,
+      "too_much_large_furniture_penalty": -0.4,
+      "neutral_bedding_bonus": 0.1,
+      "floating_rug_penalty": -0.4,
+      "single_large_rug_bonus": 0.3,
+      "bst_scale_to_bed_bonus": 0.3,
+      "bst_too_small_for_bed_penalty": -0.3,
+      "headboard_too_busy_penalty": -0.3,
+      "headboard_simplified_via_slipcover_bonus": 0.2,
+      "bed_command_position_bonus": 0.6,
+      "bst_matching_bed_penalty": -0.2,
+      "bst_closed_storage_bonus": 0.2,
+      "missing_bedside_light_penalty": -0.5,
+      "sconce_free_surface_bonus": 0.2,
+      "led_exposed_penalty": -0.3,
+      "ct_outside_preferred_penalty": -0.2,
+      "bedside_control_bonus": 0.2,
+      "fresh_air_bonus": 0.2
+    },
+    "rules": {
+      "avoid_foot_facing_door": true,
+      "avoid_head_next_to_door": true,
+      "head_under_window_discouraged": true,
+      "bed_prefer_solid_wall": true,
+      "bed_prefer_view_of_entrance": true,
+      "avoid_chandelier_over_head": true,
+      "avoid_open_shelves_over_head": true,
+      "avoid_gallery_over_head": true,
+      "wardrobe_to_bed_gap_min_m": 1.0,
+      "dresser_front_free_min_m": 1.0,
+      "avoid_chunky_bulky_in_small_rooms": true,
+      "avoid_too_many_small_in_large_rooms": true,
+      "avoid_full_matching_sets": true,
+      "avoid_wardrobe_facing_entry": true,
+      "hide_work_gym_items": true,
+      "avoid_mirror_facing_bed": true,
+      "two_nightstands_preferred": true,
+      "bst_balance_alternatives": ["CHAIR", "PLANT_LG", "SHELF", "FLOOR_LAMP"],
+      "minimal_decor_in_small_rooms": true,
+      "statement_piece_preferred_in_small_rooms": true,
+      "pendant_over_bedside_allowed": true,
+      "bed_center_on_entry_wall_preferred": true,
+      "standard_bed_in_corner_discouraged": true,
+      "daybed_recommended_if_cornered": true,
+      "bed_on_window_wall_low_profile_preferred": true,
+      "dresser_in_closet_allowed": true,
+      "bed_command_position_preferred": true,
+      "avoid_bst_matching_bed": true
+    },
+
+    /* ---------- BOOK ADDITIONS (IMG_0162) ---------- */
+    "book_clearances": {
+      "width_wall_space_m": {
+        "twin_beds": {
+          "no_night_table": [2.1336, 2.4384],
+          "one_night_table": [2.3876, 2.9464],
+          "two_night_tables": [2.8448, 3.7084]
+        },
+        "double_bed": {
+          "no_night_tables": [1.7272, 2.1336],
+          "one_night_table": [2.0828, 2.794],
+          "two_night_tables": [2.4892, 3.2004]
+        }
+      },
+      "length_room_depth_m": {
+        "bed_plus_passage": 2.6924,
+        "bed_plus_passage_and_dresser": [3.2512, 3.4544]
+      }
+    },
+    "book_planning_rules": {
+      "wall_space_width_m": {
+        "twin_beds": {
+          "no_night_table": [2.1336, 2.4384],
+          "one_night_table": [2.3876, 2.9464],
+          "two_night_tables": [2.8448, 3.7084]
+        },
+        "double_bed": {
+          "no_night_tables": [1.7272, 2.1336],
+          "one_night_table": [2.0828, 2.794],
+          "two_night_tables": [2.4892, 3.2004]
+        }
+      },
+      "length_depth_m": {
+        "bed_plus_passage": 2.6924,
+        "bed_plus_passage_and_dresser": [3.2512, 3.4544]
+      }
+    }
+    /* ---------- END BOOK ADDITIONS ---------- */
+  },
+  "openings": {
+    "DOOR": { "default": { "w": 0.9, "swing_clear": 0.9 }, "min": { "w": 0.76, "swing_clear": 0.76 } },
+    "WIN": {
+      "default": { "w": 1.5, "sill_h": 0.9 },
+      "min": { "w": 0.9, "sill_h": 0.76 },
+      "curtains": {
+        "rod_height_above_frame_min_m": 0.1016,
+        "rod_height_above_frame_pref_m": 0.1524,
+        "prefer_ceiling_mount": true,
+        "blockout_plus_sheer_preferred": true
+      },
+      "shades": { "roman_possible": true, "plantation_shutters_possible": true }
+    }
+  },
+  "palette": {
+    "BED": "#2eea98",
+    "BST": "#cfcfcf",
+    "WRD": "#ffa54a",
+    "DRS": "#ffd84a",
+    "DESK": "#8ad1ff",
+    "TVU": "#b7b7b7",
+    "CLEAR": "#6fb6ff",
+    "DOOR": "#d2b48c",
+    "WIN": "#95c8ff",
+    "GRID": "#e7e7e7",
+    "HIGHLIGHT": "#55ffff"
+  },
+  "colors": {
+    "WALL": "#f7a8a8",
+    "WIN": "#95c8ff",
+    "HUMAN1": "#ff6262",
+    "HUMAN2": "#ffdd55"
+  },
+  "furniture": {
+    "CLEAR": {
+      "side_rec": 1.07, "side_min": 0.61, "foot_rec": 0.91, "foot_min": 0.46,
+      "front_rec": 0.9, "front_min": 0.75, "unit_gap_m": 0.0, "unit_gap_cells": 0
+    },
+    "BED": {
+      "defaults": { "variant": "QUEEN_180x200" },
+      "rotations_allowed": [0, 90],
+      "stick_head_to_wall": true,
+      "variants": {
+        "KING_200x200": { "w": 2.0, "d": 2.0 },
+        "QUEEN_180x200": { "w": 1.8, "d": 2.0 },
+        "DOUBLE_150x200": { "w": 1.5, "d": 2.0 }
+      },
+      "clearance": {
+        "use_global": true,
+        "side_rec": 1.07,
+        "side_min": 0.61,
+        "foot_rec": 0.9144,
+        "foot_min": 0.6096
+      },
+      "features": {
+        "low_profile_possible": true,
+        "underbed_storage_possible": true,
+        "headboard_upholster_allowed": true
+      },
+
+      /* --- book reference sizes (converted from the page) --- */
+      "book_reference_sizes": {
+        "table": [
+          { "size": "SINGLE", "material": "metal", "L": "6'-10\"", "W": "3'-0\"",  "L_m": 2.0828, "W_m": 0.9144 },
+          { "size": "SINGLE", "material": "wood",  "L": "6'-10\"", "W": "3'-4\"+", "L_m": 2.0828, "W_m": 1.016 },
+          { "size": "TWIN_SINGLE", "material": "metal", "L": "6'-10\"", "W": "3'-3\"",  "L_m": 2.0828, "W_m": 0.9906 },
+          { "size": "TWIN_SINGLE", "material": "wood",  "L": "6'-10\"", "W": "3'-8\"+", "L_m": 2.0828, "W_m": 1.1176 },
+          { "size": "SMALL_3_4", "material": "metal", "L": "6'-10\"", "W": "3'-10\"+", "L_m": 2.0828, "W_m": 1.1684 },
+          { "size": "SMALL_3_4", "material": "wood",  "L": "6'-10\"", "W": "4'-0\"",  "L_m": 2.0828, "W_m": 1.2192 },
+          { "size": "LARGE_3_4", "material": "metal", "L": "6'-10\"", "W": "4'-4\"+",  "L_m": 2.0828, "W_m": 1.3213 },
+          { "size": "LARGE_3_4", "material": "wood",  "L": "6'-10\"", "W": "4'-4\"+",  "L_m": 2.0828, "W_m": 1.3213 },
+          { "size": "FULL_SIZE", "material": "metal", "L": "6'-10\"", "W": "4'-6\"",  "L_m": 2.0828, "W_m": 1.3716 },
+          { "size": "FULL_SIZE", "material": "wood",  "L": "6'-10\"", "W": "4'-10\"+", "L_m": 2.0828, "W_m": 1.4732 }
+        ],
+        "normalized": {
+          "SINGLE":      { "L_m": 2.0828, "W_m_range": [0.9144, 1.016] },
+          "TWIN_SINGLE": { "L_m": 2.0828, "W_m_range": [0.9906, 1.1176] },
+          "SMALL_3_4":   { "L_m": 2.0828, "W_m_range": [1.1684, 1.2192] },
+          "LARGE_3_4":   { "L_m": 2.0828, "W_m_range": [1.3213, 1.3213] },
+          "FULL_SIZE":   { "L_m": 2.0828, "W_m_range": [1.3716, 1.4732] }
+        }
+      }
+      /* --- end book reference sizes --- */
+    },
+
+    "BST": {
+      "defaults": { "variant": "BST_45x45" },
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "BST_45x45": { "w": 0.45, "d": 0.45 },
+        "BST_40x40": { "w": 0.4, "d": 0.4 }
+      },
+      "clearance": { "use_global": false },
+      "features": {
+        "top_height_rel_to_mattress_m": { "min": 0.05, "target": 0.1, "max": 0.12 },
+        "acceptable_height_modes": ["align_mattress", "plus_5_to_12cm"],
+        "glass_top_possible": true
+      },
+      "sizing": {
+        "by_bed_variant": {
+          "DOUBLE_150x200": { "w_min_m": 0.4318, "w_max_m": 0.508 },
+          "QUEEN_180x200":  { "w_min_m": 0.5334, "w_max_m": 0.762 },
+          "KING_200x200":   { "w_min_m": 0.7874, "w_max_m": null }
+        }
+      },
+      "preferences": {
+        "scale_with_bed_width": true,
+        "closed_storage_preferred": true
+      },
+      /* book night table ranges */
+      "book_ranges_m": {
+        "H": [0.5334, 0.762],
+        "W": [0.3556, 0.6096],
+        "D": [0.3048, 0.6096]
+      }
+    },
+
+    "WRD": {
+      "name": "Wardrobe",
+      "defaults": { "variant": "WRD_180", "type": "hinged" },
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "WRD_210": { "w": 2.1, "d": 0.6, "type": "hinged" },
+        "WRD_180": { "w": 1.8, "d": 0.6, "type": "sliding" },
+        "WRD_150": { "w": 1.5, "d": 0.6, "type": "sliding" },
+        "WRD_120": { "w": 1.2, "d": 0.6, "type": "hinged" }
+      },
+      "clearance": { "front_rec": 0.6, "front_min": 0.5 },
+      "preferences": { "align_to_wall": true, "built_in_preferred_in_small_or_sloped": true },
+      "features": { "sloped_ceiling_cutback_possible": true, "modular_system_supported": true }
+    },
+
+    "DRS": {
+      "name": "Dresser / Chest",
+      "defaults": { "variant": "DRS_120" },
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "DRS_120": { "w": 1.22, "d": 0.61 },
+        "DRS_100": { "w": 1.0, "d": 0.5 },
+        "DRS_90":  { "w": 0.9, "d": 0.46 }
+      },
+      "clearance": { "front_rec": 0.9, "front_min": 0.75 },
+      "preferences": { "avoid_under_window": true },
+      /* book dresser ranges */
+      "book_ranges_m": {
+        "H": [0.8128, 0.9398],
+        "L": [0.9144, 1.2192],
+        "D": [0.4572, 0.5334]
+      }
+    },
+
+    "DESK": {
+      "defaults": { "variant": "DESK_120" },
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "DESK_120": { "w": 1.2, "d": 0.6 },
+        "DESK_100": { "w": 1.0, "d": 0.55 },
+        "DESK_80":  { "w": 0.8, "d": 0.5 }
+      },
+      "clearance": { "front_rec": 0.9, "front_min": 0.75 },
+      "preferences": { "prefer_window_proximity": true },
+      "features": { "can_double_as_bst": true }
+    },
+
+    "TVU": {
+      "name": "TV Unit",
+      "defaults": { "variant": "TVU_120" },
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "TVU_120": { "w": 1.2, "d": 0.45 },
+        "TVU_150": { "w": 1.5, "d": 0.45 },
+        "TVU_90":  { "w": 0.9, "d": 0.4 }
+      },
+      "clearance": { "front_rec": 0.6, "front_min": 0.5 },
+      "preferences": { "align_to_wall": true }
+    },
+
+    "SCREEN": { "name": "Folding Screen", "defaults": { "variant": "SCREEN_120" }, "variants": { "SCREEN_120": { "w": 1.2, "d": 0.05 } }, "features": {}, "preferences": {} },
+
+    "BOOKSHELF_DIVIDER": {
+      "name": "Bookshelf Divider",
+      "defaults": { "variant": "BOOK_DIV_90" },
+      "variants": {
+        "BOOK_DIV_90": { "w": 0.9, "d": 0.3 },
+        "BOOK_DIV_120": { "w": 1.2, "d": 0.3 }
+      },
+      "features": { "open_back_possible": true },
+      "preferences": {}
+    },
+
+    "MIRROR": {
+      "name": "Mirror",
+      "defaults": { "variant": "MIRROR_60" },
+      "variants": { "MIRROR_60": { "w": 0.6, "d": 0.05 } },
+      "features": { "light_bounce_placement_preferred": true },
+      "preferences": { "indirect_placement_preferred": true }
+    },
+
+    "PLANT_LG": { "name": "Large Plant", "defaults": { "variant": "PLANT_LG_STD" }, "variants": { "PLANT_LG_STD": { "w": 0.5, "d": 0.5 } }, "features": {}, "preferences": {} },
+
+    "FLOOR_LAMP": { "name": "Floor Lamp", "defaults": { "variant": "FLOOR_LAMP_STD" }, "variants": { "FLOOR_LAMP_STD": { "w": 0.35, "d": 0.35 } }, "features": {}, "preferences": {} },
+
+    "SHELF": { "name": "Small Wall Shelf", "defaults": { "variant": "SHELF_45" }, "variants": { "SHELF_45": { "w": 0.45, "d": 0.2 } }, "features": {}, "preferences": {} },
+
+    "CHAIR": {
+      "name": "Chair",
+      "defaults": { "variant": "CHAIR_STD" },
+      "variants": { "CHAIR_STD": { "w": 0.5, "d": 0.5 } },
+      "features": {},
+      "preferences": {},
+      /* boudoir chair ranges from book */
+      "book_ranges_m": {
+        "H": [0.8128, 1.016],
+        "W": [0.762, 0.8636],
+        "D": [0.8128, 0.9652]
+      }
+    },
+
+    "CARPET": {
+      "name": "Carpet",
+      "defaults": { "mode": "area_rug" },
+      "features": { "layering_possible": true },
+      "preferences": { "layer_contrast_preferred": true },
+      "sizing_rules": {
+        "side_extension_m_range": [0.6, 0.7],
+        "runner_rugs_as_alternative": true,
+        "alternative_side_extension_m_range": [0.3048, 0.4572],
+        "foot_extension_m_range": [0.3048, 0.4572],
+        "furniture_feet_on_rug_min_ratio": 0.67,
+        "max_area_m2_small_room": 7.5,
+        "alternative2_side_extension_m_range": [0.4572, 0.6096],
+        "alternative2_foot_extension_m_range": [0.4572, 0.6096]
+      },
+      "rules": {
+        "place_under_bed_preferred": true,
+        "horizontal_under_bed_preferred": true,
+        "span_between_nightstands_preferred": true,
+        "prefer_single_large_over_multiple_small": true
+      }
+    },
+
+    "ART": {
+      "name": "Wall Art",
+      "defaults": { "variant": "ART_STD" },
+      "variants": { "ART_STD": { "w": 0.6, "d": 0.02 } },
+      "features": { "centerline_height_m_range": [1.4478, 1.524] },
+      "preferences": {}
+    },
+
+    "DECOR_BOX": {
+      "name": "Decor Storage Box",
+      "defaults": { "variant": "DECOR_BOX_STD" },
+      "variants": { "DECOR_BOX_STD": { "w": 0.35, "d": 0.35 } },
+      "features": { "stackable": true },
+      "preferences": { "functional_decor_preferred": true }
+    },
+
+    "DRESSER": {
+      "name": "Dresser",
+      "defaults": { "variant": "DRS_STD" },
+      "variants": { "DRS_STD": { "w": 1.0, "d": 0.5 } },
+      "features": { "acts_as_bst": true },
+      "preferences": {},
+      /* book dresser ranges (alias of DRS) */
+      "book_ranges_m": {
+        "H": [0.8128, 0.9398],
+        "L": [0.9144, 1.2192],
+        "D": [0.4572, 0.5334]
+      }
+    },
+
+    "DAYBED": {
+      "name": "Daybed",
+      "defaults": { "variant": "DAYBED_TWIN" },
+      "variants": {
+        "DAYBED_TWIN": { "w": 1.0, "d": 2.0 },
+        "DAYBED_FULL": { "w": 1.35, "d": 2.0 }
+      },
+      "features": { "trundle_possible": true, "designed_against_wall": true },
+      "preferences": { "use_when_cornered": true }
+    },
+
+    "TALLBOY": {
+      "name": "Tallboy",
+      "defaults": { "variant": "TALLBOY_STD" },
+      "variants": { "TALLBOY_STD": { "w": 0.8, "d": 0.5 } },
+      "features": {},
+      "preferences": { "compact_room_preferred": true }
+    },
+
+    /* new items from book page */
+    "CHEST": {
+      "name": "Chest of Drawers",
+      "defaults": { "variant": "CHEST_90" },
+      "variants": { "CHEST_90": { "w": 0.9, "d": 0.45 } },
+      "features": {},
+      "preferences": {},
+      "book_ranges_m": {
+        "H": [1.0414, 1.4224],
+        "L": [0.8128, 1.2192],
+        "D": [0.4572, 0.5334]
+      }
+    },
+
+    "CHAISE": {
+      "name": "Chaise Longue",
+      "defaults": { "variant": "CHAISE_STD" },
+      "variants": { "CHAISE_STD": { "w": 1.8, "d": 0.6 } },
+      "features": {},
+      "preferences": {},
+      "book_ranges_m": {
+        "H": [0.4064, 0.4826],
+        "L": [1.2192, 1.6764],
+        "D": [0.6096, 0.7112]
+      }
+    },
+
+    "VANITY": {
+      "name": "Vanity / Dressing Table",
+      "defaults": { "variant": "VANITY_90" },
+      "variants": {
+        "VANITY_90":  { "w": 0.9, "d": 0.45 },
+        "VANITY_120": { "w": 1.2, "d": 0.5 }
+      },
+      "features": {},
+      "preferences": {},
+      "book_ranges_m": {
+        "H": [0.6604, 0.762],
+        "L": [0.9144, 1.2699999999999998],
+        "D": [0.381, 0.5334]
+      }
+    }
+  },
+  "defaults": {
+    "room_min": { "w": 2.75, "d": 2.75 },
+    "bed_variant": "QUEEN_180x200",
+    "starter_set": ["BED", "WRD", "DESK", "TVU", "BST"],
+    "room_small_threshold_m2": 10.0
+  },
+  "materials": {
+    "palette": {
+      "avoid_neon_saturated_in_bedroom": true,
+      "preferred_palettes": ["earthy", "neutrals", "pastels"],
+      "accent_color_variation_required": true,
+      "recommended_cool_shades": ["light_grey", "muted_green", "soft_blue"],
+      "recommended_warm_shades": ["creamy_beige", "light_peach", "soft_pink"],
+      "walls_light_shades_preferred": true,
+      "accent_wall_allowed": true,
+      "bold_colors_in_small_accents_preferred": true
+    },
+    "headboard": {
+      "treatment": {
+        "allow_tapestry": true,
+        "allow_large_single_art": true,
+        "art_soothing_colors_preferred": true,
+        "allow_painted_accent": true,
+        "allow_oversized_pillows_as_headboard": true,
+        "allow_reclaimed_materials": true
+      },
+      "slipcover_possible": true
+    },
+    "paint": {
+      "walls_default_sheen": "eggshell",
+      "trim_min_sheen": "semi_gloss",
+      "require_contrast_color_or_sheen": true,
+      "limewash_allowed": true
+    },
+    "flooring": {
+      "wood_look_tiles_allowed": true,
+      "marble_allowed": true,
+      "light_marble_preferred_in_compact": true
+    },
+    "glass": { "back_painted_glass_allowed": true },
+    "drapery": {
+      "light_neutral_colors_preferred": true,
+      "subtle_patterns_textures_preferred": true,
+      "sheer_layer_preferred": true,
+      "fabrics_lightweight_preferred": true,
+      "bed_wall_full_drapes_possible": true,
+      "hang_high_preferred": true
+    },
+    "bedding": {
+      "neutral_core_preferred": true,
+      "simple_layers_preferred": true,
+      "recommend_ELS_cotton": true,
+      "weave_percale_for_hot_sleepers": true,
+      "weave_sateen_for_softness_warmth": true,
+      "linen_bamboo_for_hot_sleepers": true,
+      "avoid_cheap_linen": true,
+      "mattress_protector_recommended": true,
+      "pillow_choice_by_sleep_position_considered": true,
+      "pillows_per_person_preferred": 2,
+      "texture_mix_preferred": true,
+      "contrast_in_bedding_layers_preferred": true
+    }
+  }
+}
