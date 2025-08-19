@@ -1284,10 +1284,16 @@ class GridPlan:
     def meters_to_cells(self, m:float)->int:
         return max(1, int(ceil(m/self.cell)))
 
+WALL_BOTTOM = 0
+WALL_RIGHT = 1
+WALL_TOP = 2
+WALL_LEFT = 3
+
+
 class Openings:
     def __init__(self, plan:GridPlan):
         self.p=plan
-        self.door_wall=3  # 0=bottom,1=right,2=top,3=left
+        self.door_wall=WALL_LEFT  # default orientation
         self.door_center=0.25*plan.Hm
         self.door_width=0.90
         self.swing_depth=0.60
@@ -1304,7 +1310,7 @@ class Openings:
         y=max(0, min(p.gh-w, int(round(self.door_center/p.cell))-w//2)); return (p.gw-swing, y, swing, w)
     def door_span_cells(self)->Tuple[int,int,int]:
         p=self.p; w=p.meters_to_cells(self.door_width)
-        if self.door_wall in (0,2):
+        if self.door_wall in (WALL_BOTTOM, WALL_TOP):
             x=max(0, min(p.gw-w, int(round(self.door_center/p.cell))-w//2))
             return (self.door_wall, x, w)
         y=max(0, min(p.gh-w, int(round(self.door_center/p.cell))-w//2))
@@ -2388,14 +2394,14 @@ class GenerateView:
         if self.bath_dims:
             b_wall, b_start, b_width = self.bed_openings.door_span_cells()
             bath_wall, bath_start, bath_width = self.bath_openings.door_span_cells()
-            if b_wall == 1 or bath_wall == 3:
-                if not (b_wall == 1 and bath_wall == 3 and b_start == bath_start and b_width == bath_width):
+            if b_wall == WALL_RIGHT or bath_wall == WALL_LEFT:
+                if not (b_wall == WALL_RIGHT and bath_wall == WALL_LEFT and b_start == bath_start and b_width == bath_width):
                     self.status.set('Door must align on shared wall between bedroom and bathroom.')
                     self._draw()
                     return
         else:
             b_wall, _, _ = self.bed_openings.door_span_cells()
-            if b_wall == 1:
+            if b_wall == WALL_RIGHT:
                 self.status.set('Door on right wall requires adjacent bathroom.')
                 self._draw()
                 return
