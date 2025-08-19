@@ -3,8 +3,25 @@ from tkinter import ttk, messagebox, filedialog
 from collections import deque, defaultdict
 from math import ceil, sqrt
 from typing import Optional, Dict, Tuple, List, Set
-import time, json, random, os, itertools
+import time, json, random, os, itertools, re
 import numpy as np
+
+RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
+
+def load_rules(path: str = RULES_FILE) -> Dict:
+    """
+    Load rule configuration from ``path``. If the file is missing or invalid
+    an empty dictionary is returned so that built-in defaults remain in effect.
+    """
+    try:
+        with open(path, "r") as f:
+            text = f.read()
+        text = re.sub(r"//.*?$|/\*.*?\*/", "", text, flags=re.MULTILINE | re.DOTALL)
+        return json.loads(text)
+    except Exception:
+        return {}
+
+RULES = load_rules()
 
 """
 VASTU – Sketch + Generate (Bedroom) – ALL-IN-ONE ADVANCED – FINAL (Aug-2025)
@@ -40,9 +57,9 @@ Files (in working dir)
 
 IN_TO_M = 0.0254
 FT_TO_M = 0.3048
-CELL_M = 0.25
-PATH_WIDTH_CELLS = 2
-LEARNING_RATE = 0.06
+CELL_M = RULES.get("units", {}).get("CELL_M", 0.25)
+PATH_WIDTH_CELLS = RULES.get("solver", {}).get("PATH_WIDTH_CELLS", 2)
+LEARNING_RATE = RULES.get("learning", {}).get("LEARNING_RATE", 0.06)
 
 SIM_FILE = 'solver_simulations.jsonl'
 WEIGHT_FILE='solver_weights.json'
@@ -103,7 +120,7 @@ LENGTH_UNIT_LABELS = ["m", "ft"]
 # Catalog (book sizes only)
 # -----------------------
 
-BEDROOM_BOOK = {
+DEFAULT_BEDROOM_BOOK = {
     "BEDS": {
         "SINGLE": {"w": 3 * FT_TO_M, "d": (6 + 6/12) * FT_TO_M},
         "TWIN":   {"w": (3 + 3/12) * FT_TO_M, "d": (6 + 6/12) * FT_TO_M},
@@ -137,6 +154,8 @@ BEDROOM_BOOK = {
         "unit_gap": 3 * IN_TO_M,
     },
 }
+
+BEDROOM_BOOK = RULES.get("bedroom_book") or RULES.get("BEDROOM_BOOK") or DEFAULT_BEDROOM_BOOK
 
 # -----------------------
 # Theme
