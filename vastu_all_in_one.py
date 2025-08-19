@@ -2374,6 +2374,33 @@ class GenerateView:
                 parse(self.bath_w2_wall.get(), self.bath_w2_len.get(), self.bath_w2_c.get())
             ]
 
+    def _validate_shared_wall_door(self) -> bool:
+        """Validate bedroom/bathroom door alignment and update status.
+
+        Returns ``True`` if doors are validly aligned or no bathroom exists.
+        Otherwise, sets a status message and returns ``False``.
+        """
+        if self.bath_dims:
+            b_wall, b_start, b_width = self.bed_openings.door_span_cells()
+            bath_wall, bath_start, bath_width = self.bath_openings.door_span_cells()
+            if b_wall == WALL_RIGHT or bath_wall == WALL_LEFT:
+                if not (
+                    b_wall == WALL_RIGHT
+                    and bath_wall == WALL_LEFT
+                    and b_start == bath_start
+                    and b_width == bath_width
+                ):
+                    self.status.set(
+                        'Door must align on shared wall between bedroom and bathroom.'
+                    )
+                    return False
+        else:
+            b_wall, _, _ = self.bed_openings.door_span_cells()
+            if b_wall == WALL_RIGHT:
+                self.status.set('Door on right wall requires adjacent bathroom.')
+                return False
+        return True
+
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
         sticky = []
@@ -2384,6 +2411,10 @@ class GenerateView:
             sticky.append((code, x, y, w, h, wall))
         self._sticky_items = sticky  # only keep the locked item (if any)
         # (2) RUN THE SOLVER to regenerate
+        self._apply_openings_from_ui()
+        if not self._validate_shared_wall_door():
+            self._draw()
+            return
         self._solve_and_draw()
 
     def _solve_and_draw(self):
@@ -2391,20 +2422,9 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
-        if self.bath_dims:
-            b_wall, b_start, b_width = self.bed_openings.door_span_cells()
-            bath_wall, bath_start, bath_width = self.bath_openings.door_span_cells()
-            if b_wall == WALL_RIGHT or bath_wall == WALL_LEFT:
-                if not (b_wall == WALL_RIGHT and bath_wall == WALL_LEFT and b_start == bath_start and b_width == bath_width):
-                    self.status.set('Door must align on shared wall between bedroom and bathroom.')
-                    self._draw()
-                    return
-        else:
-            b_wall, _, _ = self.bed_openings.door_span_cells()
-            if b_wall == WALL_RIGHT:
-                self.status.set('Door on right wall requires adjacent bathroom.')
-                self._draw()
-                return
+        if not self._validate_shared_wall_door():
+            self._draw()
+            return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         solver=BedroomSolver(
             bed_plan,
@@ -2984,6 +3004,9 @@ class GenerateView:
 
         # Re-apply door/window positions from UI (doesn't add furniture)
         self._apply_openings_from_ui()
+        if not self._validate_shared_wall_door():
+            self._draw()
+            return
 
         # New empty grid, then re-place exactly what the user already had
         best = GridPlan(self.Wm, self.Hm)
