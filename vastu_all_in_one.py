@@ -2374,15 +2374,30 @@ class GenerateView:
                 parse(self.bath_w2_wall.get(), self.bath_w2_len.get(), self.bath_w2_c.get())
             ]
 
-    def _validate_shared_wall_door(self) -> bool:
+    def _validate_shared_wall_door(
+        self,
+        bed_span: Optional[Tuple[int, int, int]] = None,
+        bath_span: Optional[Tuple[int, int, int]] = None,
+    ) -> bool:
         """Validate bedroom/bathroom door alignment and update status.
 
         Returns ``True`` if doors are validly aligned or no bathroom exists.
         Otherwise, sets a status message and returns ``False``.
+
+        Parameters
+        ----------
+        bed_span, bath_span:
+            Optional precomputed ``door_span_cells`` results for the bedroom
+            and bathroom respectively. When provided, the helper avoids
+            recomputing the spans.
         """
         if self.bath_dims:
-            b_wall, b_start, b_width = self.bed_openings.door_span_cells()
-            bath_wall, bath_start, bath_width = self.bath_openings.door_span_cells()
+            if bed_span is None:
+                bed_span = self.bed_openings.door_span_cells()
+            if bath_span is None:
+                bath_span = self.bath_openings.door_span_cells()
+            b_wall, b_start, b_width = bed_span
+            bath_wall, bath_start, bath_width = bath_span
             if b_wall == WALL_RIGHT or bath_wall == WALL_LEFT:
                 if not (
                     b_wall == WALL_RIGHT
@@ -2395,7 +2410,9 @@ class GenerateView:
                     )
                     return False
         else:
-            b_wall, _, _ = self.bed_openings.door_span_cells()
+            if bed_span is None:
+                bed_span = self.bed_openings.door_span_cells()
+            b_wall, _, _ = bed_span
             if b_wall == WALL_RIGHT:
                 self.status.set('Door on right wall requires adjacent bathroom.')
                 return False
@@ -2422,7 +2439,9 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
-        if not self._validate_shared_wall_door():
+        bed_span = self.bed_openings.door_span_cells()
+        bath_span = self.bath_openings.door_span_cells() if self.bath_dims else None
+        if not self._validate_shared_wall_door(bed_span, bath_span):
             self._draw()
             return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
