@@ -2583,10 +2583,6 @@ class GenerateView:
             for j in range(gh + 1):
                 y = oy + j * scale
                 cv.create_line(ox, y, ox + gw * scale, y, fill='#2c2c2c')
-            cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
-                                outline=WALL_COLOR, width=thick)
-            self._draw_room_openings(cv, openings, ox, oy, scale, thick)
-
             bound = set()
             for j in range(gh):
                 for i in range(gw):
@@ -2612,6 +2608,9 @@ class GenerateView:
                 cv.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
                                     outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
 
+            cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
+                                outline=WALL_COLOR, width=thick)
+            self._draw_room_openings(cv, openings, ox, oy, scale, thick)
         draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
