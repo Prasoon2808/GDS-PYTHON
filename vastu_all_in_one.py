@@ -2117,8 +2117,6 @@ class GenerateView:
                 ('LAV', 'Lavatory'), ('CLEAR', 'Clearances (merged)')
             ]
         elif self.room_label.lower() == 'bathroom':
-
-        if self.room_label.lower() == 'bathroom':
             items = [('WC','Toilet'),('SHR','Shower'),('TUB','Tub'),('LAV','Lavatory'),('CLEAR','Clearances')]
         else:
             items = [
@@ -3175,7 +3173,7 @@ class App:
             # user cancelled; keep landing visible
             return
         mode = md.result
-        ]
+        
 
         # 2) Room input dialogs (bedroom then bathroom)
 
