@@ -2089,7 +2089,7 @@ def add_door_clearance(p: GridPlan, op: Openings, owner: str):
         p.mark_clear(start, p.gh - depth - max(1, PATH_WIDTH_CELLS), width,
                      max(1, PATH_WIDTH_CELLS), 'DOOR_CLEAR', owner)
     elif wall == 3:
-        p.mark_clear(max(1, PATH_WIDTH_CELLS), start, max(1, PATH_WIDTH_CELLS), width,
+        p.mark_clear(depth, start, max(1, PATH_WIDTH_CELLS), width,
                      'DOOR_CLEAR', owner)
     else:
         p.mark_clear(p.gw - depth - max(1, PATH_WIDTH_CELLS), start,
@@ -2643,13 +2643,14 @@ class GenerateView:
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
 
         if self.bath_dims and self.bath_openings:
-            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
+            bwall, _, _ = self.bath_openings.door_span_cells()
             if bwall == WALL_LEFT:
-                depth = bed_plan.meters_to_cells(self.bath_openings.swing_depth) \
-                        + max(1, PATH_WIDTH_CELLS - 1)
-                bed_plan.mark_clear(0, bstart, depth, bwidth,
-                                    'DOOR_CLEAR', 'BATHROOM_DOOR')
-                print('DEBUG: marked bathroom door clearance', 0, bstart, depth, bwidth)
+                mirror = Openings(bed_plan)
+                mirror.door_wall = WALL_RIGHT
+                mirror.door_center = self.bath_openings.door_center
+                mirror.door_width = self.bath_openings.door_width
+                mirror.swing_depth = self.bath_openings.swing_depth
+                add_door_clearance(bed_plan, mirror, 'BATHROOM_DOOR')
 
         solver=BedroomSolver(
             bed_plan,
