@@ -3160,14 +3160,16 @@ class GenerateView:
         win_spans = self.openings.window_spans_cells()
 
         def spans_block(wall, x, y, w, h):
-            if wall == dwall and self._span_blocks_opening(wall, max(0, dstart-1), max(1, dwidth+2), x, y, w, h):
-                return True
             if bath_door_span and wall == 3:
+                bstart, bwidth = bath_door_span
                 if self._span_blocks_opening(3,
-                                             max(0, bath_door_span[0] - 1),
-                                             max(1, bath_door_span[1] + 2),
+                                             max(0, bstart - 1),
+                                             max(1, bwidth + 2),
                                              x, y, w, h):
                     return True
+            if wall == dwall and self._span_blocks_opening(
+                    wall, max(0, dstart - 1), max(1, dwidth + 2), x, y, w, h):
+                return True
             for ww, start, L in win_spans:
                 if wall == ww and self._span_blocks_opening(wall, start, L, x, y, w, h):
                     return True
