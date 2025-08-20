@@ -1797,6 +1797,12 @@ class BedroomSolver:
         else:
             door_clear = (p.gw - swing, dstart, swing, dwidth)
 
+        bath_door_span = None
+        if getattr(self, 'bath_openings', None):
+            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
+            if bwall == 3:   # shared left wall
+                bath_door_span = (bstart, bwidth)
+
         def touches_opening(x, y, w, h, avoid_windows: bool) -> bool:
             # identify which wall the candidate touches
             if y == 0: wall = 0
@@ -1840,6 +1846,10 @@ class BedroomSolver:
                 if bed_wall == dwall:
                     dcx, dcy, dcw, dch = door_clear
                     if not (x + w <= dcx or dcx + dcw <= x or y + h <= dcy or dcy + dch <= y):
+                        continue
+                if bath_door_span and x == 0:
+                    bstart, bwidth = bath_door_span
+                    if not (y + h <= bstart or bstart + bwidth <= y):
                         continue
                 if not p.fits(x, y, w, h):
                     continue
@@ -1891,6 +1901,11 @@ class BedroomSolver:
             door_clear = (0, dstart, swing, dwidth)
         else:
             door_clear = (p.gw - swing, dstart, swing, dwidth)
+        bath_door_span = None
+        if getattr(self, 'bath_openings', None):
+            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
+            if bwall == 3:   # shared left wall
+                bath_door_span = (bstart, bwidth)
         for name in specs:
             spec = BEDROOM_BOOK['WARDROBE'][name] if kind=='WRD' else BEDROOM_BOOK['DRESSER'][name]
             W=p.meters_to_cells(spec['w']); D=p.meters_to_cells(spec['d'])
@@ -1916,6 +1931,10 @@ class BedroomSolver:
                     for wwspan,start,lenv in win_spans:
                         if wall==wwspan and self._span_blocks_opening(wall,start,lenv,x,y,w,h): bad=True; break
                     if bad: continue
+                    if bath_door_span and wall == 3:
+                        bstart, bwidth = bath_door_span
+                        if not (y + h <= bstart or bstart + bwidth <= y):
+                            continue
                     if not p.fits(x,y,w,h): continue
                     p.place(x,y,w,h, kind)
                     if 'front_rec' in spec:
