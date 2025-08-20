@@ -1898,9 +1898,6 @@ class BedroomSolver:
                     return (x,y,w,h)
         return None
 
-    def _add_door_clearance(self, p:GridPlan, owner:str):
-        add_door_clearance(p, self.op, owner)
-
     def _add_window_clearances(self, p:GridPlan):
         depth = max(1, p.meters_to_cells(0.40))
         for wall,start,length in self.op.window_spans_cells():
@@ -2546,13 +2543,14 @@ class GenerateView:
         self._solve_and_draw()
         self.status.set('Bedroom and bathroom regenerated.')
 
-    def _add_door_clearance(self, p: GridPlan, owner: str):
+    def _add_door_clearance(self, p: GridPlan, owner: str, openings=None):
         """Mark clearance for bedroom or bathroom doors on ``p``.
 
-        ``p`` is expected to be either ``self.bed_plan`` or ``self.bath_plan``;
-        the corresponding openings object is automatically selected.
+        If ``openings`` is not supplied, it is inferred based on whether ``p``
+        corresponds to ``self.bath_plan`` or ``self.bed_plan``.
         """
-        openings = self.bath_openings if p is self.bath_plan else self.bed_openings
+        if openings is None:
+            openings = self.bath_openings if p is self.bath_plan else self.bed_openings
         if openings:
             add_door_clearance(p, openings, owner)
 
@@ -2611,19 +2609,16 @@ class GenerateView:
             best.clearzones = merge_clearances(best.clearzones)
 
         bed_plan = best
-        self.bed_plan = bed_plan
+        bath_plan = None
         if self.bath_dims and bath_ok:
-            self.bath_plan = arrange_bathroom(
+            bath_plan = arrange_bathroom(
                 self.bath_dims[0], self.bath_dims[1], BATH_RULES,
                 openings=self.bath_openings,
             )
             dx, dy, dw, dh = self.bath_openings.door_rect_cells()
             for j in range(dy, dy + dh):
                 for i in range(dx, dx + dw):
-                    self.bath_plan.occ[j][i] = 'DOOR'
-            self._add_door_clearance(self.bath_plan, 'DOOR')
-            if bed_wall == WALL_RIGHT:
-                self._add_door_clearance(self.bed_plan, 'DOOR')
+                    bath_plan.occ[j][i] = 'DOOR'
             bath_sticky = getattr(self, '_sticky_bath_items', [])
             if bath_sticky:
                 fx = BATH_RULES.get('fixtures', {})
@@ -2640,21 +2635,24 @@ class GenerateView:
                     'SHR': clear['shr_front'],
                 }
                 for (code, x, y, w, h, wall) in bath_sticky:
-                    self.bath_plan.clear(x, y, w, h)
-                    self.bath_plan.place(x, y, w, h, code)
+                    bath_plan.clear(x, y, w, h)
+                    bath_plan.place(x, y, w, h, code)
                     fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
                     if fc_m > 0.0:
-                        fc = self.bath_plan.meters_to_cells(fc_m)
+                        fc = bath_plan.meters_to_cells(fc_m)
                         if wall == 0:
-                            self.bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
+                            bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
                         elif wall == 2:
-                            self.bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
-                self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
-        else:
-            self.bath_plan = None
+                            bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+                bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+            # add door clearances after fixtures are locked
+            self._add_door_clearance(bath_plan, 'DOOR', self.bath_openings)
+            if bed_wall == WALL_RIGHT:
+                self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
+            bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
 
         # Combine bedroom and bathroom into a single plan for downstream ops
-        if self.bath_plan:
+        if bath_plan:
             total_wm = self.bed_Wm + self.bath_dims[0]
             total_hm = max(self.bed_Hm, self.bath_dims[1])
             combined = GridPlan(total_wm, total_hm)
@@ -2667,17 +2665,22 @@ class GenerateView:
             combined.clearzones.extend(bed_plan.clearzones)
             # copy bathroom with horizontal offset
             xoff = bed_plan.gw
-            for j in range(self.bath_plan.gh):
-                for i in range(self.bath_plan.gw):
-                    code = self.bath_plan.occ[j][i]
+            for j in range(bath_plan.gh):
+                for i in range(bath_plan.gw):
+                    code = bath_plan.occ[j][i]
                     if code:
                         combined.occ[j][i + xoff] = code
-            for x, y, w, h, kind, owner in self.bath_plan.clearzones:
+            for x, y, w, h, kind, owner in bath_plan.clearzones:
                 combined.clearzones.append((x + xoff, y, w, h, kind, owner))
             combined.clearzones = merge_clearances(combined.clearzones)
-            self.plan = combined
+            plan = combined
         else:
-            self.plan = bed_plan
+            plan = bed_plan
+
+        # assign plans once after combining
+        self.plan = plan
+        self.bed_plan = bed_plan
+        self.bath_plan = bath_plan
 
         self.meta=meta; self._log_run(meta); self._draw()
         sc=meta.get('score',0.0)
@@ -2701,10 +2704,6 @@ class GenerateView:
         for j in range(dy, dy + dh):
             for i in range(dx, dx + dw):
                 self.bath_plan.occ[j][i] = 'DOOR'
-        self._add_door_clearance(self.bath_plan, 'DOOR')
-        bed_wall, _, _ = self.bed_openings.door_span_cells()
-        if bed_wall == WALL_RIGHT:
-            self._add_door_clearance(self.bed_plan, 'DOOR')
         bath_sticky = getattr(self, '_sticky_bath_items', [])
         if bath_sticky:
             fx = BATH_RULES.get('fixtures', {})
@@ -2731,6 +2730,11 @@ class GenerateView:
                     elif wall == 2:
                         self.bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
             self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
+        self._add_door_clearance(self.bath_plan, 'DOOR', self.bath_openings)
+        bed_wall, _, _ = self.bed_openings.door_span_cells()
+        if bed_wall == WALL_RIGHT:
+            self._add_door_clearance(self.bed_plan, 'DOOR', self.bed_openings)
+        self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
 
         bed_plan = self.bed_plan or GridPlan(self.bed_Wm, self.bed_Hm)
         total_wm = self.bed_Wm + self.bath_dims[0]
