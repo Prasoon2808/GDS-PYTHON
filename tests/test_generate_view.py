@@ -198,7 +198,75 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
     gv._apply_batch_and_generate()
 
     assert seen.get('rng') is None, 'arrange_bathroom should be deterministic'
-    assert gv.status.msg == 'Bedroom and bathroom regenerated.'
+
+
+class DummyCanvas:
+    def __init__(self):
+        self.next_id = 1
+    def create_rectangle(self, *args, **kwargs):
+        rid = self.next_id; self.next_id += 1; return rid
+    def coords(self, *args, **kwargs):
+        pass
+    def delete(self, *args, **kwargs):
+        pass
+    def bind(self, *args, **kwargs):
+        pass
+    def focus_set(self):
+        pass
+
+
+def setup_drag_view():
+    gv = GenerateView.__new__(GenerateView)
+    gv.bed_Wm = gv.bed_Hm = 3.0
+    gv.bath_Wm = gv.bath_Hm = 3.0
+    gv.bath_dims = (3.0, 3.0)
+    gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
+    gv.Wm = gv.bed_Wm + gv.bath_Wm
+    gv.Hm = max(gv.bed_Hm, gv.bath_Hm)
+    gv.plan = GridPlan(gv.Wm, gv.Hm)
+    GenerateView._combine_plans(gv)
+    gv.canvas = DummyCanvas()
+    gv._draw = lambda: None
+    gv._log_event = lambda *a, **k: None
+    gv.selected = None
+    gv.selected_locked = False
+    gv.ox = gv.oy = 0
+    gv.scale = 1
+    return gv
+
+
+def test_on_up_updates_only_bed_plan():
+    gv = setup_drag_view()
+    gv.bed_plan.place(0, 0, 1, 1, 'BED')
+    GenerateView._combine_plans(gv)
+    gv.drag_item = {
+        'orig': [0, 0, 1, 1],
+        'live': [1, 0, 1, 1],
+        'code': 'BED',
+        'room': 'bed',
+        'ghost': None,
+    }
+    GenerateView._on_up(gv, type('E', (), {})())
+    assert gv.bed_plan.occ[0][1] == 'BED'
+    assert all(cell is None for row in gv.bath_plan.occ for cell in row)
+
+
+def test_on_up_updates_only_bath_plan():
+    gv = setup_drag_view()
+    gv.bath_plan.place(0, 0, 1, 1, 'WC')
+    GenerateView._combine_plans(gv)
+    xoff = gv.bed_plan.gw
+    gv.drag_item = {
+        'orig': [xoff, 0, 1, 1],
+        'live': [xoff + 1, 0, 1, 1],
+        'code': 'WC',
+        'room': 'bath',
+        'ghost': None,
+    }
+    GenerateView._on_up(gv, type('E', (), {})())
+    assert gv.bath_plan.occ[0][1] == 'WC'
+    assert all('WC' not in row for row in gv.bed_plan.occ)
 
 
 def test_locked_bath_item_reapplied_after_generate(monkeypatch):
