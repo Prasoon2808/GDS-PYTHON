@@ -206,6 +206,99 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
     assert seen.get('rng') is None, 'arrange_bathroom should be deterministic'
 
 
+def test_solver_failure_keeps_previous_plan(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            pass
+        def run(self):
+            return None, {}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+
+    prev = GridPlan(4.0, 4.0)
+    prev.place(0, 0, 1, 1, 'BED')
+    gv.plan = prev
+
+    gv._solve_and_draw()
+
+    assert gv.plan is prev
+    assert gv.status.msg == 'No arrangement found (adjust door/windows).'
+
+
+def test_arrange_bathroom_failure_warns_user(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def failing_arrange_bathroom(w, h, rules, openings=None, rng=None):
+        return None
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', failing_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    assert gv.bath_plan is None
+    assert gv.plan is gv.bed_plan
+    assert gv.status.msg == 'Bathroom generation failed; bedroom only.'
+
+
+def test_init_schedules_solver(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyWidget:
+        def __init__(self, *a, **k):
+            pass
+        def pack(self, *a, **k):
+            return self
+        def bind(self, *a, **k):
+            pass
+
+    monkeypatch.setattr(vastu_all_in_one.ttk, 'Frame', DummyWidget)
+    monkeypatch.setattr(vastu_all_in_one.ttk, 'Button', DummyWidget)
+    monkeypatch.setattr(vastu_all_in_one.ttk, 'Label', DummyWidget)
+    monkeypatch.setattr(vastu_all_in_one.tk, 'Canvas', DummyWidget)
+    monkeypatch.setattr(vastu_all_in_one.GenerateView, '_build_sidebar', lambda self: None)
+
+    class DummyRoot:
+        def __init__(self):
+            self.after_idle_called_with = None
+        def after_idle(self, func):
+            self.after_idle_called_with = func
+        def bind_all(self, *a, **k):
+            pass
+
+    root = DummyRoot()
+    gv = vastu_all_in_one.GenerateView(root, 4.0, 4.0, None, bath_dims=None)
+    assert root.after_idle_called_with == gv._solve_and_draw
+
+
 class DummyCanvas:
     def __init__(self):
         self.next_id = 1

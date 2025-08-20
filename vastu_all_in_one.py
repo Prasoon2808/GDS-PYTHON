@@ -2302,7 +2302,9 @@ class GenerateView:
         # Human blocks
         self.human_id=None; self.human2_id=None
         # batch feedback vars filled in _build_sidebar
-        self._solve_and_draw()
+        # Kick off initial solve after all widgets are set up so that
+        # variables and geometry are ready before the heavy work runs.
+        self.root.after_idle(self._solve_and_draw)
     # ----------------- sidebar
 
     def _build_sidebar(self):
@@ -2561,6 +2563,8 @@ class GenerateView:
         self._apply_openings_from_ui()
         bed_wall, _, _ = self.bed_openings.door_span_cells()
         bath_ok = True
+        # Preserve previous plan so we can restore it on failure
+        prev_plan = getattr(self, 'plan', None)
         if self.bath_dims:
             bath_wall, _, _ = self.bath_openings.door_span_cells()
             if bath_wall != WALL_LEFT:
@@ -2587,8 +2591,13 @@ class GenerateView:
             force_bst_pair=bool(getattr(self, 'force_bst_pair', tk.BooleanVar(value=False)).get())
         )
         best, meta = solver.run()
-        if not best:
-            self.status.set('No arrangement found (adjust door/windows).'); self._draw(); return
+        if not isinstance(best, GridPlan):
+            # If bedroom solver fails, keep the previous plan and inform the user
+            self.status.set('No arrangement found (adjust door/windows).')
+            if prev_plan is not None:
+                self.plan = prev_plan
+            self._draw()
+            return
 
         # overlay sticky items (if any), preserving positions & clearances
         sticky = getattr(self, '_sticky_items', [])
@@ -2610,46 +2619,52 @@ class GenerateView:
 
         bed_plan = best
         bath_plan = None
+        failure_msg = None
         if self.bath_dims and bath_ok:
             bath_plan = arrange_bathroom(
                 self.bath_dims[0], self.bath_dims[1], BATH_RULES,
                 openings=self.bath_openings,
             )
-            dx, dy, dw, dh = self.bath_openings.door_rect_cells()
-            for j in range(dy, dy + dh):
-                for i in range(dx, dx + dw):
-                    bath_plan.occ[j][i] = 'DOOR'
-            bath_sticky = getattr(self, '_sticky_bath_items', [])
-            if bath_sticky:
-                fx = BATH_RULES.get('fixtures', {})
-                clear = {
-                    'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
-                    'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
-                    'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
-                    'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
-                }
-                FRONT_BATH_DEFAULT = {
-                    'WC': clear['wc_front'],
-                    'LAV': clear['lav_front'],
-                    'TUB': clear['tub_front'],
-                    'SHR': clear['shr_front'],
-                }
-                for (code, x, y, w, h, wall) in bath_sticky:
-                    bath_plan.clear(x, y, w, h)
-                    bath_plan.place(x, y, w, h, code)
-                    fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
-                    if fc_m > 0.0:
-                        fc = bath_plan.meters_to_cells(fc_m)
-                        if wall == 0:
-                            bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
-                        elif wall == 2:
-                            bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+            if isinstance(bath_plan, GridPlan):
+                dx, dy, dw, dh = self.bath_openings.door_rect_cells()
+                for j in range(dy, dy + dh):
+                    for i in range(dx, dx + dw):
+                        bath_plan.occ[j][i] = 'DOOR'
+                bath_sticky = getattr(self, '_sticky_bath_items', [])
+                if bath_sticky:
+                    fx = BATH_RULES.get('fixtures', {})
+                    clear = {
+                        'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                        'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                        'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
+                        'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
+                    }
+                    FRONT_BATH_DEFAULT = {
+                        'WC': clear['wc_front'],
+                        'LAV': clear['lav_front'],
+                        'TUB': clear['tub_front'],
+                        'SHR': clear['shr_front'],
+                    }
+                    for (code, x, y, w, h, wall) in bath_sticky:
+                        bath_plan.clear(x, y, w, h)
+                        bath_plan.place(x, y, w, h, code)
+                        fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
+                        if fc_m > 0.0:
+                            fc = bath_plan.meters_to_cells(fc_m)
+                            if wall == 0:
+                                bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
+                            elif wall == 2:
+                                bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+                    bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+                # add door clearances after fixtures are locked
+                self._add_door_clearance(bath_plan, 'DOOR', self.bath_openings)
+                if bed_wall == WALL_RIGHT:
+                    self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
-            # add door clearances after fixtures are locked
-            self._add_door_clearance(bath_plan, 'DOOR', self.bath_openings)
-            if bed_wall == WALL_RIGHT:
-                self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
-            bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+            else:
+                bath_plan = None
+                bath_ok = False
+                failure_msg = 'Bathroom generation failed; bedroom only.'
 
         # Combine bedroom and bathroom into a single plan for downstream ops
         if bath_plan:
@@ -2682,10 +2697,17 @@ class GenerateView:
         self.bed_plan = bed_plan
         self.bath_plan = bath_plan
 
-        self.meta=meta; self._log_run(meta); self._draw()
-        sc=meta.get('score',0.0)
+        self.meta = meta
+        self._log_run(meta)
+        self._draw()
+        sc = meta.get('score', 0.0)
         if bath_ok:
-            self.status.set(f"Coverage {meta.get('coverage',0)*100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} · Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}")
+            self.status.set(
+                f"Coverage {meta.get('coverage', 0) * 100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} ·"
+                f" Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}"
+            )
+        elif failure_msg:
+            self.status.set(failure_msg)
 
     def _solve_and_draw_bath(self):
         """Recompute bathroom layout without rerunning the bedroom solver."""
