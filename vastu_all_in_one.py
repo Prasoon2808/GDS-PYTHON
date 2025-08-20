@@ -1286,9 +1286,6 @@ class GridPlan:
         w=max(0,min(w, self.gw-x)); h=max(0,min(h, self.gh-y))
         if w>0 and h>0:
             self.clearzones.append((x,y,w,h,kind,owner))
-    def mark_clear_unclamped(self, x:int,y:int,w:int,h:int, kind:str, owner:str):
-        if w>0 and h>0:
-            self.clearzones.append((x,y,w,h,kind,owner))
     def meters_to_cells(self, m:float)->int:
         return max(1, int(ceil(m/self.cell)))
 
@@ -1989,7 +1986,7 @@ class BedroomSolver:
             outside = (2 * line - (inside[0] + pw), start, pw, width)
 
         p.mark_clear(*inside, 'DOOR_CLEAR', 'INSIDE')
-        p.mark_clear_unclamped(*outside, 'DOOR_CLEAR', 'OUTSIDE')
+        p.mark_clear(*outside, 'DOOR_CLEAR', 'OUTSIDE')
 
         return outside
 
@@ -2661,10 +2658,7 @@ class GenerateView:
         if openings is None:
             openings = self.bath_openings if p is self.bath_plan else self.bed_openings
         if openings:
-            ext = add_door_clearance(p, openings, owner)
-            if ext and ext[0] < 0 and getattr(self, 'bed_plan', None):
-                ext = (ext[0] + self.bed_plan.gw, ext[1], ext[2], ext[3])
-            return ext
+            return add_door_clearance(p, openings, owner)
         return None
 
     def _solve_and_draw(self):
