@@ -2546,6 +2546,16 @@ class GenerateView:
         self._solve_and_draw()
         self.status.set('Bedroom and bathroom regenerated.')
 
+    def _add_door_clearance(self, p: GridPlan, owner: str):
+        """Mark clearance for bedroom or bathroom doors on ``p``.
+
+        ``p`` is expected to be either ``self.bed_plan`` or ``self.bath_plan``;
+        the corresponding openings object is automatically selected.
+        """
+        openings = self.bath_openings if p is self.bath_plan else self.bed_openings
+        if openings:
+            add_door_clearance(p, openings, owner)
+
     def _solve_and_draw(self):
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
@@ -2607,9 +2617,13 @@ class GenerateView:
                 self.bath_dims[0], self.bath_dims[1], BATH_RULES,
                 openings=self.bath_openings,
             )
-            add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
+            dx, dy, dw, dh = self.bath_openings.door_rect_cells()
+            for j in range(dy, dy + dh):
+                for i in range(dx, dx + dw):
+                    self.bath_plan.occ[j][i] = 'DOOR'
+            self._add_door_clearance(self.bath_plan, 'DOOR')
             if bed_wall == WALL_RIGHT:
-                add_door_clearance(self.bed_plan, self.bed_openings, 'DOOR')
+                self._add_door_clearance(self.bed_plan, 'DOOR')
             bath_sticky = getattr(self, '_sticky_bath_items', [])
             if bath_sticky:
                 fx = BATH_RULES.get('fixtures', {})
@@ -2683,10 +2697,14 @@ class GenerateView:
             self.bath_dims[0], self.bath_dims[1], BATH_RULES,
             openings=self.bath_openings
         )
-        add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
+        dx, dy, dw, dh = self.bath_openings.door_rect_cells()
+        for j in range(dy, dy + dh):
+            for i in range(dx, dx + dw):
+                self.bath_plan.occ[j][i] = 'DOOR'
+        self._add_door_clearance(self.bath_plan, 'DOOR')
         bed_wall, _, _ = self.bed_openings.door_span_cells()
         if bed_wall == WALL_RIGHT:
-            add_door_clearance(self.bed_plan, self.bed_openings, 'DOOR')
+            self._add_door_clearance(self.bed_plan, 'DOOR')
         bath_sticky = getattr(self, '_sticky_bath_items', [])
         if bath_sticky:
             fx = BATH_RULES.get('fixtures', {})
@@ -2758,7 +2776,7 @@ class GenerateView:
         wall_width = max(4, int(scale * 0.12)) * 3
         open_width = max(1, wall_width // 3)
 
-        def draw_room(plan, openings, ox, oy):
+        def draw_room(plan, openings, ox, oy, draw_door=True):
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
@@ -2794,11 +2812,14 @@ class GenerateView:
             cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
                     outline=WALL_COLOR, fill='', width=wall_width)
             self._draw_room_openings(cv, openings, ox, oy, scale,
-                                     wall_width, open_width)
+                                     wall_width, open_width, draw_door)
 
-        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy)
+        bed_draw_door = not (
+            self.bath_plan and self.bed_openings.door_wall == WALL_RIGHT
+        )
+        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, bed_draw_door)
         if self.bath_plan:
-            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy)
+            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True)
 
         cv.tag_lower('grid')
 
@@ -2845,7 +2866,7 @@ class GenerateView:
 
 
     def _draw_room_openings(self, cv, openings, ox, oy, scale,
-                            wall_width, open_width):
+                            wall_width, open_width, draw_door=True):
 
         if openings is None:
             return
@@ -2884,8 +2905,9 @@ class GenerateView:
                                 outline=WALL_COLOR, width=open_width,
                                 fill=fill_color)
 
-        dwall, dstart, dwidth = openings.door_span_cells()
-        seg(dwall, dstart, dwidth, DOOR_FILL)
+        if draw_door:
+            dwall, dstart, dwidth = openings.door_span_cells()
+            seg(dwall, dstart, dwidth, DOOR_FILL)
 
         for wall, start, length in openings.window_spans_cells():
             seg(wall, start, length, WIN_FILL)
