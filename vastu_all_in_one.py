@@ -2083,6 +2083,8 @@ def arrange_bathroom(
                 return False
             if not p.fits(fx, fy, fw, fh) or _intersects_clear(p, fx, fy, fw, fh):
                 return False
+        if not p.fits(x, y, w, h):
+            return False
         p.place(x, y, w, h, code)
         if fc > 0:
             p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
@@ -2108,44 +2110,38 @@ def arrange_bathroom(
         key=lambda s: (s.get('w', 0) * s.get('d', 0), s.get('w', 0), s.get('d', 0))
     )
 
-    for tub_len in tub_lengths:
-        for shr_size in shr_opts:
-            p = GridPlan(Wm, Hm)
-            if openings:
-                dx, dy, dw, dh = openings.door_rect_cells()
-                for j in range(dy, dy + dh):
-                    for i in range(dx, dx + dw):
-                        p.occ[j][i] = 'DOOR'
-                add_door_clearance(p, openings, 'DOOR')
-            tw = p.meters_to_cells(tub_len)
-            td = p.meters_to_cells(0.75)
-            if not _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
-                continue
-            sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
-            sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
-            if not _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
-                                     'SHR', clear['shr_front'], True):
-                continue
-            ww = p.meters_to_cells(clear['wc_side'] * 2)
-            wd = p.meters_to_cells(0.76)
-            if not _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False):
-                continue
-            lw = p.meters_to_cells(clear['lav_side'] * 2)
-            ld = p.meters_to_cells(0.6)
-            gap_req = p.meters_to_cells(clear['lav_to_fixture'])
-            if p.gw - ww - lw < gap_req:
-                continue
-            if not _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False):
-                continue
-            return p
-
     p = GridPlan(Wm, Hm)
     if openings:
         dx, dy, dw, dh = openings.door_rect_cells()
-        for j in range(dy, dy + dh):
-            for i in range(dx, dx + dw):
-                p.occ[j][i] = 'DOOR'
+        if p.fits(dx, dy, dw, dh):
+            p.place(dx, dy, dw, dh, 'DOOR')
         add_door_clearance(p, openings, 'DOOR')
+
+    # Attempt to place each fixture individually, skipping those that don't fit.
+
+    for tub_len in tub_lengths:
+        tw = p.meters_to_cells(tub_len)
+        td = p.meters_to_cells(0.75)
+        if _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
+            break
+
+    for shr_size in shr_opts:
+        sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
+        sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
+        if _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
+                             'SHR', clear['shr_front'], True):
+            break
+
+    ww = p.meters_to_cells(clear['wc_side'] * 2)
+    wd = p.meters_to_cells(0.76)
+    wc_placed = _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False)
+
+    lw = p.meters_to_cells(clear['lav_side'] * 2)
+    ld = p.meters_to_cells(0.6)
+    gap_req = p.meters_to_cells(clear['lav_to_fixture'])
+    if (not wc_placed) or (p.gw - ww - lw >= gap_req):
+        _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False)
+
     return p
 
 # -----------------------
