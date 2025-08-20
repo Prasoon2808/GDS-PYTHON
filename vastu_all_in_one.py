@@ -2411,15 +2411,22 @@ class GenerateView:
             self.bed_w1_wall, self.bed_w1_len, self.bed_w1_c,
             self.bed_w2_wall, self.bed_w2_len, self.bed_w2_c,
         ]
-        if self.bath_dims:
-            vars_to_trace.extend([
-                self.bath_door_wall, self.bath_door_w, self.bath_door_c,
-                self.bath_w1_wall, self.bath_w1_len, self.bath_w1_c,
-                self.bath_w2_wall, self.bath_w2_len, self.bath_w2_c,
-            ])
         for v in vars_to_trace:
             if hasattr(v, 'trace_add'):
                 v.trace_add('write', lambda *args: self._solve_and_draw())
+
+        if self.bath_dims:
+            bath_door_vars = [self.bath_door_wall, self.bath_door_w, self.bath_door_c]
+            bath_win_vars = [
+                self.bath_w1_wall, self.bath_w1_len, self.bath_w1_c,
+                self.bath_w2_wall, self.bath_w2_len, self.bath_w2_c,
+            ]
+            for v in bath_door_vars:
+                if hasattr(v, 'trace_add'):
+                    v.trace_add('write', lambda *args: self._solve_and_draw())
+            for v in bath_win_vars:
+                if hasattr(v, 'trace_add'):
+                    v.trace_add('write', lambda *args: self._solve_and_draw_bath())
 
         if self.force_bst_pair is not None and hasattr(self.force_bst_pair, 'trace_add'):
             self.force_bst_pair.trace_add('write', lambda *args: self._solve_and_draw())
@@ -2432,13 +2439,8 @@ class GenerateView:
 
     # ----------------- solve / openings
 
-    def _apply_openings_from_ui(self):
+    def _apply_openings_from_ui(self, bath_only: bool = False):
         wall_map = {'Bottom': 0, 'Right': 1, 'Top': 2, 'Left': 3}
-
-        # Bedroom
-        self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
-        self.bed_openings.door_width = float(self.bed_door_w.get())
-        self.bed_openings.door_center = float(self.bed_door_c.get())
 
         def parse_window(kind: str, wall_s, len_v, cen_v, allowed):
             """Parse a window definition from UI state.
@@ -2457,27 +2459,32 @@ class GenerateView:
             start = max(0.0, center - 0.5 * length)
             return [wall, start, length]
 
-        bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
-        self.bed_openings.windows = [
-            w
-            for w in [
-                parse_window(
-                    'bedroom',
-                    self.bed_w1_wall.get(),
-                    self.bed_w1_len.get(),
-                    self.bed_w1_c.get(),
-                    bed_allowed,
-                ),
-                parse_window(
-                    'bedroom',
-                    self.bed_w2_wall.get(),
-                    self.bed_w2_len.get(),
-                    self.bed_w2_c.get(),
-                    bed_allowed,
-                ),
+        if not bath_only:
+            # Bedroom
+            self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
+            self.bed_openings.door_width = float(self.bed_door_w.get())
+            self.bed_openings.door_center = float(self.bed_door_c.get())
+            bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
+            self.bed_openings.windows = [
+                w
+                for w in [
+                    parse_window(
+                        'bedroom',
+                        self.bed_w1_wall.get(),
+                        self.bed_w1_len.get(),
+                        self.bed_w1_c.get(),
+                        bed_allowed,
+                    ),
+                    parse_window(
+                        'bedroom',
+                        self.bed_w2_wall.get(),
+                        self.bed_w2_len.get(),
+                        self.bed_w2_c.get(),
+                        bed_allowed,
+                    ),
+                ]
+                if w is not None
             ]
-            if w is not None
-        ]
 
         # Bathroom
         if self.bath_dims and self.bath_openings:
@@ -2649,6 +2656,68 @@ class GenerateView:
         sc=meta.get('score',0.0)
         if bath_ok:
             self.status.set(f"Coverage {meta.get('coverage',0)*100:.1f}% · Paths {'ok' if meta.get('paths_ok') else 'blocked'} · Windows {'ok' if meta.get('reach_windows') else 'miss'} · Score {sc:.2f}")
+
+    def _solve_and_draw_bath(self):
+        """Recompute bathroom layout without rerunning the bedroom solver."""
+        if not self.bath_dims:
+            return
+        if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
+        if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
+        self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
+
+        self._apply_openings_from_ui(bath_only=True)
+        self.bath_plan = arrange_bathroom(
+            self.bath_dims[0], self.bath_dims[1], BATH_RULES
+        )
+        add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
+        bath_sticky = getattr(self, '_sticky_bath_items', [])
+        if bath_sticky:
+            fx = BATH_RULES.get('fixtures', {})
+            clear = {
+                'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
+                'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
+            }
+            FRONT_BATH_DEFAULT = {
+                'WC': clear['wc_front'],
+                'LAV': clear['lav_front'],
+                'TUB': clear['tub_front'],
+                'SHR': clear['shr_front'],
+            }
+            for (code, x, y, w, h, wall) in bath_sticky:
+                self.bath_plan.clear(x, y, w, h)
+                self.bath_plan.place(x, y, w, h, code)
+                fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
+                if fc_m > 0.0:
+                    fc = self.bath_plan.meters_to_cells(fc_m)
+                    if wall == 0:
+                        self.bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
+                    elif wall == 2:
+                        self.bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+            self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
+
+        bed_plan = self.bed_plan or GridPlan(self.bed_Wm, self.bed_Hm)
+        total_wm = self.bed_Wm + self.bath_dims[0]
+        total_hm = max(self.bed_Hm, self.bath_dims[1])
+        combined = GridPlan(total_wm, total_hm)
+        for j in range(bed_plan.gh):
+            for i in range(bed_plan.gw):
+                code = bed_plan.occ[j][i]
+                if code:
+                    combined.occ[j][i] = code
+        combined.clearzones.extend(bed_plan.clearzones)
+        xoff = bed_plan.gw
+        for j in range(self.bath_plan.gh):
+            for i in range(self.bath_plan.gw):
+                code = self.bath_plan.occ[j][i]
+                if code:
+                    combined.occ[j][i + xoff] = code
+        for x, y, w, h, kind, owner in self.bath_plan.clearzones:
+            combined.clearzones.append((x + xoff, y, w, h, kind, owner))
+        combined.clearzones = merge_clearances(combined.clearzones)
+        self.plan = combined
+        self._draw()
 
     # ----------------- draw & helpers
 
