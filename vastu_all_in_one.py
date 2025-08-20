@@ -1953,17 +1953,7 @@ class BedroomSolver:
         return None
 
     def _add_door_clearance(self, p: GridPlan, owner: str):
-        wall, start, width = self.op.door_span_cells()
-        depth = p.meters_to_cells(self.op.swing_depth) + max(1, PATH_WIDTH_CELLS - 1)
-        pw = max(1, PATH_WIDTH_CELLS)
-        if wall == 0:
-            p.mark_clear(start, depth, width, pw, 'DOOR_CLEAR', owner)
-        elif wall == 2:
-            p.mark_clear(start, p.gh - depth - pw, width, pw, 'DOOR_CLEAR', owner)
-        elif wall == 3:
-            p.mark_clear(pw, start, pw, width, 'DOOR_CLEAR', owner)
-        else:
-            p.mark_clear(p.gw - depth - pw, start, pw, width, 'DOOR_CLEAR', owner)
+        add_door_clearance(p, self.op, owner)
 
     def _add_window_clearances(self, p:GridPlan):
         depth = max(1, p.meters_to_cells(0.40))
@@ -2642,7 +2632,8 @@ class GenerateView:
 
         if self.bath_dims and self.bath_openings:
             bwall, _, _ = self.bath_openings.door_span_cells()
-            if bwall == WALL_LEFT:                mirror = Openings(bed_plan)
+            if bwall == WALL_LEFT:
+                mirror = Openings(bed_plan)
                 mirror.door_wall = WALL_RIGHT
                 mirror.door_center = self.bath_openings.door_center
                 mirror.door_width = self.bath_openings.door_width
