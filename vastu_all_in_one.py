@@ -2644,13 +2644,13 @@ class GenerateView:
 
         if self.bath_dims and self.bath_openings:
             bwall, _, _ = self.bath_openings.door_span_cells()
-            if bwall == WALL_LEFT:
-                mirror = Openings(bed_plan)
+            if bwall == WALL_LEFT:                mirror = Openings(bed_plan)
                 mirror.door_wall = WALL_RIGHT
                 mirror.door_center = self.bath_openings.door_center
                 mirror.door_width = self.bath_openings.door_width
                 mirror.swing_depth = self.bath_openings.swing_depth
                 add_door_clearance(bed_plan, mirror, 'BATHROOM_DOOR')
+
 
         solver=BedroomSolver(
             bed_plan,
