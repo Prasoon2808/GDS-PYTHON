@@ -1786,6 +1786,17 @@ class BedroomSolver:
         dwall, dstart, dwidth = self.op.door_span_cells()
         win_spans = self.op.window_spans_cells()
 
+        # Compute the door clearance rectangle (swing area) to avoid blocking access
+        swing = max(1, p.meters_to_cells(self.op.swing_depth))
+        if dwall == 0:
+            door_clear = (dstart, 0, dwidth, swing)
+        elif dwall == 2:
+            door_clear = (dstart, p.gh - swing, dwidth, swing)
+        elif dwall == 3:
+            door_clear = (0, dstart, swing, dwidth)
+        else:
+            door_clear = (p.gw - swing, dstart, swing, dwidth)
+
         def touches_opening(x, y, w, h, avoid_windows: bool) -> bool:
             # identify which wall the candidate touches
             if y == 0: wall = 0
@@ -1825,6 +1836,11 @@ class BedroomSolver:
                 # keep inside bounds and empty
                 if x < 0 or y < 0 or x + w > p.gw or y + h > p.gh:
                     continue
+                # Skip if door clearance area is on the same wall and overlaps
+                if bed_wall == dwall:
+                    dcx, dcy, dcw, dch = door_clear
+                    if not (x + w <= dcx or dcx + dcw <= x or y + h <= dcy or dcy + dch <= y):
+                        continue
                 if not p.fits(x, y, w, h):
                     continue
 
@@ -1866,6 +1882,15 @@ class BedroomSolver:
         else: specs = ['DRS_4FT','CHEST_SM']
         dwall,dstart,dwidth=self.op.door_span_cells()
         win_spans=self.op.window_spans_cells()
+        swing = max(1, p.meters_to_cells(self.op.swing_depth))
+        if dwall == 0:
+            door_clear = (dstart, 0, dwidth, swing)
+        elif dwall == 2:
+            door_clear = (dstart, p.gh - swing, dwidth, swing)
+        elif dwall == 3:
+            door_clear = (0, dstart, swing, dwidth)
+        else:
+            door_clear = (p.gw - swing, dstart, swing, dwidth)
         for name in specs:
             spec = BEDROOM_BOOK['WARDROBE'][name] if kind=='WRD' else BEDROOM_BOOK['DRESSER'][name]
             W=p.meters_to_cells(spec['w']); D=p.meters_to_cells(spec['d'])
@@ -1882,7 +1907,11 @@ class BedroomSolver:
                 else: x=p.gw-ww; ys=range(0, p.gh-hh+1); options += [(x,y,ww,hh) for y in ys]
                 self.rng.shuffle(options)
                 for x,y,w,h in options:
-                    if wall==dwall and self._span_blocks_opening(wall,max(0,dstart-1),max(1,dwidth+2),x,y,w,h): continue
+                    if wall==dwall:
+                        if self._span_blocks_opening(wall,max(0,dstart-1),max(1,dwidth+2),x,y,w,h): continue
+                        dcx,dcy,dcw,dch = door_clear
+                        if not (x + w <= dcx or dcx + dcw <= x or y + h <= dcy or dcy + dch <= y):
+                            continue
                     bad=False
                     for wwspan,start,lenv in win_spans:
                         if wall==wwspan and self._span_blocks_opening(wall,start,lenv,x,y,w,h): bad=True; break
