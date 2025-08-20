@@ -1268,10 +1268,10 @@ class GridPlan:
             for i in range(x,x+w):
                 if self.occ[j][i] is not None: return False
         for cx, cy, cw, ch, kind, _ in self.clearzones:
-            if kind == 'DOOR_CLEAR':
-                if not (x + w <= cx or cx + cw <= x or y + h <= cy or cy + ch <= y):
-                    print('DEBUG: fits rejected due to DOOR_CLEAR overlap', (x,y,w,h), 'vs', (cx,cy,cw,ch))
-                    return False
+            if kind == 'DOOR_CLEAR' and not (x + w <= cx or cx + cw <= x or
+                                            y + h <= cy or cy + ch <= y):
+                print("fits blocked by door-clearance at", (cx, cy, cw, ch))
+                return False
         return True
     def place(self, x:int,y:int,w:int,h:int, code:str):
         for j in range(y,y+h):
