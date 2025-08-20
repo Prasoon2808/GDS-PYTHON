@@ -3155,17 +3155,15 @@ class GenerateView:
         bath_door_span = None
         if getattr(self, "bath_openings", None):
             bwall, bstart, bwidth = self.bath_openings.door_span_cells()
-            if bwall == 3:  # shared left wall
+            if bwall == 3:  # Shared-wall bathroom door
                 bath_door_span = (bstart, bwidth)
         win_spans = self.openings.window_spans_cells()
 
         def spans_block(wall, x, y, w, h):
-            if bath_door_span and wall == 3:
+            if bath_door_span and wall == 3:  # Shared-wall bathroom door
                 bstart, bwidth = bath_door_span
-                if self._span_blocks_opening(3,
-                                             max(0, bstart - 1),
-                                             max(1, bwidth + 2),
-                                             x, y, w, h):
+                if self._span_blocks_opening(3, max(0, bstart - 1),
+                                             max(1, bwidth + 2), x, y, w, h):
                     return True
             if wall == dwall and self._span_blocks_opening(
                     wall, max(0, dstart - 1), max(1, dwidth + 2), x, y, w, h):
