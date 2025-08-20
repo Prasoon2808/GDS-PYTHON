@@ -2186,6 +2186,9 @@ HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
 
 class GenerateView:
+    BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
+    BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
+
     def __init__(self, root: tk.Misc, Wm: float, Hm: float, bed_key: Optional[str], room_label: str = 'Bedroom', bath_dims: Optional[Tuple[float,float]] = None, pack_side=tk.LEFT, on_back=None):
         self.root=root; self.on_back=on_back
         self.room_label = room_label
@@ -2200,8 +2203,19 @@ class GenerateView:
 
         # Maintain separate plans for bedroom and bathroom.
         self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
-        self.plan = self.bed_plan  # legacy attribute used by bedroom-only helpers
         self.bath_plan = GridPlan(self.bath_Wm, self.bath_Hm) if bath_dims else None
+
+        # Overall dims remain fixed for combined plan
+        if self.bath_plan:
+            self.Wm = self.bed_Wm + self.bath_Wm
+            self.Hm = max(self.bed_Hm, self.bath_Hm)
+        else:
+            self.Wm = self.bed_Wm
+            self.Hm = self.bed_Hm
+
+        # Combined plan used by legacy helpers (_cell_rect etc.)
+        self.plan = GridPlan(self.Wm, self.Hm)
+        self._combine_plans()
 
         self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
@@ -2993,14 +3007,17 @@ class GenerateView:
 
 
         comp = self._hit_component(e.x, e.y)
-        if comp and comp[4] in ('WRD','DRS','DESK','TVU','BST','BED','WC','SHR','TUB','LAV'):
+        if comp and comp[4] in (self.BED_CODES | self.BATH_CODES):
             x, y, w, h = comp[:4]
-            self.selected = {'rect': [x, y, w, h], 'code': comp[4]}
+            code = comp[4]
+            room = 'bath' if code in self.BATH_CODES else 'bed'
+            self.selected = {'rect': [x, y, w, h], 'code': code}
 
             self.drag_item = {
                 'orig': [x, y, w, h],
                 'live': [x, y, w, h],
-                'code': comp[4],
+                'code': code,
+                'room': room,
                 'ghost': None
             }
             x0, y0, _, _ = self._cell_rect(x, y)
@@ -3022,12 +3039,12 @@ class GenerateView:
         if i is None:
             return
         code = self.drag_item['code']
+        room = self.drag_item.get('room')
         bed_gw = getattr(self.bed_plan, 'gw', 0)
-        bed_gh = getattr(self.bed_plan, 'gh', 0)
-        if code in {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}:
+        if room == 'bed':
             nx = clamp(i, 0, bed_gw - w)
-            ny = clamp(j, 0, bed_gh - h)
-        elif code in {'WC', 'SHR', 'TUB'} and getattr(self, 'bath_plan', None):
+            ny = clamp(j, 0, self.bed_plan.gh - h)
+        elif room == 'bath' and getattr(self, 'bath_plan', None):
             xoff = bed_gw
             nx = clamp(i, xoff, xoff + self.bath_plan.gw - w)
             ny = clamp(j, 0, self.bath_plan.gh - h)
@@ -3049,6 +3066,7 @@ class GenerateView:
         ox, oy, ow, oh = self.drag_item['orig']
         nx, ny, w, h = self.drag_item['live']
         code = self.drag_item['code']
+        room = self.drag_item.get('room')
 
         if self.drag_item.get('ghost') is not None:
             try:
@@ -3056,36 +3074,32 @@ class GenerateView:
             except Exception:
                 pass
 
+        target_plan = self.bed_plan if room == 'bed' else self.bath_plan
+        xoff = 0
+        if room == 'bath':
+            xoff = self.bed_plan.gw
+            ox -= xoff; nx -= xoff
+
         # clear original block before testing commit
-        self.plan.clear(ox, oy, ow, oh)
+        target_plan.clear(ox, oy, ow, oh)
 
         # bounds/overlap only for drag commit (stable & predictable)
-        ok = self.plan.fits(nx, ny, w, h)
-
-        bed_gw = getattr(self.bed_plan, 'gw', 0)
-        bed_gh = getattr(self.bed_plan, 'gh', 0)
-        if code in {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}:
-            in_room = (0 <= nx and nx + w <= bed_gw and
-                       0 <= ny and ny + h <= bed_gh)
-        elif code in {'WC', 'SHR', 'TUB'} and getattr(self, 'bath_plan', None):
-            xoff = bed_gw
-            in_room = (xoff <= nx and nx + w <= xoff + self.bath_plan.gw and
-                       0 <= ny and ny + h <= self.bath_plan.gh)
-        else:
-            in_room = True
+        ok = target_plan.fits(nx, ny, w, h)
+        in_room = (0 <= nx and nx + w <= target_plan.gw and
+                   0 <= ny and ny + h <= target_plan.gh)
         ok = ok and in_room
 
         if ok:
-            self.plan.place(nx, ny, w, h, code)
-            self.selected = {'rect': [nx, ny, w, h], 'code': code}
+            target_plan.place(nx, ny, w, h, code)
+            self.selected = {'rect': [nx + xoff, ny, w, h], 'code': code}
             self._log_event({"event": "drag", "code": code,
-                             "from": [ox, oy, ow, oh], "to": [nx, ny, w, h]})
+                             "from": [ox + xoff, oy, ow, oh], "to": [nx + xoff, ny, w, h]})
         else:
-            self.plan.place(ox, oy, ow, oh, code)
+            target_plan.place(ox, oy, ow, oh, code)
 
-        self.plan.clearzones = merge_clearances(self.plan.clearzones)
+        target_plan.clearzones = merge_clearances(target_plan.clearzones)
         self.drag_item = None
-        self._sync_room_plans()
+        self._combine_plans()
         self._draw()
 
 
@@ -3207,9 +3221,58 @@ class GenerateView:
         self._draw()
 
 
+    def _combine_plans(self):
+        """Merge bedroom and bathroom plans into self.plan."""
+        if self.bath_plan:
+            combined = GridPlan(self.Wm, self.Hm)
+            # copy bedroom
+            for j in range(self.bed_plan.gh):
+                for i in range(self.bed_plan.gw):
+                    code = self.bed_plan.occ[j][i]
+                    if code:
+                        combined.occ[j][i] = code
+            combined.clearzones.extend(self.bed_plan.clearzones)
+            # copy bathroom with horizontal offset
+            xoff = self.bed_plan.gw
+            for j in range(self.bath_plan.gh):
+                for i in range(self.bath_plan.gw):
+                    code = self.bath_plan.occ[j][i]
+                    if code:
+                        combined.occ[j][i + xoff] = code
+            for x, y, w, h, kind, owner in self.bath_plan.clearzones:
+                combined.clearzones.append((x + xoff, y, w, h, kind, owner))
+            combined.clearzones = merge_clearances(combined.clearzones)
+            self.plan = combined
+        else:
+            self.plan = self.bed_plan
+
+
     def _sync_room_plans(self):
-        """Synchronize per-room plans with current bedroom plan."""
-        self.bed_plan = self.plan
+        """Synchronize per-room plans with current combined plan."""
+        if self.bath_plan:
+            bed = GridPlan(self.bed_Wm, self.bed_Hm)
+            bath = GridPlan(self.bath_Wm, self.bath_Hm)
+            xoff = self.bed_plan.gw
+            for j in range(self.plan.gh):
+                for i in range(self.plan.gw):
+                    code = self.plan.occ[j][i]
+                    if not code:
+                        continue
+                    if i < xoff:
+                        bed.occ[j][i] = code
+                    else:
+                        bath.occ[j][i - xoff] = code
+            for x, y, w, h, kind, owner in self.plan.clearzones:
+                if x + w <= xoff:
+                    bed.clearzones.append((x, y, w, h, kind, owner))
+                elif x >= xoff:
+                    bath.clearzones.append((x - xoff, y, w, h, kind, owner))
+            bed.clearzones = merge_clearances(bed.clearzones)
+            bath.clearzones = merge_clearances(bath.clearzones)
+            self.bed_plan = bed
+            self.bath_plan = bath
+        else:
+            self.bed_plan = self.plan
 
 
     def _solve_and_draw_preserve(self):
