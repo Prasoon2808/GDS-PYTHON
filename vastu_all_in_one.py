@@ -1892,6 +1892,11 @@ class BedroomSolver:
         else: specs = ['DRS_4FT','CHEST_SM']
         dwall,dstart,dwidth=self.op.door_span_cells()
         win_spans=self.op.window_spans_cells()
+        bath_door_span = None
+        if getattr(self, "bath_openings", None):
+            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
+            if bwall == 3:
+                bath_door_span = (bstart, bwidth)
         swing = max(1, p.meters_to_cells(self.op.swing_depth))
         if dwall == 0:
             door_clear = (dstart, 0, dwidth, swing)
@@ -1901,11 +1906,6 @@ class BedroomSolver:
             door_clear = (0, dstart, swing, dwidth)
         else:
             door_clear = (p.gw - swing, dstart, swing, dwidth)
-        bath_door_span = None
-        if getattr(self, 'bath_openings', None):
-            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
-            if bwall == 3:   # shared left wall
-                bath_door_span = (bstart, bwidth)
         for name in specs:
             spec = BEDROOM_BOOK['WARDROBE'][name] if kind=='WRD' else BEDROOM_BOOK['DRESSER'][name]
             W=p.meters_to_cells(spec['w']); D=p.meters_to_cells(spec['d'])
@@ -1933,7 +1933,8 @@ class BedroomSolver:
                     if bad: continue
                     if bath_door_span and wall == 3:
                         bstart, bwidth = bath_door_span
-                        if not (y + h <= bstart or bstart + bwidth <= y):
+                        if self._span_blocks_opening(3, max(0, bstart - 1),
+                                                     max(1, bwidth + 2), x, y, w, h):
                             continue
                     if not p.fits(x,y,w,h): continue
                     p.place(x,y,w,h, kind)
