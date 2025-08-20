@@ -2049,7 +2049,8 @@ def arrange_bathroom(
     respecting the minimum clearances encoded in ``rules``.  It is **not** an
     optimiser; if the room is too small to satisfy the hard minimums a partially
     filled plan may be returned.  ``openings`` describes door and window
-    positions to honour when reserving door clearances.
+    positions that the caller may wish to honour (currently unused but accepted
+    for API compatibility).
     """
 
     def _intersects_clear(p: GridPlan, x: int, y: int, w: int, h: int) -> bool:
@@ -2078,6 +2079,7 @@ def arrange_bathroom(
             p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
         return True
 
+    p = GridPlan(Wm, Hm)
     units = rules.get('units', {})
     in_m = units.get('IN_M', 0.0254)
 
@@ -2101,12 +2103,6 @@ def arrange_bathroom(
     for tub_len in tub_lengths:
         for shr_size in shr_opts:
             p = GridPlan(Wm, Hm)
-            if openings:
-                dx, dy, dw, dh = openings.door_rect_cells()
-                for j in range(dy, dy + dh):
-                    for i in range(dx, dx + dw):
-                        p.occ[j][i] = 'DOOR'
-                add_door_clearance(p, openings, 'DOOR')
             tw = p.meters_to_cells(tub_len)
             td = p.meters_to_cells(0.75)
             if not _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
@@ -2129,13 +2125,6 @@ def arrange_bathroom(
                 continue
             return p
 
-    p = GridPlan(Wm, Hm)
-    if openings:
-        dx, dy, dw, dh = openings.door_rect_cells()
-        for j in range(dy, dy + dh):
-            for i in range(dx, dx + dw):
-                p.occ[j][i] = 'DOOR'
-        add_door_clearance(p, openings, 'DOOR')
     return p
 
 # -----------------------
@@ -2230,9 +2219,7 @@ class GenerateView:
 
         self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
-        self.bath_openings = (
-            Openings(GridPlan(*self.bath_dims)) if bath_dims else None
-        )
+        self.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -2452,7 +2439,7 @@ class GenerateView:
 
     # ----------------- solve / openings
 
-    def _apply_openings_from_ui(self):
+    def _apply_openings_from_ui(self, bath_only: bool = False):
         wall_map = {'Bottom': 0, 'Right': 1, 'Top': 2, 'Left': 3}
 
         def parse_window(kind: str, wall_s, len_v, cen_v, allowed):
@@ -2472,31 +2459,32 @@ class GenerateView:
             start = max(0.0, center - 0.5 * length)
             return [wall, start, length]
 
-        # Bedroom
-        self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
-        self.bed_openings.door_width = float(self.bed_door_w.get())
-        self.bed_openings.door_center = float(self.bed_door_c.get())
-        bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
-        self.bed_openings.windows = [
-            w
-            for w in [
-                parse_window(
-                    'bedroom',
-                    self.bed_w1_wall.get(),
-                    self.bed_w1_len.get(),
-                    self.bed_w1_c.get(),
-                    bed_allowed,
-                ),
-                parse_window(
-                    'bedroom',
-                    self.bed_w2_wall.get(),
-                    self.bed_w2_len.get(),
-                    self.bed_w2_c.get(),
-                    bed_allowed,
-                ),
+        if not bath_only:
+            # Bedroom
+            self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
+            self.bed_openings.door_width = float(self.bed_door_w.get())
+            self.bed_openings.door_center = float(self.bed_door_c.get())
+            bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
+            self.bed_openings.windows = [
+                w
+                for w in [
+                    parse_window(
+                        'bedroom',
+                        self.bed_w1_wall.get(),
+                        self.bed_w1_len.get(),
+                        self.bed_w1_c.get(),
+                        bed_allowed,
+                    ),
+                    parse_window(
+                        'bedroom',
+                        self.bed_w2_wall.get(),
+                        self.bed_w2_len.get(),
+                        self.bed_w2_c.get(),
+                        bed_allowed,
+                    ),
+                ]
+                if w is not None
             ]
-            if w is not None
-        ]
 
         # Bathroom
         if self.bath_dims and self.bath_openings:
@@ -2552,19 +2540,19 @@ class GenerateView:
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
         self._apply_openings_from_ui()
         bed_wall, _, _ = self.bed_openings.door_span_cells()
-        bath_ok = True
-        if self.bath_dims:
-            bath_wall, _, _ = self.bath_openings.door_span_cells()
-            if bath_wall != WALL_LEFT:
-                self.status.set('Bathroom door must be on shared wall.')
-                bath_ok = False
-        elif bed_wall == WALL_RIGHT:
+        if bed_wall == WALL_RIGHT:
             self.status.set('Bedroom door cannot be on shared wall.')
             self.bed_plan = None
             self.bath_plan = None
             self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
             self._draw()
             return
+        bath_ok = True
+        if self.bath_dims:
+            bath_wall, _, _ = self.bath_openings.door_span_cells()
+            if bath_wall != WALL_LEFT:
+                self.status.set('Bathroom door must be on shared wall.')
+                bath_ok = False
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         solver=BedroomSolver(
             bed_plan,
@@ -2604,12 +2592,11 @@ class GenerateView:
         self.bed_plan = bed_plan
         if self.bath_dims and bath_ok:
             self.bath_plan = arrange_bathroom(
-                self.bath_dims[0], self.bath_dims[1], BATH_RULES,
-                openings=self.bath_openings,
+
+                self.bath_dims[0], self.bath_dims[1], BATH_RULES
+
             )
             add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
-            if bed_wall == WALL_RIGHT:
-                add_door_clearance(self.bed_plan, self.bed_openings, 'DOOR')
             bath_sticky = getattr(self, '_sticky_bath_items', [])
             if bath_sticky:
                 fx = BATH_RULES.get('fixtures', {})
@@ -2678,15 +2665,11 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
 
-        self._apply_openings_from_ui()
+        self._apply_openings_from_ui(bath_only=True)
         self.bath_plan = arrange_bathroom(
-            self.bath_dims[0], self.bath_dims[1], BATH_RULES,
-            openings=self.bath_openings
+            self.bath_dims[0], self.bath_dims[1], BATH_RULES
         )
         add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
-        bed_wall, _, _ = self.bed_openings.door_span_cells()
-        if bed_wall == WALL_RIGHT:
-            add_door_clearance(self.bed_plan, self.bed_openings, 'DOOR')
         bath_sticky = getattr(self, '_sticky_bath_items', [])
         if bath_sticky:
             fx = BATH_RULES.get('fixtures', {})
@@ -3370,16 +3353,16 @@ class GenerateView:
         # Re-apply door/window positions from UI (doesn't add furniture)
         self._apply_openings_from_ui()
         bed_wall, _, _ = self.bed_openings.door_span_cells()
+        if bed_wall == WALL_RIGHT:
+            self.status.set('Bedroom door cannot be on shared wall.')
+            self._draw()
+            return
         if self.bath_dims:
             bath_wall, _, _ = self.bath_openings.door_span_cells()
             if bath_wall != WALL_LEFT:
                 self.status.set('Bathroom door must be on shared wall.')
                 self._draw()
                 return
-        elif bed_wall == WALL_RIGHT:
-            self.status.set('Bedroom door cannot be on shared wall.')
-            self._draw()
-            return
 
         # New empty grid for bedroom, then re-place exactly what the user already had
         best = GridPlan(self.bed_Wm, self.bed_Hm)
@@ -3421,9 +3404,6 @@ class GenerateView:
                 BATH_RULES,
                 self.bath_openings,
             )
-            add_door_clearance(self.bath_plan, self.bath_openings, 'DOOR')
-            if bed_wall == WALL_RIGHT:
-                add_door_clearance(self.bed_plan, self.bed_openings, 'DOOR')
         meta = {
             'coverage': getattr(best, 'coverage', lambda: 0.0)(),
             'paths_ok': True,

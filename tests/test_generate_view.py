@@ -58,20 +58,14 @@ def make_generate_view(bath_dims=(2.0, 2.0)):
     return gv
 
 
-def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
+def test_bedroom_door_on_shared_wall_sets_status(monkeypatch):
     import vastu_all_in_one
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
-
         def run(self):
-            return self.plan, {
-                'score': 1.0,
-                'coverage': 0.5,
-                'paths_ok': True,
-                'reach_windows': True,
-            }
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
@@ -89,9 +83,9 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
 
     gv._solve_and_draw()
 
-    assert 'Bedroom door cannot be on shared wall.' not in gv.status.msg
-    assert isinstance(gv.bed_plan, GridPlan)
-    assert isinstance(gv.bath_plan, GridPlan)
+    assert gv.status.msg == 'Bedroom door cannot be on shared wall.'
+    assert getattr(gv, 'bath_plan', None) is None
+    assert getattr(gv, 'bed_plan', None) is None
 
 
 def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
