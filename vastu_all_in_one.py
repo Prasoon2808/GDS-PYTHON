@@ -2638,12 +2638,12 @@ class GenerateView:
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
         if self.bath_dims and self.bath_openings:
             bwall, bstart, bwidth = self.bath_openings.door_span_cells()
-            if bwall == 3:  # left/shared wall
+            if bwall == WALL_LEFT:
+                depth = bed_plan.meters_to_cells(self.bath_openings.swing_depth) \
+                        + max(1, PATH_WIDTH_CELLS - 1)
                 pw = max(1, PATH_WIDTH_CELLS)
-                bed_plan.mark_clear(
-                    pw, bstart, pw, bwidth,
-                    'DOOR_CLEAR', 'BATHROOM_DOOR'
-                )
+                bed_plan.mark_clear(0, bstart, depth, bwidth,
+                                    'DOOR_CLEAR', 'BATHROOM_DOOR')
         solver=BedroomSolver(
             bed_plan,
             self.bed_openings,
