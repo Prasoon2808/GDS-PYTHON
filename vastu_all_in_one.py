@@ -2644,7 +2644,8 @@ class GenerateView:
 
         if self.bath_dims and self.bath_openings:
             bwall, _, _ = self.bath_openings.door_span_cells()
-            if bwall == WALL_LEFT:                mirror = Openings(bed_plan)
+            if bwall == WALL_LEFT:
+                mirror = Openings(bed_plan)
                 mirror.door_wall = WALL_RIGHT
                 mirror.door_center = self.bath_openings.door_center
                 mirror.door_width = self.bath_openings.door_width
