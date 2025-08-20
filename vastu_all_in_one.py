@@ -2072,15 +2072,15 @@ def rects_touch_or_overlap(a,b)->bool:
 def add_door_clearance(p: GridPlan, op: Openings, owner: str):
     """Mark clearance for a door defined by ``op`` onto plan ``p``."""
     wall, start, width = op.door_span_cells()
-    pw = max(1, PATH_WIDTH_CELLS)
     depth = p.meters_to_cells(op.swing_depth)
-    if wall == 0:
+    pw = max(1, PATH_WIDTH_CELLS)
+    if wall == WALL_BOTTOM:
         p.mark_clear(start, depth, width, pw, 'DOOR_CLEAR', owner)
-    elif wall == 2:
+    elif wall == WALL_TOP:
         p.mark_clear(start, p.gh - depth - pw, width, pw, 'DOOR_CLEAR', owner)
-    elif wall == 3:
+    elif wall == WALL_LEFT:
         p.mark_clear(depth, start, pw, width, 'DOOR_CLEAR', owner)
-    else:
+    else:  # WALL_RIGHT
         p.mark_clear(p.gw - depth - pw, start, pw, width, 'DOOR_CLEAR', owner)
 
 # -----------------------
