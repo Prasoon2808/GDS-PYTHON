@@ -1267,6 +1267,11 @@ class GridPlan:
         for j in range(y,y+h):
             for i in range(x,x+w):
                 if self.occ[j][i] is not None: return False
+        for cx, cy, cw, ch, kind, _ in self.clearzones:
+            if kind == 'DOOR_CLEAR':
+                if not (x + w <= cx or cx + cw <= x or y + h <= cy or cy + ch <= y):
+                    print('DEBUG: fits rejected due to DOOR_CLEAR overlap', (x,y,w,h), 'vs', (cx,cy,cw,ch))
+                    return False
         return True
     def place(self, x:int,y:int,w:int,h:int, code:str):
         for j in range(y,y+h):
@@ -2636,16 +2641,16 @@ class GenerateView:
             self._draw()
             return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
-       
+
         if self.bath_dims and self.bath_openings:
             bwall, bstart, bwidth = self.bath_openings.door_span_cells()
-            if bwall == 3:  # left/shared wall
-                # Use the same depth as the bathroom door swing
-                depth = bed_plan.meters_to_cells(self.bath_openings.swing_depth) + max(1, PATH_WIDTH_CELLS - 1)
-                pw = max(1, PATH_WIDTH_CELLS)
-                # Mark clearance just inside the bedroom, adjacent to the shared wall
-                bed_plan.mark_clear(depth, bstart, pw, bwidth, 'DOOR_CLEAR', 'BATHROOM_DOOR')       
-                
+            if bwall == WALL_LEFT:
+                depth = bed_plan.meters_to_cells(self.bath_openings.swing_depth) \
+                        + max(1, PATH_WIDTH_CELLS - 1)
+                bed_plan.mark_clear(0, bstart, depth, bwidth,
+                                    'DOOR_CLEAR', 'BATHROOM_DOOR')
+                print('DEBUG: marked bathroom door clearance', 0, bstart, depth, bwidth)
+
         solver=BedroomSolver(
             bed_plan,
             self.bed_openings,
