@@ -2105,18 +2105,35 @@ def rects_touch_or_overlap(a,b)->bool:
     return True
 
 def add_door_clearance(p: GridPlan, op: Openings, owner: str):
-    """Mark clearance for a door defined by ``op`` onto plan ``p``."""
+    """Mark clearance for a door defined by ``op`` onto ``p`` and return the
+    mirrored rectangle on the opposite side of the doorway.
+
+    The interior clearance is applied directly to ``p``.  The exterior
+    rectangle is returned (but not recorded) so callers may apply it to an
+    adjacent plan if needed.
+    """
     wall, start, width = op.door_span_cells()
     depth = p.meters_to_cells(op.swing_depth)
     pw = max(1, PATH_WIDTH_CELLS)
     if wall == WALL_BOTTOM:
-        p.mark_clear(start, depth, width, pw, 'DOOR_CLEAR', owner)
+        inside = (start, depth, width, pw)
+        line = 0
+        outside = (start, 2 * line - (depth + pw), width, pw)
     elif wall == WALL_TOP:
-        p.mark_clear(start, p.gh - depth - pw, width, pw, 'DOOR_CLEAR', owner)
+        inside = (start, p.gh - depth - pw, width, pw)
+        line = p.gh
+        outside = (start, 2 * line - (inside[1] + pw), width, pw)
     elif wall == WALL_LEFT:
-        p.mark_clear(depth, start, pw, width, 'DOOR_CLEAR', owner)
+        inside = (depth, start, pw, width)
+        line = 0
+        outside = (2 * line - (depth + pw), start, pw, width)
     else:  # WALL_RIGHT
-        p.mark_clear(p.gw - depth - pw, start, pw, width, 'DOOR_CLEAR', owner)
+        inside = (p.gw - depth - pw, start, pw, width)
+        line = p.gw
+        outside = (2 * line - (inside[0] + pw), start, pw, width)
+
+    p.mark_clear(*inside, 'DOOR_CLEAR', owner)
+    return outside
 
 # -----------------------
 # Bathroom arranger (very light – placeholder)
@@ -2632,7 +2649,8 @@ class GenerateView:
         self.status.set('Bedroom and bathroom regenerated.')
 
     def _add_door_clearance(self, p: GridPlan, owner: str, openings=None):
-        """Mark clearance for bedroom or bathroom doors on ``p``.
+        """Mark clearance for bedroom or bathroom doors on ``p`` and return the
+        exterior rectangle if one is produced.
 
         If ``openings`` is not supplied, it is inferred based on whether ``p``
         corresponds to ``self.bath_plan`` or ``self.bed_plan``.
@@ -2640,7 +2658,8 @@ class GenerateView:
         if openings is None:
             openings = self.bath_openings if p is self.bath_plan else self.bed_openings
         if openings:
-            add_door_clearance(p, openings, owner)
+            return add_door_clearance(p, openings, owner)
+        return None
 
     def _solve_and_draw(self):
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
@@ -2665,14 +2684,23 @@ class GenerateView:
             return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
 
+        # Pre-mark door clearances on the initial plan so the solver is aware
+        # of keep-out zones.  Both the interior clearance and the exterior
+        # rectangle (returned) are recorded.
+        ext = self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
+        if ext:
+            bed_plan.mark_clear(*ext, 'DOOR_CLEAR', 'DOOR')
+
+        shared_ext = None
         if self.bath_dims and self.bath_openings:
-            bwall, bstart, bwidth = self.bath_openings.door_span_cells()
-            if bwall == WALL_LEFT:
-                depth = bed_plan.meters_to_cells(self.bath_openings.swing_depth) + max(1, PATH_WIDTH_CELLS - 1)
-                bed_plan.mark_clear(0, bstart, depth, bwidth, 'DOOR_CLEAR', 'BATHROOM_DOOR')
-                print("Clearzones before solver:", bed_plan.clearzones)
-
-
+            shared_op = Openings(bed_plan)
+            shared_op.door_wall = WALL_RIGHT
+            shared_op.door_center = self.bath_openings.door_center
+            shared_op.door_width = self.bath_openings.door_width
+            shared_op.swing_depth = self.bath_openings.swing_depth
+            shared_ext = self._add_door_clearance(bed_plan, 'BATHROOM_DOOR', shared_op)
+            if shared_ext:
+                bed_plan.mark_clear(*shared_ext, 'DOOR_CLEAR', 'BATHROOM_DOOR')
         solver=BedroomSolver(
             bed_plan,
             self.bed_openings,
@@ -2714,6 +2742,25 @@ class GenerateView:
             best.clearzones = merge_clearances(best.clearzones)
 
         bed_plan = best
+
+        # Reapply door clearances on the solved bedroom plan and capture the
+        # exterior rectangle for the shared bathroom door.
+        ext = self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
+        if ext:
+            bed_plan.mark_clear(*ext, 'DOOR_CLEAR', 'DOOR')
+
+        bath_ext = None
+        if self.bath_dims and self.bath_openings:
+            shared_op = Openings(bed_plan)
+            shared_op.door_wall = WALL_RIGHT
+            shared_op.door_center = self.bath_openings.door_center
+            shared_op.door_width = self.bath_openings.door_width
+            shared_op.swing_depth = self.bath_openings.swing_depth
+            bath_ext = self._add_door_clearance(bed_plan, 'BATHROOM_DOOR', shared_op)
+            if bath_ext:
+                bed_plan.mark_clear(*bath_ext, 'DOOR_CLEAR', 'BATHROOM_DOOR')
+        bed_plan.clearzones = merge_clearances(bed_plan.clearzones)
+
         bath_plan = None
         failure_msg = None
         if self.bath_dims and bath_ok:
@@ -2751,11 +2798,14 @@ class GenerateView:
                                 bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
                             elif wall == 2:
                                 bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
-                    bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
-                # add door clearances after fixtures are locked
-                self._add_door_clearance(bath_plan, 'DOOR', self.bath_openings)
-                if bed_wall == WALL_RIGHT:
-                    self._add_door_clearance(bed_plan, 'DOOR', self.bed_openings)
+                bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+                # Apply the mirrored clearance rectangle from the bedroom side
+                # onto the bathroom plan so both sides of the doorway are
+                # represented.
+                if bath_ext:
+                    bx, by, bw, bh = bath_ext
+                    bath_plan.mark_clear(bx - bed_plan.gw, by, bw, bh,
+                                        'DOOR_CLEAR', 'BATHROOM_DOOR')
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
             else:
                 bath_plan = None
