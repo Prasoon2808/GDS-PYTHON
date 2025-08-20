@@ -2285,7 +2285,7 @@ class GenerateView:
         self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
         self.bath_openings = (
-            Openings(GridPlan(*self.bath_dims)) if bath_dims else None
+            Openings(self.bath_plan) if bath_dims else None
         )
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
@@ -2647,6 +2647,7 @@ class GenerateView:
             pref=None,
             force_bst_pair=bool(getattr(self, 'force_bst_pair', tk.BooleanVar(value=False)).get())
         )
+        solver.bath_openings = getattr(self, 'bath_openings', None)
         best, meta = solver.run()
         if not isinstance(best, GridPlan):
             # If bedroom solver fails, keep the previous plan and inform the user
