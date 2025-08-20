@@ -3021,8 +3021,19 @@ class GenerateView:
         i, j = self._xy_to_cell(e.x, e.y)
         if i is None:
             return
-        nx = max(0, min(i, self.plan.gw - w))
-        ny = max(0, min(j, self.plan.gh - h))
+        code = self.drag_item['code']
+        bed_gw = getattr(self.bed_plan, 'gw', 0)
+        bed_gh = getattr(self.bed_plan, 'gh', 0)
+        if code in {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}:
+            nx = clamp(i, 0, bed_gw - w)
+            ny = clamp(j, 0, bed_gh - h)
+        elif code in {'WC', 'SHR', 'TUB'} and getattr(self, 'bath_plan', None):
+            xoff = bed_gw
+            nx = clamp(i, xoff, xoff + self.bath_plan.gw - w)
+            ny = clamp(j, 0, self.bath_plan.gh - h)
+        else:
+            nx = clamp(i, 0, self.plan.gw - w)
+            ny = clamp(j, 0, self.plan.gh - h)
 
         x0, y0, _, _ = self._cell_rect(nx, ny)
         _, _, x1, y1 = self._cell_rect(nx+w-1, ny+h-1)
@@ -3050,6 +3061,19 @@ class GenerateView:
 
         # bounds/overlap only for drag commit (stable & predictable)
         ok = self.plan.fits(nx, ny, w, h)
+
+        bed_gw = getattr(self.bed_plan, 'gw', 0)
+        bed_gh = getattr(self.bed_plan, 'gh', 0)
+        if code in {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}:
+            in_room = (0 <= nx and nx + w <= bed_gw and
+                       0 <= ny and ny + h <= bed_gh)
+        elif code in {'WC', 'SHR', 'TUB'} and getattr(self, 'bath_plan', None):
+            xoff = bed_gw
+            in_room = (xoff <= nx and nx + w <= xoff + self.bath_plan.gw and
+                       0 <= ny and ny + h <= self.bath_plan.gh)
+        else:
+            in_room = True
+        ok = ok and in_room
 
         if ok:
             self.plan.place(nx, ny, w, h, code)
