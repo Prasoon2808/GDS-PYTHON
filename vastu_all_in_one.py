@@ -1953,7 +1953,42 @@ class BedroomSolver:
         return None
 
     def _add_door_clearance(self, p: GridPlan, owner: str):
-        add_door_clearance(p, self.op, owner)
+        """Mark door clearance on both sides of the doorway.
+
+        The interior clearance rectangle is computed as before. A mirrored
+        rectangle on the opposite side of the door is then derived by
+        reflecting across the door line (``y`` for walls 0/2 and ``x`` for
+        walls 1/3). Both rectangles are recorded via ``p.mark_clear`` using
+        ``DOOR_CLEAR`` with distinct owners (``INSIDE`` and ``OUTSIDE``).
+
+        The mirrored rectangle is returned so that callers (e.g. a bathroom
+        planner) may apply it to an adjacent room if needed.
+        """
+        wall, start, width = self.op.door_span_cells()
+        depth = p.meters_to_cells(self.op.swing_depth)
+        pw = max(1, PATH_WIDTH_CELLS)
+
+        if wall == WALL_BOTTOM:  # door along bottom wall
+            inside = (start, depth, width, pw)
+            line = 0
+            outside = (start, 2 * line - (depth + pw), width, pw)
+        elif wall == WALL_TOP:  # door along top wall
+            inside = (start, p.gh - depth - pw, width, pw)
+            line = p.gh
+            outside = (start, 2 * line - (inside[1] + pw), width, pw)
+        elif wall == WALL_LEFT:  # door along left wall
+            inside = (depth, start, pw, width)
+            line = 0
+            outside = (2 * line - (depth + pw), start, pw, width)
+        else:  # WALL_RIGHT
+            inside = (p.gw - depth - pw, start, pw, width)
+            line = p.gw
+            outside = (2 * line - (inside[0] + pw), start, pw, width)
+
+        p.mark_clear(*inside, 'DOOR_CLEAR', 'INSIDE')
+        p.mark_clear(*outside, 'DOOR_CLEAR', 'OUTSIDE')
+
+        return outside
 
     def _add_window_clearances(self, p:GridPlan):
         depth = max(1, p.meters_to_cells(0.40))
