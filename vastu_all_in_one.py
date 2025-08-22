@@ -3059,15 +3059,16 @@ class GenerateView:
         bath_oy = oy + (max_h - bath_gh) * scale
         wall_width = max(4, int(scale * 0.12)) * 3
         open_width = max(1, wall_width // 3)
+        GRID_COLOR = '#dddddd'
 
         def draw_room(plan, openings, ox, oy, draw_door=True):
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
-                cv.create_line(x, oy, x, oy + gh * scale, fill='#dddddd', tags=('grid',))
+                cv.create_line(x, oy, x, oy + gh * scale, fill=GRID_COLOR, tags=('grid',))
             for j in range(gh + 1):
                 y = oy + j * scale
-                cv.create_line(ox, y, ox + gw * scale, y, fill='#dddddd', tags=('grid',))
+                cv.create_line(ox, y, ox + gw * scale, y, fill=GRID_COLOR, tags=('grid',))
             bound = set()
             for j in range(gh):
                 for i in range(gw):
@@ -3113,18 +3114,18 @@ class GenerateView:
                 x = ox + i * scale
                 cx, cy = x, oy - label_gap
                 cv.create_oval(cx - r, cy - r, cx + r, cy + r,
-                               outline='#555', fill='white', width=1)
+                               outline=GRID_COLOR, fill=GRID_COLOR, width=1)
                 cv.create_text(cx, cy, text=cg.col_label(i), fill='#555')
                 for j in range(cg.gh + 1):
                     y = oy + j * scale
                     if i == 0:
                         cx, cy = ox - label_gap, y
                         cv.create_oval(cx - r, cy - r, cx + r, cy + r,
-                                       outline='#555', fill='white', width=1)
+                                       outline=GRID_COLOR, fill=GRID_COLOR, width=1)
                         cv.create_text(cx, cy, text=cg.row_label(cg.gh - j),
                                        fill='#555')
                     cv.create_oval(x - 2, y - 2, x + 2, y + 2,
-                                   fill='#888', outline='', tags=('grid',))
+                                   fill=GRID_COLOR, outline='', tags=('grid',))
 
         cv.tag_lower('grid')
 
