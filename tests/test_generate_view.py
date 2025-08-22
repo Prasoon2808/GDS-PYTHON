@@ -76,16 +76,20 @@ class BoundingCanvas:
         return min(xs), min(ys), max(xs), max(ys)
 
 
-def make_generate_view(bath_dims=(2.0, 2.0)):
+def make_generate_view(bath_dims=(2.0, 2.0), liv_dims=None):
     master = tk.Tcl()
     tk._default_root = master
     gv = GenerateView.__new__(GenerateView)
     gv.bath_dims = bath_dims
+    gv.liv_dims = liv_dims
     gv.bed_openings = Openings(GridPlan(4.0, 4.0))
     gv.bed_openings.swing_depth = 0.60
     gv.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
     if gv.bath_openings:
         gv.bath_openings.swing_depth = CELL_M
+    gv.liv_openings = Openings(GridPlan(*liv_dims)) if liv_dims else None
+    if gv.liv_openings:
+        gv.liv_openings.swing_depth = 0.60
     gv.status = DummyStatus()
     gv.sim_timer = None
     gv.sim2_timer = None
@@ -97,6 +101,11 @@ def make_generate_view(bath_dims=(2.0, 2.0)):
         gv.bath_Wm, gv.bath_Hm = bath_dims
     else:
         gv.bath_Wm = gv.bath_Hm = 0.0
+    if liv_dims:
+        gv.liv_Wm, gv.liv_Hm = liv_dims
+    else:
+        gv.liv_Wm = gv.liv_Hm = 0.0
+    gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if liv_dims else None
     gv._draw = lambda: None
     gv._log_run = lambda meta: None
     gv.bed_key = None
@@ -350,6 +359,39 @@ def test_arrange_bathroom_failure_warns_user(monkeypatch):
     assert gv.status.msg == 'Bathroom generation failed; bedroom only.'
 
 
+def test_livingroom_generation(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+
+    gv = make_generate_view((2.0, 2.0), liv_dims=(3.0, 3.0))
+    gv.bed_openings.door_wall = WALL_LEFT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.liv_openings.door_wall = WALL_BOTTOM
+    gv.liv_openings.door_center = 1.0
+    gv.liv_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    assert isinstance(gv.liv_plan, GridPlan)
+
+
 def test_init_schedules_solver(monkeypatch):
     import vastu_all_in_one
 
@@ -395,15 +437,22 @@ class DummyCanvas:
         pass
 
 
-def setup_drag_view():
+def setup_drag_view(include_liv=False):
     gv = GenerateView.__new__(GenerateView)
     gv.bed_Wm = gv.bed_Hm = 3.0
     gv.bath_Wm = gv.bath_Hm = 3.0
     gv.bath_dims = (3.0, 3.0)
+    if include_liv:
+        gv.liv_Wm = gv.liv_Hm = 2.0
+        gv.liv_dims = (2.0, 2.0)
+    else:
+        gv.liv_Wm = gv.liv_Hm = 0.0
+        gv.liv_dims = None
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
-    gv.Wm = gv.bed_Wm + gv.bath_Wm
-    gv.Hm = max(gv.bed_Hm, gv.bath_Hm)
+    gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if include_liv else None
+    gv.Wm = gv.bed_Wm + gv.bath_Wm + (gv.liv_Wm if include_liv else 0)
+    gv.Hm = max(gv.bed_Hm, gv.bath_Hm, gv.liv_Hm if include_liv else 0)
     gv.plan = GridPlan(gv.Wm, gv.Hm)
     GenerateView._combine_plans(gv)
     gv.canvas = DummyCanvas()
@@ -447,6 +496,23 @@ def test_on_up_updates_only_bath_plan():
     GenerateView._on_up(gv, type('E', (), {})())
     assert gv.bath_plan.occ[0][1] == 'WC'
     assert all('WC' not in row for row in gv.bed_plan.occ)
+
+
+def test_on_up_updates_only_liv_plan():
+    gv = setup_drag_view(include_liv=True)
+    gv.liv_plan.place(0, 0, 1, 1, 'SOFA')
+    GenerateView._combine_plans(gv)
+    xoff = gv.bed_plan.gw + gv.bath_plan.gw
+    gv.drag_item = {
+        'orig': [xoff, 0, 1, 1],
+        'live': [xoff + 1, 0, 1, 1],
+        'code': 'SOFA',
+        'room': 'liv',
+        'ghost': None,
+    }
+    GenerateView._on_up(gv, type('E', (), {})())
+    assert gv.liv_plan.occ[0][1] == 'SOFA'
+    assert all('SOFA' not in row for row in gv.bed_plan.occ)
 
 
 def test_locked_bath_item_reapplied_after_generate(monkeypatch):
@@ -532,6 +598,8 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
     gv.bed_Hm = 4.0
     gv.bed_Wm = 4.0
     gv.bath_dims = None
+    gv.liv_dims = None
+    gv.liv_plan = None
     gv.zoom_factor = tk.DoubleVar(value=1.0)
 
     for name in [
@@ -592,6 +660,8 @@ def test_opening_control_limits(monkeypatch):
     gv.bed_Hm = 4.0
     gv.bed_Wm = 4.0
     gv.bath_dims = (2.0, 2.0)
+    gv.liv_dims = None
+    gv.liv_plan = None
     gv.zoom_factor = tk.DoubleVar(value=1.0)
 
     for name in [
@@ -678,6 +748,7 @@ def test_grid_labels_fully_visible():
     gv = GenerateView.__new__(GenerateView)
     gv.bed_plan = plan
     gv.bath_plan = None
+    gv.liv_plan = None
     gv.plan = plan
     gv.bed_openings = Openings(plan)
     gv.bath_openings = None
