@@ -3105,7 +3105,8 @@ class GenerateView:
     # ----------------- draw & helpers
 
     def _draw(self):
-        cv = self.canvas; cv.delete('all')
+        cv = self.canvas
+        cv.delete('plan')
         bed_gw, bed_gh = self.bed_plan.gw, self.bed_plan.gh
         bath_gw = self.bath_plan.gw if self.bath_plan else 0
         bath_gh = self.bath_plan.gh if self.bath_plan else 0
@@ -3140,10 +3141,24 @@ class GenerateView:
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
-                cv.create_line(x, oy, x, oy + gh * scale, fill=GRID_COLOR, tags=('grid',))
+                cv.create_line(
+                    x,
+                    oy,
+                    x,
+                    oy + gh * scale,
+                    fill=GRID_COLOR,
+                    tags=('plan', 'grid'),
+                )
             for j in range(gh + 1):
                 y = oy + j * scale
-                cv.create_line(ox, y, ox + gw * scale, y, fill=GRID_COLOR, tags=('grid',))
+                cv.create_line(
+                    ox,
+                    y,
+                    ox + gw * scale,
+                    y,
+                    fill=GRID_COLOR,
+                    tags=('plan', 'grid'),
+                )
             bound = set()
             for j in range(gh):
                 for i in range(gw):
@@ -3155,24 +3170,51 @@ class GenerateView:
                     color = PALETTE.get(tag, '#888')
                     x0 = ox + i * scale
                     y0 = oy + (gh - 1 - j) * scale
-                    cv.create_rectangle(x0, y0, x0 + scale, y0 + scale,
-                                        outline='', fill=color, tags=(tag,))
+                    cv.create_rectangle(
+                        x0,
+                        y0,
+                        x0 + scale,
+                        y0 + scale,
+                        outline='',
+                        fill=color,
+                        tags=('plan', tag),
+                    )
                     if tag not in bound:
-                        cv.tag_bind(tag, '<Enter>',
-                                    lambda e, c=tag: self._show_tooltip(e, c))
+                        cv.tag_bind(
+                            tag,
+                            '<Enter>',
+                            lambda e, c=tag: self._show_tooltip(e, c),
+                        )
                         cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
                         bound.add(tag)
 
             for (x, y, w, h, kind, owner) in plan.clearzones:
                 x0 = ox + x * scale
                 y0 = oy + (gh - (y + h)) * scale
-                cv.create_rectangle(x0, y0, x0 + w * scale, y0 + h * scale,
-                                    outline=PALETTE['CLEAR'], dash=(8, 6), width=2)
+                cv.create_rectangle(
+                    x0,
+                    y0,
+                    x0 + w * scale,
+                    y0 + h * scale,
+                    outline=PALETTE['CLEAR'],
+                    dash=(8, 6),
+                    width=2,
+                    tags=('plan', 'clear'),
+                )
 
-            cv.create_rectangle(ox, oy, ox + gw * scale, oy + gh * scale,
-                    outline=WALL_COLOR, fill='', width=wall_width)
-            self._draw_room_openings(cv, openings, ox, oy, scale,
-                                     wall_width, open_width, draw_door)
+            cv.create_rectangle(
+                ox,
+                oy,
+                ox + gw * scale,
+                oy + gh * scale,
+                outline=WALL_COLOR,
+                fill='',
+                width=wall_width,
+                tags=('plan', 'room'),
+            )
+            self._draw_room_openings(
+                cv, openings, ox, oy, scale, wall_width, open_width, draw_door
+            )
 
         bed_draw_door = not (
             self.bath_plan and self.bed_openings.door_wall == WALL_RIGHT
@@ -3183,36 +3225,23 @@ class GenerateView:
 
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
-            for i in range(self.plan.gw):
-                x = ox + i * scale + scale / 2
-                y = oy - scale * 0.45
-                cv.create_text(
-                    x,
-                    y,
-                    text=col_grid.col_label(i),
-                    font=("SF Pro Text", int(scale * 0.35)),
-                    fill="#444",
-                    anchor="s",
-                )
-            for j in range(self.plan.gh):
-                x = ox - scale * 0.25
-                y = oy + (self.plan.gh - j - 0.5) * scale
-                cv.create_text(
-                    x,
-                    y,
-                    text=col_grid.row_label(j),
-                    font=("SF Pro Text", int(scale * 0.35)),
-                    fill="#444",
-                    anchor="e",
-                )
+            self.grid_overlay.redraw(col_grid, ox, oy, scale)
 
         def draw_path(poly, color):
             if len(poly) >= 2:
                 for k in range(1, len(poly)):
                     x0, y0 = poly[k - 1]
                     x1, y1 = poly[k]
-                    cv.create_line(x0, y0, x1, y1, fill=color, width=2,
-                                   capstyle=tk.ROUND)
+                    cv.create_line(
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        fill=color,
+                        width=2,
+                        capstyle=tk.ROUND,
+                        tags=('plan',),
+                    )
         draw_path(self.sim_poly, HUMAN1_COLOR)
         draw_path(self.sim2_poly, HUMAN2_COLOR)
 
@@ -3222,6 +3251,13 @@ class GenerateView:
         if self.sim2_path:
             i, j = self.sim2_path[min(self.sim2_index, len(self.sim2_path) - 1)]
             self._draw_human_block(i, j, HUMAN2_COLOR, which=2)
+
+    def refresh_overlay(self):
+        """Rebuild the persistent column grid overlay."""
+        self.canvas.delete('overlay')
+        col_grid = getattr(self.plan, 'column_grid', None)
+        if col_grid:
+            self.grid_overlay.redraw(col_grid, self.ox, self.oy, self.scale)
 
     def _show_tooltip(self, event, code):
         base = code.split('_')[0]
@@ -3284,9 +3320,16 @@ class GenerateView:
                 x1 = ox + w + half
                 y0 = oy + h - (s + L)
                 y1 = oy + h - s
-            cv.create_rectangle(x0, y0, x1, y1,
-                                outline=WALL_COLOR, width=open_width,
-                                fill=fill_color)
+            cv.create_rectangle(
+                x0,
+                y0,
+                x1,
+                y1,
+                outline=WALL_COLOR,
+                width=open_width,
+                fill=fill_color,
+                tags=('plan', 'opening'),
+            )
 
         if draw_door:
             dwall, dstart, dwidth = openings.door_span_cells()
@@ -3300,13 +3343,13 @@ class GenerateView:
         x0=self.ox; y0=self.oy; w=self.plan.gw*self.scale; h=self.plan.gh*self.scale
         s=start*self.scale; L=length*self.scale
         if wall==0:
-            cv.create_line(x0+s, y0+h, x0+s+L, y0+h, fill=color, width=width)
+            cv.create_line(x0+s, y0+h, x0+s+L, y0+h, fill=color, width=width, tags=('plan',))
         elif wall==2:
-            cv.create_line(x0+s, y0, x0+s+L, y0, fill=color, width=width)
+            cv.create_line(x0+s, y0, x0+s+L, y0, fill=color, width=width, tags=('plan',))
         elif wall==3:
-            cv.create_line(x0, y0+h-(s+L), x0, y0+h-s, fill=color, width=width)
+            cv.create_line(x0, y0+h-(s+L), x0, y0+h-s, fill=color, width=width, tags=('plan',))
         else:
-            cv.create_line(x0+w, y0+h-(s+L), x0+w, y0+h-s, fill=color, width=width)
+            cv.create_line(x0+w, y0+h-(s+L), x0+w, y0+h-s, fill=color, width=width, tags=('plan',))
 
     def _draw_human_block(self, i, j, color, which=1):
         # small square centered in cell
@@ -3319,13 +3362,13 @@ class GenerateView:
                 try: self.canvas.coords(self.human_id, x0,y0,x1,y1)
                 except: self.human_id=None
             if self.human_id is None:
-                self.human_id = self.canvas.create_rectangle(x0,y0,x1,y1, fill=color, outline='')
+                self.human_id = self.canvas.create_rectangle(x0,y0,x1,y1, fill=color, outline='', tags=('plan',))
         else:
             if self.human2_id is not None:
                 try: self.canvas.coords(self.human2_id, x0,y0,x1,y1)
                 except: self.human2_id=None
             if self.human2_id is None:
-                self.human2_id = self.canvas.create_rectangle(x0,y0,x1,y1, fill=color, outline='')
+                self.human2_id = self.canvas.create_rectangle(x0,y0,x1,y1, fill=color, outline='', tags=('plan',))
 
     # ------- geometry helpers
 

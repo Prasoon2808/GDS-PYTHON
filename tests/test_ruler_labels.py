@@ -5,6 +5,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from vastu_all_in_one import GenerateView, GridPlan, ColumnGrid, Openings
+from ui.overlays import ColumnGridOverlay
 
 
 class CountingCanvas:
@@ -61,6 +62,7 @@ def test_ruler_labels_persist_across_zoom():
     gv.bed_openings = Openings(plan)
     gv.bath_openings = None
     gv.canvas = CountingCanvas()
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
     gv.sim_poly = gv.sim2_poly = []
     gv.sim_path = gv.sim2_path = []
     gv.sim_index = gv.sim2_index = 0
@@ -68,7 +70,7 @@ def test_ruler_labels_persist_across_zoom():
 
     gv._draw()
     first_labels = [i for i in gv.canvas.items if i[0] == "text"]
-    expected = plan.gw + plan.gh
+    expected = plan.column_grid.gw + plan.column_grid.gh + 2
     assert len(first_labels) == expected
 
     gv.zoom_factor = 1.5

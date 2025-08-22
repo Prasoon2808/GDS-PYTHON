@@ -31,6 +31,7 @@ class ColumnGridOverlay:
 
     def redraw(self, cg, ox: float, oy: float, scale: float) -> None:
         """Draw the grid overlay using cached coordinates."""
+        self.canvas.delete('overlay')
         self._build_coords(cg, ox, oy, scale)
         r = self._r
         for kind, x, y, text in self.coords:
@@ -42,7 +43,7 @@ class ColumnGridOverlay:
                     y + 2,
                     fill=self.GRID_COLOR,
                     outline="",
-                    tags=("grid",),
+                    tags=("overlay", "grid"),
                 )
             else:
                 self.canvas.create_oval(
@@ -53,6 +54,7 @@ class ColumnGridOverlay:
                     outline=self.GRID_COLOR,
                     fill=self.GRID_COLOR,
                     width=1,
+                    tags=("overlay",),
                 )
-                self.canvas.create_text(x, y, text=text, fill="#555")
+                self.canvas.create_text(x, y, text=text, fill="#555", tags=("overlay",))
         self.canvas.tag_lower("grid")
