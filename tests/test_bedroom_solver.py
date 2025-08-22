@@ -41,3 +41,28 @@ def test_solver_custom_set_fallback():
     assert counts['BED'] == 1
     assert counts['BST'] >= 1
     assert counts['DRS'] == 0
+
+
+def test_mark_clear_removes_entire_bed():
+    plan = GridPlan(3.0, 3.0)
+    plan.place(0, 0, 2, 1, 'BED:1')
+    # Overlap clearance with the second cell of the bed
+    plan.mark_clear(1, 0, 0.5, 1, 'SIDE', 'TEST')
+    assert not components_by_code(plan, 'BED')
+
+
+class ClearingBedroomSolver(BedroomSolver):
+    def _add_window_clearances(self, p):
+        super()._add_window_clearances(p)
+        # Remove a single cell from the placed bed to simulate partial overlap
+        p.clear(0, 0, 1, 1)
+
+
+def test_solver_rejects_truncated_bed():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    seed = {'wall': 0, 'beds': [(0, 0, 2, 1)]}
+
+    solver = ClearingBedroomSolver(plan, openings, bed_key=None, rng=random.Random(0), weights={})
+    result, _, _ = solver._try_seed(seed)
+    assert result is None

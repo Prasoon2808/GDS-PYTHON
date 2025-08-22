@@ -1369,30 +1369,30 @@ class GridPlan:
         w_int = max(0, x1 - x0)
         h_int = max(0, y1 - y0)
         if w_int > 0 and h_int > 0:
-            codes = set()
+            cleared = set()
             for j in range(y0, y0 + h_int):
                 for i in range(x0, x0 + w_int):
                     code = self.occ[j][i]
-                    if code is not None:
-                        codes.add(code)
-            for code in codes:
-                bx0, by0 = self.gw, self.gh
-                bx1, by1 = -1, -1
-                for jj in range(self.gh):
-                    for ii in range(self.gw):
-                        if self.occ[jj][ii] == code:
-                            if ii < bx0:
-                                bx0 = ii
-                            if jj < by0:
-                                by0 = jj
-                            if ii + 1 > bx1:
-                                bx1 = ii + 1
-                            if jj + 1 > by1:
-                                by1 = jj + 1
-                bw = bx1 - bx0
-                bh = by1 - by0
-                if bw > 0 and bh > 0:
-                    self.clear(bx0, by0, bw, bh)
+                    if code is None or code in cleared:
+                        continue
+                    cleared.add(code)
+                    Q = [(i, j)]
+                    cells = []
+                    seen = {(i, j)}
+                    while Q:
+                        cx, cy = Q.pop()
+                        cells.append((cx, cy))
+                        for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)):
+                            nx, ny = cx + dx, cy + dy
+                            if 0 <= nx < self.gw and 0 <= ny < self.gh \
+                               and (nx, ny) not in seen and self.occ[ny][nx] == code:
+                                seen.add((nx, ny))
+                                Q.append((nx, ny))
+                    xs = [c[0] for c in cells]
+                    ys = [c[1] for c in cells]
+                    bx0, by0 = min(xs), min(ys)
+                    bx1, by1 = max(xs) + 1, max(ys) + 1
+                    self.clear(bx0, by0, bx1 - bx0, by1 - by0)
             self.clearzones.append((x, y, w, h, kind, owner))
     def meters_to_cells(self, m:float)->int:
         return max(1, int(ceil(m/self.cell)))
@@ -1859,7 +1859,12 @@ class BedroomSolver:
         if not ok: return None,{},{}
 
         # Ensure at least one bed remains after all placements
-        if not components_by_code(p, 'BED'):
+        final_beds = components_by_code(p, 'BED')
+        if not final_beds:
+            return None, {}, {}
+        expected = sorted((bw, bh) for (_, _, bw, bh, _) in beds)
+        actual = sorted((w, h) for (_, _, w, h, _) in final_beds)
+        if actual != expected:
             return None, {}, {}
 
         # features
