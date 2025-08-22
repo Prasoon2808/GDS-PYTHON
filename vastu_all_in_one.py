@@ -2436,6 +2436,121 @@ def arrange_bathroom(
 
     return p
 
+
+def arrange_livingroom(
+    Wm: float,
+    Hm: float,
+    rules: Dict,
+    openings: Optional[Openings] = None,
+    rng: Optional[random.Random] = None,
+) -> GridPlan:
+    """Generate a simple living room layout honouring size/clearance rules.
+
+    The routine mirrors :func:`arrange_bathroom` in spirit: furniture pieces
+    are attempted one at a time and skipped if they do not fit.  Clearances for
+    traffic lanes or furniture spacing are reserved using ``GridPlan``'s
+    ``mark_clear`` method.  A rug is recorded as a clearzone so that other
+    elements may overlap it.
+    """
+
+    def _intersects_clear(p: GridPlan, x: int, y: int, w: int, h: int) -> bool:
+        for cx, cy, cw, ch, *_ in p.clearzones:
+            if (x < cx + cw and x + w > cx and y < cy + ch and y + h > cy):
+                return True
+        return False
+
+    def _place_with_clear(p: GridPlan, x: int, y: int, w: int, h: int,
+                           code: str, front_m: float = 0.0,
+                           side_m: float = 0.0, against_top: bool = True) -> bool:
+        """Place ``code`` at ``(x,y,w,h)`` and reserve front/side clearances."""
+        if not p.fits(x, y, w, h) or _intersects_clear(p, x, y, w, h):
+            return False
+        fc = p.meters_to_cells(front_m) if front_m > 0 else 0
+        sc = p.meters_to_cells(side_m) if side_m > 0 else 0
+        # front clearance
+        if fc > 0:
+            if against_top:
+                fx, fy, fw, fh = x, y - fc, w, fc
+            else:
+                fx, fy, fw, fh = x, y + h, w, fc
+            if fy < 0 or fy + fh > p.gh:
+                return False
+            if not p.fits(fx, fy, fw, fh) or _intersects_clear(p, fx, fy, fw, fh):
+                return False
+        # side clearances (both sides)
+        sides = []
+        if sc > 0:
+            sides = [(x - sc, y, sc, h), (x + w, y, sc, h)]
+            for sx, sy, sw, sh in sides:
+                if sx < 0 or sx + sw > p.gw:
+                    return False
+                if not p.fits(sx, sy, sw, sh) or _intersects_clear(p, sx, sy, sw, sh):
+                    return False
+        p.place(x, y, w, h, code)
+        if fc > 0:
+            p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
+        if sc > 0:
+            for sx, sy, sw, sh in sides:
+                p.mark_clear(sx, sy, sw, sh, 'SIDE', code)
+        return True
+
+    furn = rules.get('furniture_size_ranges', {})
+    tables = rules.get('tables_and_coffee', {})
+    clear = rules.get('clearances', {})
+
+    # Basic furniture dimensions
+    sofa_len = furn.get('sofas', {}).get('length_m_range', [2.0])[0]
+    sofa_dep = furn.get('sofas', {}).get('depth_m_range', [0.9])[0]
+    side_w = furn.get('end_tables', {}).get('width_m_range', [0.3])[0]
+    side_d = furn.get('end_tables', {}).get('depth_m_range', [0.4])[0]
+
+    sofa_to_coffee = tables.get('typical_distance_sofa_front_to_coffee_edge_m', [0.45])[0]
+    lane = max(
+        clear.get('traffic_lane_min_m', 1.0),
+        tables.get('aisle_between_coffee_and_chairs_min_m', 1.016),
+    )
+
+    coffee_w = 1.0  # default size if not specified in rules
+    coffee_d = 0.5
+
+    p = GridPlan(Wm, Hm)
+    if openings:
+        dx, dy, dw, dh = openings.door_rect_cells()
+        if p.fits(dx, dy, dw, dh):
+            p.place(dx, dy, dw, dh, 'DOOR')
+        add_door_clearance(p, openings, 'DOOR')
+
+    # Sofa against top wall, centered
+    sw = p.meters_to_cells(sofa_len)
+    sd = p.meters_to_cells(sofa_dep)
+    sx = max(0, (p.gw - sw) // 2)
+    sofa_placed = _place_with_clear(p, sx, 0, sw, sd, 'SOFA', against_top=True)
+
+    # Side tables, one on each side of sofa
+    stw = p.meters_to_cells(side_w)
+    std = p.meters_to_cells(side_d)
+    if sofa_placed:
+        _place_with_clear(p, sx - stw, 0, stw, std, 'STAB', against_top=True)
+        _place_with_clear(p, sx + sw, 0, stw, std, 'STAB', against_top=True)
+
+    # Coffee table in front of sofa
+    cw = p.meters_to_cells(coffee_w)
+    cd = p.meters_to_cells(coffee_d)
+    gap = p.meters_to_cells(sofa_to_coffee)
+    cx = max(0, (p.gw - cw) // 2)
+    cy = sd + gap
+    coffee_placed = _place_with_clear(p, cx, cy, cw, cd, 'CTAB', front_m=lane, against_top=False)
+
+    # Rug covering the conversation area (recorded as a clearzone)
+    if coffee_placed:
+        rx = max(0, min(sx, cx) - p.meters_to_cells(0.1))
+        rw = min(p.gw - rx, max(sx + sw, cx + cw) - rx + p.meters_to_cells(0.2))
+        ry = max(0, sd)
+        rd = min(p.gh - ry, (cy + cd) - ry)
+        p.clearzones.append((rx, ry, rw, rd, 'RUG', 'RUG'))
+
+    return p
+
 # -----------------------
 # UI – Generate view
 # -----------------------
