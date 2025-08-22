@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from collections import deque, defaultdict
+from collections import deque, defaultdict, Counter
 from math import ceil, sqrt, floor
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
@@ -1648,6 +1648,32 @@ def seed_templates(plan:'GridPlan', bed_key:str)->List[Dict]:
 # Solver
 # -----------------------
 
+def default_furniture_sets(extra_sets: Optional[List[Tuple[str, ...]]] = None) -> List[Tuple[str, ...]]:
+    """Return the default search order for required furniture combinations.
+
+    Each tuple represents a multiset of codes that must be present.  The
+    ordering is ascending in complexity so callers may ``reversed`` it to try
+    the most demanding combination first.  ``extra_sets`` allows future callers
+    to extend the search without modifying the core routine.
+    """
+    base: List[Tuple[str, ...]] = [
+        ("BED",),
+        ("BED", "BST"),
+        ("BED", "BST", "BST"),
+        ("BED", "DRS"),
+        ("BED", "BST", "DRS"),
+        ("BED", "BST", "BST", "DRS"),
+        ("BED", "WRD"),
+        ("BED", "BST", "WRD"),
+        ("BED", "BST", "BST", "WRD"),
+        ("BED", "DRS", "WRD"),
+        ("BED", "BST", "DRS", "WRD"),
+        ("BED", "BST", "BST", "DRS", "WRD"),
+    ]
+    if extra_sets:
+        base.extend(extra_sets)
+    return base
+
 class BedroomSolver:
     def __init__(self,
                  plan:GridPlan,
@@ -1680,38 +1706,49 @@ class BedroomSolver:
         if 'THREE_Q_SMALL' in options: return 'THREE_Q_SMALL'
         return options[0]
 
-    def run(self, iters:int=900, time_budget_ms:int=520, max_attempts:int=3)->Tuple[Optional[GridPlan], Dict]:
-        for _ in range(max_attempts):
-            t0=time.time()
-            best=None; best_meta={}; best_score=-1e9
-            seeds=seed_templates(self.p, self.bed_key)
-            beam=[]
-            tries=0
-            while (time.time()-t0)*1000 < time_budget_ms and tries<iters:
-                tries+=1
-                seed=self.rng.choice(seeds)
-                res, meta, feats = self._attempt(seed)
-                if not res: continue
-                base_score=dot_score(self.weights, feats)
-                # adjacency bonus
-                adj = self._adjacency_score(res)
-                feats['adjacency'] = adj
-                base_score += self.weights.get('adjacency',0.6) * adj
-                # deep models
-                if self.mlp:
-                    base_score += 0.35 * self.mlp.predict(feats)
-                if self.transformer:
-                    base_score += 0.45 * self.transformer.predict(feats)
-                # ensemble (supervised + unsupervised + semi)
-                if getattr(self, 'ensemble', None):
-                    try: base_score += 0.40 * self.ensemble.score(feats)
-                    except Exception: pass
-                beam.append((base_score,res,{**meta,'features':feats,'score':base_score}))
-                beam.sort(key=lambda x:-x[0]); beam=beam[:6]
-            if beam:
-                best_score,best,best_meta=beam[0]
-            if best and components_by_code(best, 'BED'):
-                return best, best_meta
+    def run(self,
+            iters: int = 900,
+            time_budget_ms: int = 520,
+            max_attempts: int = 3,
+            furniture_sets: Optional[List[Tuple[str, ...]]] = None
+            ) -> Tuple[Optional[GridPlan], Dict]:
+        sets = furniture_sets or default_furniture_sets()
+        # search from most demanding combination to least
+        for req in reversed(sets):
+            needed = Counter(req)
+            for _ in range(max_attempts):
+                t0 = time.time()
+                best = None; best_meta = {}; best_score = -1e9
+                seeds = seed_templates(self.p, self.bed_key)
+                beam = []
+                tries = 0
+                while (time.time() - t0) * 1000 < time_budget_ms and tries < iters:
+                    tries += 1
+                    seed = self.rng.choice(seeds)
+                    res, meta, feats = self._attempt(seed)
+                    if not res:
+                        continue
+                    base_score = dot_score(self.weights, feats)
+                    adj = self._adjacency_score(res)
+                    feats['adjacency'] = adj
+                    base_score += self.weights.get('adjacency', 0.6) * adj
+                    if self.mlp:
+                        base_score += 0.35 * self.mlp.predict(feats)
+                    if self.transformer:
+                        base_score += 0.45 * self.transformer.predict(feats)
+                    if getattr(self, 'ensemble', None):
+                        try:
+                            base_score += 0.40 * self.ensemble.score(feats)
+                        except Exception:
+                            pass
+                    beam.append((base_score, res, {**meta, 'features': feats, 'score': base_score}))
+                    beam.sort(key=lambda x: -x[0])
+                    beam = beam[:6]
+                if beam:
+                    best_score, best, best_meta = beam[0]
+                if best and all(len(list(components_by_code(best, code))) >= count
+                                 for code, count in needed.items()):
+                    return best, best_meta
         return None, {'status': 'no_bed'}
 
     def _attempt(self, seed:Dict):
