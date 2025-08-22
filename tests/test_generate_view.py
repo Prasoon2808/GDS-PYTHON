@@ -462,6 +462,8 @@ def setup_drag_view(include_liv=False):
     gv.selected_locked = False
     gv.ox = gv.oy = 0
     gv.scale = 1
+    gv.undo_stack = []
+    gv.redo_stack = []
     return gv
 
 
@@ -507,7 +509,7 @@ def test_on_up_updates_only_liv_plan():
         'orig': [xoff, 0, 1, 1],
         'live': [xoff + 1, 0, 1, 1],
         'code': 'SOFA',
-        'room': 'liv',
+        'room': 'living',
         'ghost': None,
     }
     GenerateView._on_up(gv, type('E', (), {})())
