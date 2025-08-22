@@ -2701,6 +2701,9 @@ class GenerateView:
         
         # Drag state
         self.drag_item=None
+        # Undo/redo stacks
+        self.undo_stack = []
+        self.redo_stack = []
         # Selection state for keyboard ops and double-click lock
         self.selected=None
         self.selected_locked=False
@@ -3998,7 +4001,7 @@ class GenerateView:
             if code in self.BATH_CODES:
                 room = 'bath'
             elif code in self.LIV_CODES:
-                room = 'liv'
+                room = 'living'
             else:
                 room = 'bed'
             self.selected = {'rect': [x, y, w, h], 'code': code}
@@ -4038,7 +4041,7 @@ class GenerateView:
             xoff = bed_gw
             nx = clamp(i, xoff, xoff + self.bath_plan.gw - w)
             ny = clamp(j, 0, self.bath_plan.gh - h)
-        elif room == 'liv' and getattr(self, 'liv_plan', None):
+        elif room == 'living' and getattr(self, 'liv_plan', None):
             xoff = bed_gw + (self.bath_plan.gw if self.bath_plan else 0)
             nx = clamp(i, xoff, xoff + self.liv_plan.gw - w)
             ny = clamp(j, 0, self.liv_plan.gh - h)
@@ -4082,6 +4085,7 @@ class GenerateView:
 
         # clear original block before testing commit
         target_plan.clear(ox, oy, ow, oh)
+        from_rect = [ox + xoff, oy, ow, oh]
 
         # bounds/overlap only for drag commit (stable & predictable)
         ok = target_plan.fits(nx, ny, w, h)
@@ -4091,19 +4095,33 @@ class GenerateView:
 
         if ok:
             target_plan.place(nx, ny, w, h, code)
-            self.selected = {'rect': [nx + xoff, ny, w, h], 'code': code}
+            to_rect = [nx + xoff, ny, w, h]
+            self.selected = {'rect': to_rect, 'code': code}
             self._log_event({"event": "drag", "code": code,
-                             "from": [ox + xoff, oy, ow, oh], "to": [nx + xoff, ny, w, h]})
+                             "from": from_rect, "to": to_rect})
         else:
             target_plan.place(ox, oy, ow, oh, code)
+            to_rect = [ox + xoff, oy, ow, oh]
 
         target_plan.clearzones = merge_clearances(target_plan.clearzones)
+        self._commit_drag(room, from_rect, to_rect, code)
         self.drag_item = None
         self._combine_plans()
         self._draw()
 
 
     # ------- keyboard + opening-span helpers
+
+    def _commit_drag(self, room, from_rect, to_rect, code):
+        if from_rect == to_rect:
+            return
+        if not hasattr(self, 'undo_stack'):
+            self.undo_stack = []
+        if not hasattr(self, 'redo_stack'):
+            self.redo_stack = []
+        self.undo_stack.append({'room': room, 'code': code,
+                                 'from': from_rect, 'to': to_rect})
+        self.redo_stack.clear()
 
     def _on_double_click(self, e):
         """Toggle sticky selection lock. Double-click an item to lock; double-click again to unlock."""
@@ -4700,6 +4718,8 @@ class GenerateView:
         plans = [self.bed_plan]
         if self.bath_plan:
             plans.append(self.bath_plan)
+        if getattr(self, 'liv_plan', None):
+            plans.append(self.liv_plan)
         grids = [self._grid_snapshot(p, 16) for p in plans if p is not None]
         if not grids:
             return []
