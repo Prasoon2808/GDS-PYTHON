@@ -11,6 +11,7 @@ from vastu_all_in_one import (
     GenerateView,
     Openings,
     GridPlan,
+    ColumnGrid,
     components_by_code,
     WALL_RIGHT,
     WALL_LEFT,
@@ -31,6 +32,47 @@ class DummyStatus:
 class DummyRoot:
     def after_cancel(self, *_):
         pass
+
+
+class BoundingCanvas:
+    def __init__(self, width=200, height=200):
+        self.width = width
+        self.height = height
+        self.items = []
+
+    def winfo_width(self):
+        return self.width
+
+    def winfo_height(self):
+        return self.height
+
+    def delete(self, _):
+        self.items.clear()
+
+    def create_line(self, x0, y0, x1, y1, **kwargs):
+        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+
+    def create_rectangle(self, x0, y0, x1, y1, **kwargs):
+        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+
+    def create_oval(self, x0, y0, x1, y1, **kwargs):
+        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+
+    def create_text(self, x, y, **kwargs):
+        self.items.append((x, y, x, y))
+
+    def tag_bind(self, *args, **kwargs):
+        pass
+
+    def tag_lower(self, *args, **kwargs):
+        pass
+
+    def bbox(self, tag):
+        if not self.items:
+            return None
+        xs = [b[0] for b in self.items] + [b[2] for b in self.items]
+        ys = [b[1] for b in self.items] + [b[3] for b in self.items]
+        return min(xs), min(ys), max(xs), max(ys)
 
 
 def make_generate_view(bath_dims=(2.0, 2.0)):
@@ -453,6 +495,7 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
     gv.bed_Hm = 4.0
     gv.bed_Wm = 4.0
     gv.bath_dims = None
+    gv.zoom_factor = tk.DoubleVar(value=1.0)
 
     for name in [
         '_solve_and_draw', '_apply_batch_and_generate', '_add_furniture',
@@ -512,6 +555,7 @@ def test_opening_control_limits(monkeypatch):
     gv.bed_Hm = 4.0
     gv.bed_Wm = 4.0
     gv.bath_dims = (2.0, 2.0)
+    gv.zoom_factor = tk.DoubleVar(value=1.0)
 
     for name in [
         '_solve_and_draw', '_apply_batch_and_generate', '_add_furniture',
@@ -582,3 +626,22 @@ def test_place_rejects_door_clear_overlap():
     plan.mark_clear(0, 0, 1, 1, 'DOOR_CLEAR', 'TEST')
     with pytest.raises(ValueError):
         plan.place(0, 0, 1, 1, 'BED')
+
+
+def test_grid_labels_fully_visible():
+    plan = GridPlan(4.0, 4.0, column_grid=ColumnGrid(4, 4))
+    gv = GenerateView.__new__(GenerateView)
+    gv.bed_plan = plan
+    gv.bath_plan = None
+    gv.plan = plan
+    gv.bed_openings = Openings(plan)
+    gv.bath_openings = None
+    gv.canvas = BoundingCanvas(200, 200)
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv.zoom_factor = 1.0
+    gv._draw()
+    bbox = gv.canvas.bbox('all')
+    assert bbox[0] >= 0 and bbox[1] >= 0
+    assert bbox[2] <= gv.canvas.width and bbox[3] <= gv.canvas.height

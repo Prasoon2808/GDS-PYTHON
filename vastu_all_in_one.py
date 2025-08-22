@@ -2425,6 +2425,7 @@ class GenerateView:
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
         self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.zoom_factor = tk.DoubleVar(value=1.0)
 
         # Tooltip elements are managed via the 'tooltip' tag
 
@@ -2600,6 +2601,12 @@ class GenerateView:
         ttk.Button(self.sidebar, text='▶ Simulate Circulation', command=self._simulate_one).pack(fill=tk.X, pady=(8,0))
         ttk.Button(self.sidebar, text='▶▶ Simulate Two Humans', command=self._simulate_two).pack(fill=tk.X, pady=(4,6))
         ttk.Button(self.sidebar, text='Run circulation sim (scribble)', command=self.simulate_circulation).pack(fill=tk.X, pady=(0,8))
+
+        ttk.Label(self.sidebar, text='Zoom').pack(anchor='w', pady=(6,2))
+        ttk.Scale(self.sidebar, variable=self.zoom_factor, from_=0.5, to=1.0,
+                  orient='horizontal').pack(fill=tk.X)
+        if hasattr(self.zoom_factor, 'trace_add'):
+            self.zoom_factor.trace_add('write', lambda *args: self._draw())
 
         ttk.Button(self.sidebar, text='Export PNG', command=self._export_png).pack(fill=tk.X, pady=(6,0))
         self.status=tk.StringVar(value=''); ttk.Label(self.sidebar, textvariable=self.status, wraplength=320).pack(anchor='w', pady=(6,0))
@@ -3047,7 +3054,16 @@ class GenerateView:
         max_h = max(bed_gh, bath_gh)
         cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
-        scale = min((cw - 2 * margin) / max(1, total_w), (ch - 2 * margin) / max(1, max_h))
+        scale = min((cw - 2 * margin) / max(1, total_w),
+                    (ch - 2 * margin) / max(1, max_h))
+        r = max(8, scale * 0.3)
+        label_gap = r * 2.5
+        margin = max(26, label_gap + 10)
+        scale = min((cw - 2 * margin) / max(1, total_w),
+                    (ch - 2 * margin) / max(1, max_h))
+        zf = (self.zoom_factor.get()
+              if hasattr(self.zoom_factor, 'get') else self.zoom_factor)
+        scale *= zf
         self.scale = scale
         ox = (cw - total_w * scale) / 2
         oy = (ch - max_h * scale) / 2
