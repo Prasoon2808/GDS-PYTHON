@@ -19,6 +19,7 @@ from vastu_all_in_one import (
     WALL_BOTTOM,
     CELL_M,
 )
+from ui.overlays import ColumnGridOverlay
 
 
 class DummyStatus:
@@ -637,6 +638,7 @@ def test_grid_labels_fully_visible():
     gv.bed_openings = Openings(plan)
     gv.bath_openings = None
     gv.canvas = BoundingCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
     gv.sim_poly = gv.sim2_poly = []
     gv.sim_path = gv.sim2_path = []
     gv.sim_index = gv.sim2_index = 0

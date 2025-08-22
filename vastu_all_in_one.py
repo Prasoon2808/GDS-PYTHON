@@ -5,6 +5,7 @@ from math import ceil, sqrt
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
+from ui.overlays import ColumnGridOverlay
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
@@ -2426,6 +2427,7 @@ class GenerateView:
         self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.zoom_factor = tk.DoubleVar(value=1.0)
+        self.grid_overlay = ColumnGridOverlay(self.canvas)
 
         # Tooltip elements are managed via the 'tooltip' tag
 
@@ -3124,26 +3126,7 @@ class GenerateView:
 
         cg = getattr(self.plan, 'column_grid', None)
         if cg:
-            r = max(8, scale * 0.3)
-            label_gap = r * 2.5
-            for i in range(cg.gw + 1):
-                x = ox + i * scale
-                cx, cy = x, oy - label_gap
-                cv.create_oval(cx - r, cy - r, cx + r, cy + r,
-                               outline=GRID_COLOR, fill=GRID_COLOR, width=1)
-                cv.create_text(cx, cy, text=cg.col_label(i), fill='#555')
-                for j in range(cg.gh + 1):
-                    y = oy + j * scale
-                    if i == 0:
-                        cx, cy = ox - label_gap, y
-                        cv.create_oval(cx - r, cy - r, cx + r, cy + r,
-                                       outline=GRID_COLOR, fill=GRID_COLOR, width=1)
-                        cv.create_text(cx, cy, text=cg.row_label(cg.gh - j),
-                                       fill='#555')
-                    cv.create_oval(x - 2, y - 2, x + 2, y + 2,
-                                   fill=GRID_COLOR, outline='', tags=('grid',))
-
-        cv.tag_lower('grid')
+            self.grid_overlay.redraw(cg, ox, oy, scale)
 
         def draw_path(poly, color):
             if len(poly) >= 2:
