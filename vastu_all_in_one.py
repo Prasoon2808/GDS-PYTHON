@@ -59,7 +59,14 @@ Files (in working dir)
 
 IN_TO_M = 0.0254
 FT_TO_M = 0.3048
-CELL_M = RULES.get("units", {}).get("CELL_M", 0.25)
+# Use a single cell size for both bedroom and bathroom grids so each
+# cell represents the same physical dimension regardless of which plan
+# it belongs to.  Bedroom rules take precedence, falling back to the
+# bathroom rules (or a 0.25 m default) if unspecified.
+BED_CELL_M = RULES.get("units", {}).get("CELL_M")
+BATH_CELL_M = BATH_RULES.get("units", {}).get("CELL_M")
+CELL_M = BED_CELL_M or BATH_CELL_M or 0.25
+BATH_RULES.setdefault("units", {})["CELL_M"] = CELL_M
 PATH_WIDTH_CELLS = RULES.get("solver", {}).get("PATH_WIDTH_CELLS", 2)
 LEARNING_RATE = RULES.get("learning", {}).get("LEARNING_RATE", 0.06)
 
@@ -1961,8 +1968,9 @@ class BedroomSolver:
         walls 1/3). Both rectangles are recorded via ``p.mark_clear`` using
         ``DOOR_CLEAR`` with distinct owners (``INSIDE`` and ``OUTSIDE``).
 
-        The mirrored rectangle is returned so that callers (e.g. a bathroom
-        planner) may apply it to an adjacent room if needed.
+        The mirrored rectangle is returned in ``p``'s cell units so that callers
+        (e.g. a bathroom planner) may convert it to metres and apply it to an
+        adjacent room if needed.
         """
         wall, start, width = self.op.door_span_cells()
         depth = p.meters_to_cells(self.op.swing_depth)
@@ -2109,8 +2117,8 @@ def add_door_clearance(p: GridPlan, op: Openings, owner: str):
     mirrored rectangle on the opposite side of the doorway.
 
     The interior clearance is applied directly to ``p``.  The exterior
-    rectangle is returned (but not recorded) so callers may apply it to an
-    adjacent plan if needed.
+    rectangle is returned (but not recorded) in ``p``'s cell units so callers
+    may convert it to metres and map it onto an adjacent plan if needed.
     """
     wall, start, width = op.door_span_cells()
     depth = p.meters_to_cells(op.swing_depth)
@@ -2652,8 +2660,9 @@ class GenerateView:
         """Mark clearance for bedroom or bathroom doors on ``p`` and return the
         exterior rectangle if one is produced.
 
-        If ``openings`` is not supplied, it is inferred based on whether ``p``
-        corresponds to ``self.bath_plan`` or ``self.bed_plan``.
+        The rectangle is expressed in ``p``'s cell units. If ``openings`` is not
+        supplied, it is inferred based on whether ``p`` corresponds to
+        ``self.bath_plan`` or ``self.bed_plan``.
         """
         if openings is None:
             openings = self.bath_openings if p is self.bath_plan else self.bed_openings
@@ -2757,6 +2766,8 @@ class GenerateView:
             shared_op.door_width = self.bath_openings.door_width
             shared_op.swing_depth = self.bath_openings.swing_depth
             bath_ext = self._add_door_clearance(bed_plan, 'BATHROOM_DOOR', shared_op)
+            # ``bath_ext`` is expressed in the bedroom grid; it will be converted
+            # to metres and regridded when applied to the bathroom plan.
             if bath_ext:
                 bed_plan.mark_clear(*bath_ext, 'DOOR_CLEAR', 'BATHROOM_DOOR')
         bed_plan.clearzones = merge_clearances(bed_plan.clearzones)
@@ -2801,10 +2812,22 @@ class GenerateView:
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
                 # Apply the mirrored clearance rectangle from the bedroom side
                 # onto the bathroom plan so both sides of the doorway are
-                # represented.
+                # represented.  The rectangle is first converted to metres and
+                # translated across the shared wall, then re-expressed in the
+                # bathroom's grid units.
                 if bath_ext:
                     bx, by, bw, bh = bath_ext
-                    bath_plan.mark_clear(bx - bed_plan.gw, by, bw, bh,
+                    # convert bedroom cells to metres
+                    bx_m, by_m = bx * bed_plan.cell, by * bed_plan.cell
+                    bw_m, bh_m = bw * bed_plan.cell, bh * bed_plan.cell
+                    # translate origin to bathroom space
+                    bx_m -= bed_plan.Wm
+                    # convert to bathroom grid units
+                    bx_c = int(round(bx_m / bath_plan.cell))
+                    by_c = int(round(by_m / bath_plan.cell))
+                    bw_c = bath_plan.meters_to_cells(bw_m)
+                    bh_c = bath_plan.meters_to_cells(bh_m)
+                    bath_plan.mark_clear(bx_c, by_c, bw_c, bh_c,
                                         'DOOR_CLEAR', 'BATHROOM_DOOR')
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
             else:
