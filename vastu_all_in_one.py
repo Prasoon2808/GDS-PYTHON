@@ -3104,14 +3104,17 @@ class GenerateView:
 
         cg = getattr(self.plan, 'column_grid', None)
         if cg:
+            label_gap = 20
             for i in range(cg.gw + 1):
                 x = ox + i * scale
-                cv.create_text(x, oy - 12, text=cg.col_label(i), fill='#555')
+                cv.create_text(x, oy - label_gap, text=cg.col_label(i), fill='#555')
                 for j in range(cg.gh + 1):
                     y = oy + j * scale
                     if i == 0:
-                        cv.create_text(ox - 12, y, text=cg.row_label(cg.gh - j), fill='#555')
-                    cv.create_oval(x - 2, y - 2, x + 2, y + 2, fill='#888', outline='')
+                        cv.create_text(ox - label_gap, y,
+                                       text=cg.row_label(cg.gh - j), fill='#555')
+                    cv.create_oval(x - 2, y - 2, x + 2, y + 2,
+                                   fill='#888', outline='', tags=('grid',))
 
         cv.tag_lower('grid')
 
