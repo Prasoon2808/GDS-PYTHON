@@ -111,8 +111,8 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
-
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {
                 'score': 1.0,
                 'coverage': 0.5,
@@ -148,6 +148,7 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
@@ -237,6 +238,7 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
     seen = {}
@@ -286,6 +288,37 @@ def test_solver_failure_keeps_previous_plan(monkeypatch):
     assert gv.status.msg == 'No arrangement found (adjust door/windows).'
 
 
+def test_solver_rejects_plan_without_bed(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = GridPlan(plan.Wm, plan.Hm)
+
+        def run(self):
+            # Return a plan lacking any bed placement
+            return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+
+    draw_flag = {'called': False}
+
+    def fake_draw():
+        draw_flag['called'] = True
+
+    gv = make_generate_view(None)
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv._draw = fake_draw
+
+    gv._solve_and_draw()
+
+    assert getattr(gv, 'plan', None) is None
+    assert 'No bed placed' in gv.status.msg
+    assert draw_flag['called'] is False
+
+
 def test_arrange_bathroom_failure_warns_user(monkeypatch):
     import vastu_all_in_one
 
@@ -293,6 +326,7 @@ def test_arrange_bathroom_failure_warns_user(monkeypatch):
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def failing_arrange_bathroom(w, h, rules, openings=None, rng=None):
@@ -421,7 +455,9 @@ def test_locked_bath_item_reapplied_after_generate(monkeypatch):
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
             self.plan = plan
+
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
@@ -584,6 +620,7 @@ def test_mirrored_clearances_align_by_label(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
