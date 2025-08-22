@@ -1680,36 +1680,39 @@ class BedroomSolver:
         if 'THREE_Q_SMALL' in options: return 'THREE_Q_SMALL'
         return options[0]
 
-    def run(self, iters:int=900, time_budget_ms:int=520)->Tuple[Optional[GridPlan], Dict]:
-        t0=time.time()
-        best=None; best_meta={}; best_score=-1e9
-        seeds=seed_templates(self.p, self.bed_key)
-        beam=[]
-        tries=0
-        while (time.time()-t0)*1000 < time_budget_ms and tries<iters:
-            tries+=1
-            seed=self.rng.choice(seeds)
-            res, meta, feats = self._attempt(seed)
-            if not res: continue
-            base_score=dot_score(self.weights, feats)
-            # adjacency bonus
-            adj = self._adjacency_score(res)
-            feats['adjacency'] = adj
-            base_score += self.weights.get('adjacency',0.6) * adj
-            # deep models
-            if self.mlp:
-                base_score += 0.35 * self.mlp.predict(feats)
-            if self.transformer:
-                base_score += 0.45 * self.transformer.predict(feats)
-            # ensemble (supervised + unsupervised + semi)
-            if getattr(self, 'ensemble', None):
-                try: base_score += 0.40 * self.ensemble.score(feats)
-                except Exception: pass
-            beam.append((base_score,res,{**meta,'features':feats,'score':base_score}))
-            beam.sort(key=lambda x:-x[0]); beam=beam[:6]
-        if beam:
-            best_score,best,best_meta=beam[0]
-        return best, best_meta
+    def run(self, iters:int=900, time_budget_ms:int=520, max_attempts:int=3)->Tuple[Optional[GridPlan], Dict]:
+        for _ in range(max_attempts):
+            t0=time.time()
+            best=None; best_meta={}; best_score=-1e9
+            seeds=seed_templates(self.p, self.bed_key)
+            beam=[]
+            tries=0
+            while (time.time()-t0)*1000 < time_budget_ms and tries<iters:
+                tries+=1
+                seed=self.rng.choice(seeds)
+                res, meta, feats = self._attempt(seed)
+                if not res: continue
+                base_score=dot_score(self.weights, feats)
+                # adjacency bonus
+                adj = self._adjacency_score(res)
+                feats['adjacency'] = adj
+                base_score += self.weights.get('adjacency',0.6) * adj
+                # deep models
+                if self.mlp:
+                    base_score += 0.35 * self.mlp.predict(feats)
+                if self.transformer:
+                    base_score += 0.45 * self.transformer.predict(feats)
+                # ensemble (supervised + unsupervised + semi)
+                if getattr(self, 'ensemble', None):
+                    try: base_score += 0.40 * self.ensemble.score(feats)
+                    except Exception: pass
+                beam.append((base_score,res,{**meta,'features':feats,'score':base_score}))
+                beam.sort(key=lambda x:-x[0]); beam=beam[:6]
+            if beam:
+                best_score,best,best_meta=beam[0]
+            if best and components_by_code(best, 'BED'):
+                return best, best_meta
+        return None, {'status': 'no_bed'}
 
     def _attempt(self, seed:Dict):
         res,meta,feats=self._try_seed(seed)
@@ -1817,6 +1820,10 @@ class BedroomSolver:
         # Path feasibility & coverage (coarse)
         ok, coverage, reach_windows = self._paths_and_coverage(p)
         if not ok: return None,{},{}
+
+        # Ensure at least one bed remains after all placements
+        if not components_by_code(p, 'BED'):
+            return None, {}, {}
 
         # features
         def desk_near_window():
@@ -2859,18 +2866,17 @@ class GenerateView:
         best, meta = solver.run()
         if not isinstance(best, GridPlan):
             # If bedroom solver fails, keep the previous plan and inform the user
-            self.status.set('No arrangement found (adjust door/windows).')
-            if prev_plan is not None:
-                self.plan = prev_plan
-            self._draw()
-            return
-
-        # Ensure at least one bed was placed; otherwise treat as failure
-        if not components_by_code(best, 'BED'):
-            self.status.set('No bed placed; adjust parameters.')
-            if prev_plan is not None:
-                self.plan = prev_plan
-            return
+            if meta.get('status') == 'no_bed':
+                self.status.set('No bed placed; adjust parameters.')
+                if prev_plan is not None:
+                    self.plan = prev_plan
+                return
+            else:
+                self.status.set('No arrangement found (adjust door/windows).')
+                if prev_plan is not None:
+                    self.plan = prev_plan
+                self._draw()
+                return
 
         # overlay sticky items (if any), preserving positions & clearances
         sticky = getattr(self, '_sticky_items', [])

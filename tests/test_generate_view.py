@@ -296,8 +296,8 @@ def test_solver_rejects_plan_without_bed(monkeypatch):
             self.plan = GridPlan(plan.Wm, plan.Hm)
 
         def run(self):
-            # Return a plan lacking any bed placement
-            return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
+            # Simulate solver failing to place a bed
+            return None, {'status': 'no_bed'}
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
 
