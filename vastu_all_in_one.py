@@ -3134,9 +3134,30 @@ class GenerateView:
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True)
 
-        cg = getattr(self.plan, 'column_grid', None)
-        if cg:
-            self.grid_overlay.redraw(cg, ox, oy, scale)
+        col_grid = getattr(self.plan, 'column_grid', None)
+        if col_grid:
+            for i in range(self.plan.gw):
+                x = ox + i * scale + scale / 2
+                y = oy - scale * 0.45
+                cv.create_text(
+                    x,
+                    y,
+                    text=col_grid.col_label(i),
+                    font=("SF Pro Text", int(scale * 0.35)),
+                    fill="#444",
+                    anchor="s",
+                )
+            for j in range(self.plan.gh):
+                x = ox - scale * 0.25
+                y = oy + (self.plan.gh - j - 0.5) * scale
+                cv.create_text(
+                    x,
+                    y,
+                    text=col_grid.row_label(j),
+                    font=("SF Pro Text", int(scale * 0.35)),
+                    fill="#444",
+                    anchor="e",
+                )
 
         def draw_path(poly, color):
             if len(poly) >= 2:

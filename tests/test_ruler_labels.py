@@ -5,7 +5,6 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from vastu_all_in_one import GenerateView, GridPlan, ColumnGrid, Openings
-from ui.overlays import ColumnGridOverlay
 
 
 class CountingCanvas:
@@ -53,7 +52,7 @@ class CountingCanvas:
 
 
 
-def test_grid_labels_persist_across_redraws():
+def test_ruler_labels_persist_across_zoom():
     plan = GridPlan(4.0, 4.0, column_grid=ColumnGrid(4, 4))
     gv = GenerateView.__new__(GenerateView)
     gv.bed_plan = plan
@@ -62,16 +61,17 @@ def test_grid_labels_persist_across_redraws():
     gv.bed_openings = Openings(plan)
     gv.bath_openings = None
     gv.canvas = CountingCanvas()
-    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
     gv.sim_poly = gv.sim2_poly = []
     gv.sim_path = gv.sim2_path = []
     gv.sim_index = gv.sim2_index = 0
     gv.zoom_factor = 1.0
 
     gv._draw()
-    first_text = [i for i in gv.canvas.items if i[0] == "text"]
-    assert first_text
+    first_labels = [i for i in gv.canvas.items if i[0] == "text"]
+    expected = plan.gw + plan.gh
+    assert len(first_labels) == expected
 
+    gv.zoom_factor = 1.5
     gv._draw()
-    second_text = [i for i in gv.canvas.items if i[0] == "text"]
-    assert len(second_text) == len(first_text)
+    second_labels = [i for i in gv.canvas.items if i[0] == "text"]
+    assert len(second_labels) == expected
