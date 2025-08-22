@@ -1752,6 +1752,7 @@ class BedroomSolver:
             if not p.fits(jx,jy,w,h): return None,{},{}
             if not self._bed_touches_wall(jx,jy,w,h,seed['wall']): return None,{},{}
             side=p.meters_to_cells(self.c['side_rec']*(1.0-relax_factor) + self.c['side_min']*relax_factor)
+            side=max(0, side-2)
             foot=p.meters_to_cells(self.c['foot_rec']*(1.0-relax_factor) + self.c['foot_min']*relax_factor)
             if not self._clear_ok(p,jx,jy,w,h,seed['wall'],side,foot): return None,{},{}
             p.place(jx,jy,w,h,f'BED:{self.bed_key}')
