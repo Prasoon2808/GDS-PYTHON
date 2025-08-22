@@ -1,0 +1,5 @@
+# Ignore solver-generated binary and data files
+solver_*.npz*
+solver_*.json
+solver_*.jsonl
+__pycache__/
