@@ -1377,8 +1377,8 @@ class Openings:
         self.door_wall=WALL_LEFT  # default orientation
         self.door_center=0.25*plan.Hm
         self.door_width=0.90
-        # Default door swing depth: 2 grid cells (0.5 m)
-        self.swing_depth = 2 * CELL_M
+        # Default door swing depth: 1 grid cell
+        self.swing_depth = CELL_M
         # (wall, start_m, length_m)
         self.windows=[[1, plan.Hm*0.40, 1.20], [-1,0.0,0.0]]
     def door_rect_cells(self)->Tuple[int,int,int,int]:
