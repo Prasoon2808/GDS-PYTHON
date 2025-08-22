@@ -2812,23 +2812,15 @@ class GenerateView:
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
                 # Apply the mirrored clearance rectangle from the bedroom side
                 # onto the bathroom plan so both sides of the doorway are
-                # represented.  The rectangle is first converted to metres and
-                # translated across the shared wall, then re-expressed in the
-                # bathroom's grid units.
+                # represented. The rectangle is translated across the shared
+                # wall using integer cell offsets to keep clearances aligned
+                # exactly across the wall.
                 if bath_ext:
                     bx, by, bw, bh = bath_ext
-                    # convert bedroom cells to metres
-                    bx_m, by_m = bx * bed_plan.cell, by * bed_plan.cell
-                    bw_m, bh_m = bw * bed_plan.cell, bh * bed_plan.cell
-                    # translate origin to bathroom space
-                    bx_m -= bed_plan.Wm
-                    # convert to bathroom grid units
-                    bx_c = int(round(bx_m / bath_plan.cell))
-                    by_c = int(round(by_m / bath_plan.cell))
-                    bw_c = bath_plan.meters_to_cells(bw_m)
-                    bh_c = bath_plan.meters_to_cells(bh_m)
-                    bath_plan.mark_clear(bx_c, by_c, bw_c, bh_c,
-                                        'DOOR_CLEAR', 'BATHROOM_DOOR')
+                    bx_c = bx - bed_plan.gw
+                    bath_plan.mark_clear(
+                        bx_c, by, bw, bh, "DOOR_CLEAR", "BATHROOM_DOOR"
+                    )
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
             else:
                 bath_plan = None
