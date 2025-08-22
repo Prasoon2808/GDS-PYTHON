@@ -4270,30 +4270,19 @@ class GenerateView:
         plans = [self.bed_plan]
         has_bath = bool(self.bath_plan)
         has_liv = bool(getattr(self, 'liv_plan', None))
-
-        # Width of the rooms on the top row (bedroom + optional bathroom)
-        top_width = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
-
         if has_bath:
             plans.append(self.bath_plan)
         if has_liv:
-            # Ensure the living room grid spans the full width of the rooms above
-            if self.liv_plan.gw < top_width:
-                new_liv = GridPlan(top_width * self.liv_plan.cell, self.liv_Hm)
-                for j in range(self.liv_plan.gh):
-                    for i in range(self.liv_plan.gw):
-                        new_liv.occ[j][i] = self.liv_plan.occ[j][i]
-                new_liv.clearzones.extend(self.liv_plan.clearzones)
-                self.liv_plan = new_liv
             plans.append(self.liv_plan)
         if len(plans) == 1:
             self.plan = self.bed_plan
             return
 
+        top_gw = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
         top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
         liv_gw = self.liv_plan.gw if has_liv else 0
         liv_gh = self.liv_plan.gh if has_liv else 0
-        total_gw = max(top_width, liv_gw)
+        total_gw = max(top_gw, liv_gw)
         total_gh = top_gh + liv_gh
         col_grid = ColumnGrid(total_gw, total_gh)
 
