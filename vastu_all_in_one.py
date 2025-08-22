@@ -1365,6 +1365,16 @@ class GridPlan:
         x=max(0,x); y=max(0,y)
         w=max(0,min(w, self.gw-x)); h=max(0,min(h, self.gh-y))
         if w>0 and h>0:
+            needs_clear = False
+            for j in range(y, y + h):
+                for i in range(x, x + w):
+                    if self.occ[j][i] is not None:
+                        needs_clear = True
+                        break
+                if needs_clear:
+                    break
+            if needs_clear:
+                self.clear(x, y, w, h)
             self.clearzones.append((x,y,w,h,kind,owner))
     def meters_to_cells(self, m:float)->int:
         return max(1, int(ceil(m/self.cell)))

@@ -629,6 +629,13 @@ def test_place_rejects_door_clear_overlap():
         plan.place(0, 0, 1, 1, 'BED')
 
 
+def test_mark_clear_removes_occupied_region():
+    plan = GridPlan(2.0, 2.0)
+    plan.place(0, 0, 1, 1, 'BED')
+    plan.mark_clear(0, 0, 1, 1, 'DOOR_CLEAR', 'TEST')
+    assert plan.occ[0][0] is None
+
+
 def test_grid_labels_fully_visible():
     plan = GridPlan(4.0, 4.0, column_grid=ColumnGrid(4, 4))
     gv = GenerateView.__new__(GenerateView)
