@@ -4246,8 +4246,6 @@ class GenerateView:
             plans.append(self.bath_plan)
         if getattr(self, 'liv_plan', None):
             plans.append(self.liv_plan)
-        if getattr(self, 'liv_plan', None):
-            plans.append(self.liv_plan)
         if len(plans) == 1:
             self.plan = self.bed_plan
             return
