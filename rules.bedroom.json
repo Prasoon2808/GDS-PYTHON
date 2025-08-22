@@ -1,9 +1,9 @@
 {
   "meta": {
     "name": "VASTU Bedroom Rules",
-    "version": "1.6.0",
-    "updated_at": "2025-08-14T00:00:00Z",
-    "notes": "Centralized decision, logic, and UI constants for the bedroom sketch+generate app.  Added MB Tour File 7: bed placement best-practice (see door but not foot-to-door), avoid chandelier/shelves/gallery over head, soothing headboard wall options, bedside table height (+0.10 m), clearances (0.4–0.75 m sides, 1.0 m wardrobe/dresser), avoid wardrobe at entry, mirror not facing bed, two nightstands or balanced alternatives, avoid neon; prefer neutrals/pastels/earthy; rug sizing 0.6–0.7 m each side or runners.  Added MB Tour File 8: wall art centerline 57–60 in, trim contrast by sheen/color, curtain rod 4–6 in above frame (prefer ceiling mount), nightstand sizing by bed type, rug extension 12–18 in on sides & foot (plus layering option), lighting layers = ambient+accent+task, and accent color variation across shades.  Added MB Tour File 9: light wall shades/optional limewash; cool vs warm palette guidance; accent wall for depth; color sampling under different lights; rug two-thirds feet-on rule and 80 sq ft cap for small rooms; avoid false ceiling if budget/wiring issues—prefer panel/COB and floor lamps; light marble/wood-look tiles for compact rooms; mirrors/gloss to bounce light; curtains in light/neutral colors with sheer layer; minimal decor with one statement piece and balanced distribution; functional decor boxes; pendant over bedside allowed; glass-topped side tables allowed.  Added MB Tour File 10: center bed on entry wall when possible; daybed (with trundle) recommended when corner placement is necessary; if bed on window wall, prefer low-profile headboard and full wall-to-wall drapes hung high; reduce heavy matching sets; allow dresser-in-closet and under-bed storage; neutral/simple core bedding; rug under bed spanning between nightstands (avoid floating rugs); nightstands scaled to bed; simplify busy headboards via upholstery/slipcovers; bold colors as accents only.  Added MB Tour File 11: command-position bed (see door, not inline), update clearances (24–36 in ideal), avoid matching nightstand with bed, closed-storage nightstands preferred, dresser/desk as bedside when tight, layered lighting with bedside source required, plug-in sconces allowed, LED strips concealed/diffused, warm CT 2700–3000K (≤3500K ok), dimmers/smart bulbs and bedside switch/remote, window treatments: blockout+sheer ideal; roman/roller/shutters based on schedule, storage strategies: built-ins for sloped/awkward, tallboy and underbed storage, cable management near bedside, ventilation via operable windows, rug 18–24 in on three sides option, bedding materials/weaves guidance, two pillows per person preferred.  Imported bedroom book clearances and furniture dimensions (IMG_0162)."
+    "version": "1.6.1",
+    "updated_at": "2025-08-15T00:00:00Z",
+    "notes": "Centralized decision, logic, and UI constants for the bedroom sketch+generate app.  Added MB Tour File 7: bed placement best-practice (see door but not foot-to-door), avoid chandelier/shelves/gallery over head, soothing headboard wall options, bedside table height (+0.10 m), clearances (0.4–0.75 m sides, 1.0 m wardrobe/dresser), avoid wardrobe at entry, mirror not facing bed, two nightstands or balanced alternatives, avoid neon; prefer neutrals/pastels/earthy; rug sizing 0.6–0.7 m each side or runners.  Added MB Tour File 8: wall art centerline 57–60 in, trim contrast by sheen/color, curtain rod 4–6 in above frame (prefer ceiling mount), nightstand sizing by bed type, rug extension 12–18 in on sides & foot (plus layering option), lighting layers = ambient+accent+task, and accent color variation across shades.  Added MB Tour File 9: light wall shades/optional limewash; cool vs warm palette guidance; accent wall for depth; color sampling under different lights; rug two-thirds feet-on rule and 80 sq ft cap for small rooms; avoid false ceiling if budget/wiring issues—prefer panel/COB and floor lamps; light marble/wood-look tiles for compact rooms; mirrors/gloss to bounce light; curtains in light/neutral colors with sheer layer; minimal decor with one statement piece and balanced distribution; functional decor boxes; pendant over bedside allowed; glass-topped side tables allowed.  Added MB Tour File 10: center bed on entry wall when possible; daybed (with trundle) recommended when corner placement is necessary; if bed on window wall, prefer low-profile headboard and full wall-to-wall drapes hung high; reduce heavy matching sets; allow dresser-in-closet and under-bed storage; neutral/simple core bedding; rug under bed spanning between nightstands (avoid floating rugs); nightstands scaled to bed; simplify busy headboards via upholstery/slipcovers; bold colors as accents only.  Added MB Tour File 11: command-position bed (see door, not inline), update clearances (24–36 in ideal), avoid matching nightstand with bed, closed-storage nightstands preferred, dresser/desk as bedside when tight, layered lighting with bedside source required, plug-in sconces allowed, LED strips concealed/diffused, warm CT 2700–3000K (≤3500K ok), dimmers/smart bulbs and bedside switch/remote, window treatments: blockout+sheer ideal; roman/roller/shutters based on schedule, storage strategies: built-ins for sloped/awkward, tallboy and underbed storage, cable management near bedside, ventilation via operable windows, rug 18–24 in on three sides option, bedding materials/weaves guidance, two pillows per person preferred.  Imported bedroom book clearances and furniture dimensions (IMG_0162).  Updated clearances: reduced bed side gaps by 0.5 m and set wardrobe/dresser front clearances to 0.5 m."
   },
   "units": {
     "CELL_M": 0.25,
@@ -244,7 +244,7 @@
   },
   "furniture": {
     "CLEAR": {
-      "side_rec": 1.07, "side_min": 0.61, "foot_rec": 0.91, "foot_min": 0.46,
+      "side_rec": 0.57, "side_min": 0.11, "foot_rec": 0.91, "foot_min": 0.46,
       "front_rec": 0.9, "front_min": 0.75, "unit_gap_m": 0.0, "unit_gap_cells": 0
     },
     "BED": {
@@ -258,10 +258,10 @@
       },
       "clearance": {
         "use_global": true,
-        "side_rec": 1.07,
-        "side_min": 0.61,
+        "side_rec": 0.57,
+        "side_min": 0.11,
         "foot_rec": 0.9144,
-        "foot_min": 0.6096
+        "foot_min": 0.46
       },
       "features": {
         "low_profile_possible": true,
@@ -336,7 +336,7 @@
         "WRD_150": { "w": 1.5, "d": 0.6, "type": "sliding" },
         "WRD_120": { "w": 1.2, "d": 0.6, "type": "hinged" }
       },
-      "clearance": { "front_rec": 0.6, "front_min": 0.5 },
+      "clearance": { "front_rec": 0.5, "front_min": 0.5 },
       "preferences": { "align_to_wall": true, "built_in_preferred_in_small_or_sloped": true },
       "features": { "sloped_ceiling_cutback_possible": true, "modular_system_supported": true }
     },
@@ -350,7 +350,7 @@
         "DRS_100": { "w": 1.0, "d": 0.5 },
         "DRS_90":  { "w": 0.9, "d": 0.46 }
       },
-      "clearance": { "front_rec": 0.9, "front_min": 0.75 },
+      "clearance": { "front_rec": 0.5, "front_min": 0.5 },
       "preferences": { "avoid_under_window": true },
       /* book dresser ranges */
       "book_ranges_m": {
