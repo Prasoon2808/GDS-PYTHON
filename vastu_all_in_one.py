@@ -1783,9 +1783,15 @@ class BedroomSolver:
             else:
                 p.mark_clear(jx, jy-side, w, side, 'SIDE', 'BED')
                 p.mark_clear(jx, jy+h, w, side, 'SIDE', 'BED')
-                if seed['wall']==3: p.mark_clear(jx+w, jy, foot, h, 'FOOT', 'BED')
-                else:               p.mark_clear(jx-foot, jy, foot, h, 'FOOT', 'BED')
+                if seed['wall']==3:
+                    p.mark_clear(jx+w, jy, foot, h, 'FOOT', 'BED')
+                else:
+                    p.mark_clear(jx-foot, jy, foot, h, 'FOOT', 'BED')
             beds.append((jx,jy,w,h,seed['wall']))
+
+        # Discard candidates that failed to place any bed
+        if not beds:
+            return None, {}, {}
 
         # Night tables (strict)
         bst=BEDROOM_BOOK['NIGHT_TABLE']['BST_18']
@@ -2857,6 +2863,13 @@ class GenerateView:
             if prev_plan is not None:
                 self.plan = prev_plan
             self._draw()
+            return
+
+        # Ensure at least one bed was placed; otherwise treat as failure
+        if not components_by_code(best, 'BED'):
+            self.status.set('No bed placed; adjust parameters.')
+            if prev_plan is not None:
+                self.plan = prev_plan
             return
 
         # overlay sticky items (if any), preserving positions & clearances
