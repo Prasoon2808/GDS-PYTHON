@@ -3335,49 +3335,11 @@ class GenerateView:
             else:
                 liv_plan = None
 
-        # Build final column grid across all rooms and combine
-        plans = [p for p in [bed_plan, bath_plan, liv_plan] if p]
-        total_gw = sum(p.gw for p in plans)
-        total_gh = max(p.gh for p in plans)
-        col_grid = ColumnGrid(total_gw, total_gh)
-        xoff = 0
-        for p in plans:
-            p.column_grid = col_grid
-            p.x_offset = xoff
-            p.y_offset = 0
-            xoff += p.gw
-
-        total_wm = self.bed_Wm
-        if bath_plan:
-            total_wm += self.bath_dims[0]
-        if liv_plan:
-            total_wm += self.liv_dims[0]
-        total_hm = max(
-            self.bed_Hm,
-            self.bath_dims[1] if bath_plan else 0,
-            self.liv_dims[1] if liv_plan else 0,
-        )
-        if len(plans) == 1:
-            combined = plans[0]
-        else:
-            combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
-            xoff = 0
-            for p in plans:
-                for j in range(p.gh):
-                    for i in range(p.gw):
-                        code = p.occ[j][i]
-                        if code:
-                            combined.occ[j][i + xoff] = code
-                for x, y, w, h, kind, owner in p.clearzones:
-                    combined.clearzones.append((x + xoff, y, w, h, kind, owner))
-                xoff += p.gw
-            combined.clearzones = merge_clearances(combined.clearzones)
-
-        # assign plans once after combining
-        self.plan = combined
+        # assign plans and combine with maximal-contact offsets
         self.bed_plan = bed_plan
         self.bath_plan = bath_plan
         self.liv_plan = liv_plan
+        self._combine_plans()
 
         self.meta = meta
         self._log_run(meta)
@@ -3440,41 +3402,9 @@ class GenerateView:
             self._add_door_clearance(self.bed_plan, 'DOOR', self.bed_openings)
         self.bath_plan.clearzones = merge_clearances(self.bath_plan.clearzones)
 
-        bed_plan = self.bed_plan or GridPlan(self.bed_Wm, self.bed_Hm)
-        plans = [bed_plan, self.bath_plan]
-        if getattr(self, 'liv_plan', None):
-            plans.append(self.liv_plan)
-        col_grid = ColumnGrid(sum(p.gw for p in plans), max(p.gh for p in plans))
-        xoff = 0
-        for p in plans:
-            p.column_grid = col_grid
-            p.x_offset = xoff
-            p.y_offset = 0
-            xoff += p.gw
-        total_wm = self.bed_Wm + self.bath_dims[0]
-        if getattr(self, 'liv_plan', None):
-            total_wm += self.liv_dims[0]
-        total_hm = max(
-            self.bed_Hm,
-            self.bath_dims[1],
-            self.liv_dims[1] if getattr(self, 'liv_plan', None) else 0,
-        )
-        if len(plans) == 1:
-            combined = plans[0]
-        else:
-            combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
-            xoff = 0
-            for p in plans:
-                for j in range(p.gh):
-                    for i in range(p.gw):
-                        code = p.occ[j][i]
-                        if code:
-                            combined.occ[j][i + xoff] = code
-                for x, y, w, h, kind, owner in p.clearzones:
-                    combined.clearzones.append((x + xoff, y, w, h, kind, owner))
-                xoff += p.gw
-            combined.clearzones = merge_clearances(combined.clearzones)
-        self.plan = combined
+        if self.bed_plan is None:
+            self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
+        self._combine_plans()
         self._draw()
 
     def _solve_and_draw_liv(self):
@@ -3503,41 +3433,9 @@ class GenerateView:
         self.liv_plan.clearzones = merge_clearances(self.liv_plan.clearzones)
         self._add_door_clearance(self.liv_plan, 'DOOR', self.liv_openings)
 
-        bed_plan = self.bed_plan or GridPlan(self.bed_Wm, self.bed_Hm)
-        plans = [bed_plan]
-        if getattr(self, 'bath_plan', None):
-            plans.append(self.bath_plan)
-        plans.append(self.liv_plan)
-        col_grid = ColumnGrid(sum(p.gw for p in plans), max(p.gh for p in plans))
-        xoff = 0
-        for p in plans:
-            p.column_grid = col_grid
-            p.x_offset = xoff
-            p.y_offset = 0
-            xoff += p.gw
-
-        total_wm = self.bed_Wm
-        if getattr(self, 'bath_plan', None):
-            total_wm += self.bath_dims[0]
-        total_wm += self.liv_dims[0]
-        total_hm = max(
-            self.bed_Hm,
-            self.bath_dims[1] if getattr(self, 'bath_plan', None) else 0,
-            self.liv_dims[1],
-        )
-        combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
-        xoff = 0
-        for p in plans:
-            for j in range(p.gh):
-                for i in range(p.gw):
-                    code = p.occ[j][i]
-                    if code:
-                        combined.occ[j][i + xoff] = code
-            for x, y, w, h, kind, owner in p.clearzones:
-                combined.clearzones.append((x + xoff, y, w, h, kind, owner))
-            xoff += p.gw
-        combined.clearzones = merge_clearances(combined.clearzones)
-        self.plan = combined
+        if self.bed_plan is None:
+            self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
+        self._combine_plans()
         self._draw()
 
     # ----------------- draw & helpers
@@ -3550,31 +3448,33 @@ class GenerateView:
         bath_gh = self.bath_plan.gh if self.bath_plan else 0
         liv_gw = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
         liv_gh = self.liv_plan.gh if getattr(self, 'liv_plan', None) else 0
-        total_w = bed_gw + bath_gw + liv_gw
-        max_h = max(bed_gh, bath_gh, liv_gh)
+        top_w = bed_gw + bath_gw
+        top_h = max(bed_gh, bath_gh)
+        total_w = max(top_w, liv_gw)
+        total_h = top_h + liv_gh
         cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
         scale = min((cw - 2 * margin) / max(1, total_w),
-                    (ch - 2 * margin) / max(1, max_h))
+                    (ch - 2 * margin) / max(1, total_h))
         r = max(8, scale * 0.3)
         label_gap = r * 2.5
         margin = max(26, label_gap + 10)
         scale = min((cw - 2 * margin) / max(1, total_w),
-                    (ch - 2 * margin) / max(1, max_h))
+                    (ch - 2 * margin) / max(1, total_h))
         zf = (self.zoom_factor.get()
               if hasattr(self.zoom_factor, 'get') else self.zoom_factor)
         scale *= zf
         self.scale = scale
         ox = (cw - total_w * scale) / 2
-        oy = (ch - max_h * scale) / 2
+        oy = (ch - total_h * scale) / 2
         self.ox = ox
         self.oy = oy
         bed_ox = ox
-        bed_oy = oy + (max_h - bed_gh) * scale
+        bed_oy = oy + (top_h - bed_gh) * scale
         bath_ox = ox + bed_gw * scale
-        bath_oy = oy + (max_h - bath_gh) * scale
-        liv_ox = ox + (bed_gw + bath_gw) * scale
-        liv_oy = oy + (max_h - liv_gh) * scale
+        bath_oy = oy + (top_h - bath_gh) * scale
+        liv_ox = ox
+        liv_oy = oy + top_h * scale
         wall_width = max(4, int(scale * 0.12)) * 3
         open_width = max(1, wall_width // 3)
         GRID_COLOR = '#dddddd'
@@ -4065,9 +3965,9 @@ class GenerateView:
             nx = clamp(i, xoff, xoff + self.bath_plan.gw - w)
             ny = clamp(j, 0, self.bath_plan.gh - h)
         elif room == 'living' and getattr(self, 'liv_plan', None):
-            xoff = bed_gw + (self.bath_plan.gw if self.bath_plan else 0)
-            nx = clamp(i, xoff, xoff + self.liv_plan.gw - w)
-            ny = clamp(j, 0, self.liv_plan.gh - h)
+            yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            nx = clamp(i, 0, self.liv_plan.gw - w)
+            ny = clamp(j, yoff, yoff + self.liv_plan.gh - h)
         else:
             nx = clamp(i, 0, self.plan.gw - w)
             ny = clamp(j, 0, self.plan.gh - h)
@@ -4096,19 +3996,21 @@ class GenerateView:
 
         if room == 'bed':
             target_plan = self.bed_plan
-            xoff = 0
+            xoff = yoff = 0
         elif room == 'bath':
             target_plan = self.bath_plan
             xoff = self.bed_plan.gw
+            yoff = 0
             ox -= xoff; nx -= xoff
         else:
             target_plan = self.liv_plan
-            xoff = self.bed_plan.gw + (self.bath_plan.gw if self.bath_plan else 0)
-            ox -= xoff; nx -= xoff
+            xoff = 0
+            yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            oy -= yoff; ny -= yoff
 
         # clear original block before testing commit
         target_plan.clear(ox, oy, ow, oh)
-        from_rect = [ox + xoff, oy, ow, oh]
+        from_rect = [ox + xoff, oy + yoff, ow, oh]
 
         # bounds/overlap only for drag commit (stable & predictable)
         ok = target_plan.fits(nx, ny, w, h)
@@ -4118,13 +4020,13 @@ class GenerateView:
 
         if ok:
             target_plan.place(nx, ny, w, h, code)
-            to_rect = [nx + xoff, ny, w, h]
+            to_rect = [nx + xoff, ny + yoff, w, h]
             self.selected = {'rect': to_rect, 'code': code}
             self._log_event({"event": "drag", "code": code,
                              "from": from_rect, "to": to_rect})
         else:
             target_plan.place(ox, oy, ow, oh, code)
-            to_rect = [ox + xoff, oy, ow, oh]
+            to_rect = [ox + xoff, oy + yoff, ow, oh]
 
         target_plan.clearzones = merge_clearances(target_plan.clearzones)
         self._commit_drag(room, from_rect, to_rect, code)
@@ -4265,24 +4167,54 @@ class GenerateView:
     def _combine_plans(self):
         """Merge per-room plans into ``self.plan``."""
         plans = [self.bed_plan]
-        if self.bath_plan:
+        has_bath = bool(self.bath_plan)
+        has_liv = bool(getattr(self, 'liv_plan', None))
+        if has_bath:
             plans.append(self.bath_plan)
-        if getattr(self, 'liv_plan', None):
+        if has_liv:
             plans.append(self.liv_plan)
         if len(plans) == 1:
             self.plan = self.bed_plan
             return
-        combined = GridPlan(sum(p.Wm for p in plans), max(p.Hm for p in plans))
-        xoff = 0
+
+        top_gw = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
+        top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
+        liv_gw = self.liv_plan.gw if has_liv else 0
+        liv_gh = self.liv_plan.gh if has_liv else 0
+        total_gw = max(top_gw, liv_gw)
+        total_gh = top_gh + liv_gh
+        col_grid = ColumnGrid(total_gw, total_gh)
+
+        self.bed_plan.column_grid = col_grid
+        self.bed_plan.x_offset = 0
+        self.bed_plan.y_offset = 0
+        if has_bath:
+            self.bath_plan.column_grid = col_grid
+            self.bath_plan.x_offset = self.bed_plan.gw
+            self.bath_plan.y_offset = 0
+        if has_liv:
+            self.liv_plan.column_grid = col_grid
+            self.liv_plan.x_offset = 0
+            self.liv_plan.y_offset = top_gh
+
+        total_wm = max(
+            self.bed_Wm + (self.bath_Wm if has_bath else 0),
+            self.liv_Wm if has_liv else 0,
+        )
+        total_hm = max(self.bed_Hm, self.bath_Hm if has_bath else 0)
+        total_hm += self.liv_Hm if has_liv else 0
+
+        combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
         for p in plans:
+            xoff = getattr(p, 'x_offset', 0)
+            yoff = getattr(p, 'y_offset', 0)
             for j in range(p.gh):
                 for i in range(p.gw):
                     code = p.occ[j][i]
                     if code:
-                        combined.occ[j][i + xoff] = code
+                        combined.occ[j + yoff][i + xoff] = code
             for x, y, w, h, kind, owner in p.clearzones:
-                combined.clearzones.append((x + xoff, y, w, h, kind, owner))
-            xoff += p.gw
+                combined.clearzones.append((x + xoff, y + yoff, w, h, kind, owner))
         combined.clearzones = merge_clearances(combined.clearzones)
         self.plan = combined
 
@@ -4295,26 +4227,25 @@ class GenerateView:
             bed = GridPlan(self.bed_Wm, self.bed_Hm)
             bath = GridPlan(self.bath_Wm, self.bath_Hm) if has_bath else None
             liv = GridPlan(self.liv_Wm, self.liv_Hm) if has_liv else None
-            xoff_bath = self.bed_plan.gw
-            xoff_liv = xoff_bath + (self.bath_plan.gw if has_bath else 0)
+            top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
             for j in range(self.plan.gh):
                 for i in range(self.plan.gw):
                     code = self.plan.occ[j][i]
                     if not code:
                         continue
-                    if i < xoff_bath:
+                    if j < top_gh and i < self.bed_plan.gw:
                         bed.occ[j][i] = code
-                    elif has_bath and i < xoff_liv:
-                        bath.occ[j][i - xoff_bath] = code
-                    elif has_liv:
-                        liv.occ[j][i - xoff_liv] = code
+                    elif has_bath and j < top_gh and i >= self.bed_plan.gw:
+                        bath.occ[j][i - self.bed_plan.gw] = code
+                    elif has_liv and j >= top_gh:
+                        liv.occ[j - top_gh][i] = code
             for x, y, w, h, kind, owner in self.plan.clearzones:
-                if x + w <= xoff_bath:
+                if y + h <= top_gh and x + w <= self.bed_plan.gw:
                     bed.clearzones.append((x, y, w, h, kind, owner))
-                elif has_bath and x >= xoff_bath and x + w <= xoff_liv:
-                    bath.clearzones.append((x - xoff_bath, y, w, h, kind, owner))
-                elif has_liv and x >= xoff_liv:
-                    liv.clearzones.append((x - xoff_liv, y, w, h, kind, owner))
+                elif has_bath and y + h <= top_gh and x >= self.bed_plan.gw:
+                    bath.clearzones.append((x - self.bed_plan.gw, y, w, h, kind, owner))
+                elif has_liv and y >= top_gh:
+                    liv.clearzones.append((x, y - top_gh, w, h, kind, owner))
             bed.clearzones = merge_clearances(bed.clearzones)
             if has_bath:
                 bath.clearzones = merge_clearances(bath.clearzones)

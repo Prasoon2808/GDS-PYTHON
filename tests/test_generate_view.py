@@ -405,7 +405,7 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
     assert isinstance(gv.bed_plan, GridPlan)
     assert isinstance(gv.bath_plan, GridPlan)
     assert isinstance(gv.liv_plan, GridPlan)
-    assert gv.plan.gw == gv.bed_plan.gw + gv.bath_plan.gw + gv.liv_plan.gw
+    assert gv.plan.gw == max(gv.bed_plan.gw + gv.bath_plan.gw, gv.liv_plan.gw)
 
     bath_clear = next(
         (x, y, w, h)
@@ -485,8 +485,8 @@ def setup_drag_view(include_liv=False):
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
     gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if include_liv else None
-    gv.Wm = gv.bed_Wm + gv.bath_Wm + (gv.liv_Wm if include_liv else 0)
-    gv.Hm = max(gv.bed_Hm, gv.bath_Hm, gv.liv_Hm if include_liv else 0)
+    gv.Wm = max(gv.bed_Wm + gv.bath_Wm, gv.liv_Wm if include_liv else 0)
+    gv.Hm = max(gv.bed_Hm, gv.bath_Hm) + (gv.liv_Hm if include_liv else 0)
     gv.plan = GridPlan(gv.Wm, gv.Hm)
     GenerateView._combine_plans(gv)
     gv.canvas = DummyCanvas()
@@ -538,10 +538,10 @@ def test_on_up_updates_only_liv_plan():
     gv = setup_drag_view(include_liv=True)
     gv.liv_plan.place(0, 0, 1, 1, 'SOFA')
     GenerateView._combine_plans(gv)
-    xoff = gv.bed_plan.gw + gv.bath_plan.gw
+    yoff = max(gv.bed_plan.gh, gv.bath_plan.gh)
     gv.drag_item = {
-        'orig': [xoff, 0, 1, 1],
-        'live': [xoff + 1, 0, 1, 1],
+        'orig': [0, yoff, 1, 1],
+        'live': [1, yoff, 1, 1],
         'code': 'SOFA',
         'room': 'living',
         'ghost': None,
