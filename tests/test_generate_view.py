@@ -13,6 +13,7 @@ from vastu_all_in_one import (
     GridPlan,
     ColumnGrid,
     components_by_code,
+    add_door_clearance,
     WALL_RIGHT,
     WALL_LEFT,
     WALL_TOP,
@@ -87,6 +88,9 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None):
     gv.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
     if gv.bath_openings:
         gv.bath_openings.swing_depth = CELL_M
+    gv.bath_liv_openings = Openings(GridPlan(*bath_dims)) if bath_dims and living_dims else None
+    if gv.bath_liv_openings:
+        gv.bath_liv_openings.swing_depth = CELL_M
     gv.liv_openings = Openings(GridPlan(*living_dims)) if living_dims else None
     if gv.liv_openings:
         gv.liv_openings.swing_depth = 0.60
@@ -136,8 +140,13 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
                 'reach_windows': True,
             }
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
-        return GridPlan(w, h)
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        p = GridPlan(w, h)
+        if openings:
+            add_door_clearance(p, openings, 'DOOR')
+        if secondary_openings:
+            secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
+        return p
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
@@ -176,8 +185,13 @@ def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
                 'reach_windows': True,
             }
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
-        return GridPlan(w, h)
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        p = GridPlan(w, h)
+        if openings:
+            add_door_clearance(p, openings, 'DOOR')
+        if secondary_openings:
+            secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
+        return p
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
@@ -209,8 +223,13 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
-        return GridPlan(w, h)
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        p = GridPlan(w, h)
+        if openings:
+            add_door_clearance(p, openings, 'DOOR')
+        if secondary_openings:
+            secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
+        return p
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
@@ -240,7 +259,7 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         plan = GridPlan(w, h)
         plan.place(0, 0, 1, 1, 'WC')
         return plan
@@ -300,7 +319,7 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
     seen = {}
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         seen['rng'] = rng
         return GridPlan(w, h)
 
@@ -322,7 +341,7 @@ def test_solver_failure_keeps_previous_plan(monkeypatch):
         def run(self):
             return None, {}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -387,7 +406,7 @@ def test_arrange_bathroom_failure_warns_user(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def failing_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def failing_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return None
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -419,7 +438,7 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         plan = GridPlan(w, h)
         plan.place(0, 0, 1, 1, 'WC')
         return plan
@@ -470,6 +489,73 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
     bed_label = gv.bed_plan.coord_to_label(outside_x, outside_y)
     bath_label = gv.bath_plan.coord_to_label(bath_clear[0], bath_clear[1])
     assert bed_label == bath_label
+
+
+def test_bathroom_has_second_door_shared_with_living(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        p = GridPlan(w, h)
+        if openings:
+            add_door_clearance(p, openings, 'DOOR')
+        if secondary_openings:
+            secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
+        return p
+
+    def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
+    gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+    gv.bath_liv_openings.door_wall = WALL_RIGHT
+    gv.bath_liv_openings.door_center = 1.2
+    gv.bath_liv_openings.door_width = 0.9
+    gv.liv_openings.door_wall = WALL_BOTTOM
+    gv.liv_openings.door_center = 1.0
+    gv.liv_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    bx1, by1, bw1, bh1 = gv.bath_openings.door_rect_cells()
+    for j in range(by1, by1 + bh1):
+        for i in range(bx1, bx1 + bw1):
+            assert gv.bath_plan.occ[j][i] == 'DOOR'
+    bx2, by2, bw2, bh2 = gv.bath_liv_openings.door_rect_cells()
+    for j in range(by2, by2 + bh2):
+        for i in range(bx2, bx2 + bw2):
+            assert gv.bath_plan.occ[j][i] == 'DOOR'
+
+    shared_op = Openings(gv.liv_plan)
+    shared_op.door_wall = WALL_LEFT
+    shared_op.door_center = gv.bath_liv_openings.door_center
+    shared_op.door_width = gv.bath_liv_openings.door_width
+    shared_op.swing_depth = gv.bath_liv_openings.swing_depth
+    lx, ly, lw, lh = shared_op.door_rect_cells()
+    for j in range(ly, ly + lh):
+        for i in range(lx, lx + lw):
+            assert gv.liv_plan.occ[j][i] == 'DOOR'
+
+    assert any(
+        owner == 'LIVING_DOOR' and kind == 'DOOR_CLEAR'
+        for *_, kind, owner in gv.liv_plan.clearzones
+    )
 
 
 def test_init_schedules_solver(monkeypatch):
@@ -608,7 +694,7 @@ def test_locked_bath_item_reapplied_after_generate(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.0, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
@@ -775,7 +861,7 @@ def test_mirrored_clearances_align_by_label(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
-    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
