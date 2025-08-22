@@ -1350,8 +1350,11 @@ class GridPlan:
                 return False
         return True
     def place(self, x:int,y:int,w:int,h:int, code:str):
+        if not self.fits(x, y, w, h):
+            raise ValueError("placement does not fit")
         for j in range(y,y+h):
-            for i in range(x,x+w): self.occ[j][i]=code
+            for i in range(x,x+w):
+                self.occ[j][i]=code
         return (x,y,w,h)
     def clear(self, x:int,y:int,w:int,h:int):
         for j in range(y,y+h):
@@ -3729,6 +3732,7 @@ class GenerateView:
         sticky = getattr(self, '_sticky_items', [])
         FRONT_REC_DEFAULT = {'WRD': 0.80, 'DRS': 0.90, 'DESK': 0.90, 'TVU': 0.75, 'BST': 0.75}
         for (code,x,y,w,h,wall) in sticky:
+            best.clear(x, y, w, h)
             best.place(x,y,w,h, code)
             # Re-apply clearances
             if code == 'BED':

@@ -575,3 +575,10 @@ def test_mirrored_clearances_align_by_label(monkeypatch):
     bath_label = gv.bath_plan.coord_to_label(bath_clear[0], bath_clear[1])
 
     assert bed_label == bath_label
+
+
+def test_place_rejects_door_clear_overlap():
+    plan = GridPlan(2.0, 2.0)
+    plan.mark_clear(0, 0, 1, 1, 'DOOR_CLEAR', 'TEST')
+    with pytest.raises(ValueError):
+        plan.place(0, 0, 1, 1, 'BED')
