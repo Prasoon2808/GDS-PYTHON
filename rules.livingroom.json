@@ -1,0 +1,268 @@
+{
+  "meta": {
+    "name": "VASTU Living Room Rules",
+    "version": "1.0.0",
+    "updated_at": "2025-08-17T00:00:00Z",
+    "notes": "Standards consolidated from 10 scanned pages (IMG_0177–IMG_0189). All dimensions in meters unless stated; imperial sourced directly from captions. Unknown/uncertain values flagged with \"approx\": true."
+  },
+
+  "units": {
+    "CELL_M": 0.25,
+    "ROUND_MM": 5
+  },
+
+  "anthro": {
+    "seated_knee_clear_front_m": 0.45,
+    "preferred_coffee_table_height_m": 0.41,
+    "comfortable_conversation_distance_range_m": [2.1, 3.0],
+    "notes": "Conversation distances generalized; use scheme-specific dims below where given."
+  },
+
+  "clearances": {
+    "traffic_lane_min_m": 1.016,
+    "traffic_lane_two_persons_min_m": 1.4732,
+    "lane_too_narrow_major_m": 0.6096,
+    "coffee_table_aisle_min_m": 1.016,
+    "around_dining_table_min_m": 0.9144,
+    "bookcase_corner_to_trim_min_m": 0.254,
+    "piano_to_wall_min_m": 0.3048,
+    "desk_back_clear_min_m": 0.9144,
+    "fireplace_chair_setback_from_centerline_m": 1.0668,
+    "door_stagger_guideline": "Place doors to preserve continuous lanes; avoid routing major traffic between facing seats."
+  },
+
+  "focal_points": {
+    "primary": ["fireplace", "bay_window", "picture_window"],
+    "rule": "Center the main conversation group on the chosen focal point unless the room is off-center; then divide into primary + auxiliary groups."
+  },
+
+  "furniture_legend_numbers": {
+    "1":  { "name": "Wall cabinet (living)", "notes": "Appears in plans as storage piece" },
+    "2":  { "name": "Bridge chair", "class": "chair" },
+    "3":  { "name": "Bookcase / case piece", "class": "storage" },
+    "4":  { "name": "Love seat (small)", "class": "sofa" },
+    "5":  { "name": "Love seat (large)", "class": "sofa" },
+    "6":  { "name": "Easy chair (small variant)", "class": "chair", "dims_m": { "w": 0.762, "d": 0.9144, "h": 0.9144 }, "source": "Fig.7 note: chairs (6) are 2'-6\" x 3'-0\"" },
+    "7":  { "name": "Upholstered chair (plain)", "class": "chair" },
+    "8":  { "name": "Wing chair", "class": "chair" },
+    "9":  { "name": "Side/desk chair", "class": "chair" },
+    "10": { "name": "Upholstered armless chair", "class": "chair" },
+    "11": { "name": "Upholstered corner chair", "class": "chair" },
+    "12": { "name": "End table (small)", "class": "table" },
+    "13": { "name": "Occasional table", "class": "table" },
+    "14": { "name": "Desk group", "class": "desk" },
+    "15": { "name": "Desk (flat top)", "class": "desk" },
+    "16": { "name": "Desk (flat top, very large)", "class": "desk" },
+    "17": { "name": "Governor Winthrop desk", "class": "desk" },
+    "18": { "name": "Secretary", "class": "desk" },
+    "19": { "name": "Console table", "class": "table" },
+    "20": { "name": "Breakfront bookcase (small)", "class": "storage" },
+    "21": { "name": "Breakfront bookcase (large)", "class": "storage" },
+    "22": { "name": "Table – end", "class": "table" },
+    "23": { "name": "Coffee table (low)", "class": "table" },
+    "24": { "name": "Bridge table (card)", "class": "table" },
+    "25": { "name": "Cabinet / case piece", "class": "storage" },
+    "26": { "name": "Lowboy (average)", "class": "storage" },
+    "27": { "name": "Lowboy (large)", "class": "storage" },
+    "28": { "name": "Highboy (swan-top)", "class": "storage" },
+    "29": { "name": "Highboy (flat-top)", "class": "storage" },
+    "30": { "name": "Round low coffee table", "class": "table_round" },
+    "31": { "name": "Round drum table", "class": "table_round" },
+    "32": { "name": "Round piecrust table", "class": "table_round" },
+    "33": { "name": "Roundabout seat", "class": "seat_round" },
+    "34": { "name": "Lamp table (round)", "class": "table_round" },
+    "35": { "name": "Dumbwaiter stand (round)", "class": "table_round" },
+    "36": { "name": "Convertible sofa-bed (double-bed studio couch footprint)", "class": "sofa_bed" },
+    "37": { "name": "Concert grand piano", "class": "piano" },
+    "38": { "name": "Music-room grand piano", "class": "piano" },
+    "39": { "name": "Parlor grand piano", "class": "piano" },
+    "40": { "name": "Baby grand piano", "class": "piano" },
+    "41": { "name": "Console", "class": "table" },
+    "42": { "name": "Bookcase (tall, narrow)", "class": "storage" }
+  },
+
+  "furniture_size_ranges": {
+    "sofas": {
+      "depth_m_range": [0.8128, 1.1176],
+      "length_m_range": [1.8288, 2.1844],
+      "note": "Caption on IMG_0189 top: “Sofa sizes (B): 2'-8\" to 3'-8\" deep; 6'-0\" to 7'-2\" long.”"
+    },
+    "loveseats": {
+      "depth_m_range": [0.61, 0.71],
+      "length_m_range": [1.22, 1.52],
+      "approx": true,
+      "note": "From same panel; precise numbers partly obscured in scan."
+    },
+    "straight_chairs": {
+      "width_m_range": [0.4572, 0.6096],
+      "depth_m_range": [0.4572, 0.5588],
+      "note": "IMG_0189 text: straight chairs 1'-6\"–2'-0\" wide; 1'-8\"–1'-10\" deep."
+    },
+    "end_tables": {
+      "width_m_range": [0.305, 0.38],
+      "depth_m_range": [0.305, 0.46],
+      "approx": true,
+      "note": "End tables (A) size range partially legible; use common 16–20 in widths as default."
+    },
+    "occasional_tables": {
+      "side_to_side_m": [0.61, 0.71],
+      "forms": ["square", "round", "oval", "drop-leaf"],
+      "note": "2'-0\" to 2'-4\" square/round/etc."
+    },
+    "card_tables": {
+      "top_size_m": [0.762, 0.9144],
+      "folded_thickness_m": 0.0286,
+      "note": "Card tables 2'-6\" to 3'-0\" square; folding type 1-1/8 in thick when folded."
+    },
+    "bookcases": {
+      "width_m_range": [0.762, 0.9144],
+      "depth_m_range": [0.254, 0.305],
+      "note": "Book cases (D): 2'-6\" to 3'-0\" wide; 10–12 in deep."
+    },
+    "living_room_tables_long": {
+      "width_m_range": [0.508, 0.9144],
+      "length_m_range": [1.067, 3.048],
+      "approx": true,
+      "note": "Typical width/length range for console and sofa tables used in living rooms; caption partly obscured. Use 20–36 in widths and 42–120 in lengths as safe defaults."
+    },
+    "convertible_sofabeds": {
+      "depth_m_range": [0.8382, 0.9906],
+      "length_m_range": [1.8796, 2.032],
+      "note": "Convertible sofa-beds (G): 2'-9\"–3'-3\" deep; 6'-2\"–6'-8\" long."
+    }
+  },
+
+  "pianos": {
+    "room_length_min_for_baby_grand_m": 6.096,
+    "side_clear_min_m": 0.3048,
+    "placement_rule": "Prefer against an inside wall; keep out of direct drafts; maintain traffic lanes clear of bench swing.",
+    "note_sources": ["IMG_0184 caption 4", "IMG_0186 caption 29"]
+  },
+
+  "fireplace_rules": {
+    "primary_group_centered": true,
+    "bay_or_picture_window_may_replace": true,
+    "chair_setback_from_centerline_m": 1.0668,
+    "no_general_traffic_in_2ft_lane": true,
+    "notes": "Main conversation group centered on fireplace across schemes unless off-center room; 2 ft (0.61 m) lanes are inadequate for major traffic."
+  },
+
+  "traffic_and_doors": {
+    "avoid_major_lane_between_faces": true,
+    "min_lane_m": 1.016,
+    "min_lane_two_people_m": 1.4732,
+    "dead_end_room": "Primary unit can span the end wall; add area if music/game included.",
+    "doors_in_corners_bookcase_rule": "Leave >=0.254 m between door trim and corner for built-in bookcases.",
+    "one_door_room_guidance": "Upgrade minimum lane 1.016 m → 1.4732 m if two people must pass."
+  },
+
+  "tables_and_coffee": {
+    "low_coffee_table_height_m": 0.38,
+    "aisle_between_coffee_and_chairs_min_m": 1.016,
+    "typical_distance_sofa_front_to_coffee_edge_m": [0.40, 0.50],
+    "note": "Maintain 3'-4\" aisle even if coffee table is low (Fig. 2 caption)."
+  },
+
+  "grouping_principles": [
+    "Provide a primary conversation group; add secondary groups for music, writing/study, or games as space permits.",
+    "Symmetry about fireplace is common; off-center rooms divide naturally into primary + auxiliary groups.",
+    "If three groups (primary, music, game) must fit in a small room, one group must be curtailed.",
+    "Back furniture to walls when width is constrained to eliminate behind-seat passage.",
+    "Love seats beside fireplace conserve space compared to chair pairs.",
+    "Angle-set chairs increase area requirements.",
+    "Use modular/unit-type sofas to form corner groups (schemes 35–36)."
+  ],
+
+  "layout_schemes": {
+    "1":  { "summary": "Primary group centered on fireplace or bay/picture window as alternate focus.", "img": "IMG_0184", "notes": [] },
+    "2":  { "summary": "Maintain 3'-4\" (1.016 m) between low coffee table (23) and easy chairs (6) since the aisle is a major traffic way.", "img": "IMG_0184" },
+    "3":  { "summary": "Primary group seats 7–8 comfortably; off-center game table location preserves corner entrance.", "img": "IMG_0184" },
+    "4":  { "summary": "Room with baby grand piano: length ≈ 20' (6.1 m) minimum; maintain 1' (0.305 m) piano-to-wall and 3' (0.914 m) behind desk (15).", "img": "IMG_0184" },
+    "5":  { "summary": "Without a sofa opposite the fireplace, the group can be drawn closer; easier face-to-face conversation.", "img": "IMG_0184" },
+    "6":  { "summary": "Doors at ends → traffic along one side; group furniture near fireplace; opposite wall holds case pieces.", "img": "IMG_0184" },
+    "7":  { "summary": "Door locations both ends; allow ~1' (0.305 m) between piano and wall; use smaller chair (6) 2'-6\"×3'-0\".", "img": "IMG_0185" },
+    "8":  { "summary": "Dead-end room: spread primary unit across entire end; adding music/game requires more area.", "img": "IMG_0185" },
+    "9":  { "summary": "Popular layout; primary at center; secondary often becomes music/game.", "img": "IMG_0185" },
+    "10": { "summary": "Left writing/study, right music/game, center primary; only minimum passages needed unless room is narrow.", "img": "IMG_0185" },
+    "11": { "summary": "Seats ten where primary and secondary nearly merge.", "img": "IMG_0185" },
+    "12": { "summary": "Designed so doors occupy side walls; angled small chairs (6) used.", "img": "IMG_0185" },
+    "13": { "summary": "Schemes for non-centered foci (fireplace not centered).", "img": "IMG_0186" },
+    "14": { "summary": "Off-center rooms split into primary + combined other groups; lanes < 2' (0.61 m) cannot serve major traffic.", "img": "IMG_0186" },
+    "15": { "summary": "All three groups in small area → curtail one; game table with only two chairs.", "img": "IMG_0186" },
+    "16": { "summary": "Primary curtailed to fit grand piano; corner bench may compromise comfort for game group.", "img": "IMG_0186" },
+    "17": { "summary": "Two smaller 2'-6\"×3'-0\" chairs (6) near fireplace fit with slight increase in width.", "img": "IMG_0186" },
+    "18": { "summary": "One-door room: raise 1.016 m lane to ≥1.473 m for two persons abreast.", "img": "IMG_0186" },
+    "19": { "summary": "Wide entrance lanes; keep ≥10 in (0.254 m) between corner and door trim to allow built-in bookcases.", "img": "IMG_0187" },
+    "20": { "summary": "Accommodates several doors; assume traffic lane along one end.", "img": "IMG_0187" },
+    "21": { "summary": "Game-table group ≈ area of baby grand; angled placement suits informal rooms.", "img": "IMG_0187" },
+    "22": { "summary": "Larger rooms may carry ≥4 furniture-group units; angling chairs increases required area.", "img": "IMG_0187" },
+    "23": { "summary": "Fireplace chairs set 3'-6\" (1.067 m) back from centerline; 2-ft lane inadequate for general traffic.", "img": "IMG_0187" },
+    "24": { "summary": "Love seats save space beside fireplace even if not at minimum separations.", "img": "IMG_0187" },
+    "25": { "summary": "Fireplaces on end walls → two distinct groupings are natural.", "img": "IMG_0188" },
+    "26": { "summary": "One group may become dining; keep 3'-0\" (0.914 m) minimum around dining table.", "img": "IMG_0188" },
+    "27": { "summary": "Sofa on long axis opposite fireplace ties the room; possible to back sofa to window group.", "img": "IMG_0188" },
+    "28": { "summary": "Push primary furniture to walls to eliminate behind-seat passage and minimize width.", "img": "IMG_0188" },
+    "29": { "summary": "Doors at left side and opposite end; place piano on inside wall where possible.", "img": "IMG_0188" },
+    "30": { "summary": "Sofa along one side opens primary group to merge with secondary conversation furniture.", "img": "IMG_0188" },
+    "31": { "summary": "Treat entire area as single principal group.", "img": "IMG_0189" },
+    "32": { "summary": "Desk group (14) allied closely with fireplace unit; total of four units.", "img": "IMG_0189" },
+    "33": { "summary": "Swap fireplace-side furniture of Fig. 32 to fit a grand piano.", "img": "IMG_0189" },
+    "34": { "summary": "Small symmetrical room; music group may replace desk (14) and cabinet (25).", "img": "IMG_0189" },
+    "35": { "summary": "Unit-type sofa popular; chairs (6) may be modular add-ons.", "img": "IMG_0189" },
+    "36": { "summary": "Unit sofas suited to corner groups; example shows three group units.", "img": "IMG_0189" }
+  },
+
+  "desks_and_work": {
+    "sloping_top_desks": {
+      "width_m_range": [0.9144, 1.1176],
+      "depth_m_range": [0.4572, 0.6096],
+      "approx": true,
+      "note": "IMG_0189 lower-right spec; some values obscured."
+    },
+    "writing_desks": {
+      "width_m_range": [0.4572, 0.9144],
+      "depth_m_range": [0.4572, 0.6096],
+      "approx": true
+    },
+    "secretaries": {
+      "width_m_range": [0.7112, 0.9652],
+      "depth_m_range": [0.4572, 0.762],
+      "approx": true
+    }
+  },
+
+  "convertible_zones": {
+    "double_bed_studio_couch_area": {
+      "overall_min_envelope_m": { "w": 2.1336, "d": 1.4732 },
+      "swing_and_access": "Leave 0.91–1.07 m to open/convert without blocking traffic",
+      "note": "From IMG_0189 lower-left gray plan ‘Double Bed Studio Couch’ with zones D/F/G; exact sub-block labels kept in provenance."
+    }
+  },
+
+  "solver": {
+    "weights": {
+      "primary_focus_alignment": 1.0,
+      "traffic_lane_satisfaction": 1.2,
+      "group_compactness": 0.7,
+      "piano_rules": 0.6,
+      "fireplace_rules": 0.8
+    },
+    "hard": {
+      "min_lane": 1.016,
+      "coffee_table_aisle": 1.016,
+      "desk_back_clear": 0.9144
+    }
+  },
+
+  "provenance": [
+    { "img": "IMG_0177", "section": "general text", "notes": "Living room combines living, dining (sometimes), sleeping; plan groups; traffic lanes; clearances; typical units." },
+    { "img": "IMG_0178", "section": "sofas, love seats, chairs, desks", "notes": "Piece numbers used in all schemes; dims annotated under each title." },
+    { "img": "IMG_0179", "section": "pianos, tables, circular pieces, bookcases/lowboys/highboys", "notes": "Round table diameters, coffee table heights, piano series #37–#40." },
+    { "img": "IMG_0184", "section": "schemes 1–6", "notes": "Captions for fireplace focus, coffee-table aisle, piano/desk clearances." },
+    { "img": "IMG_0185", "section": "schemes 7–12", "notes": "Smaller chairs (6) callout; dead-end spread; ten seats arrangement." },
+    { "img": "IMG_0186", "section": "schemes 13–18", "notes": "Off-center rooms; major lane > 2 ft rule; two-person lane 4'-10\"; small chairs near fireplace." },
+    { "img": "IMG_0187", "section": "schemes 19–24", "notes": "Corner trim 10 in rule for built-ins; fireplace chairs 3'-6\" setback; love seats space saving." },
+    { "img": "IMG_0188", "section": "schemes 25–30", "notes": "Dining clearance 3'-0\"; inside wall for piano; backing furniture to walls." },
+    { "img": "IMG_0189", "section": "schemes 31–36 + size panels", "notes": "Sofa size ranges; desk types; convertible sofa-bed area; group labels A–G." }
+  ]
+}
