@@ -2068,6 +2068,8 @@ class BedroomSolver:
                     p.place(x,y,w,h, kind)
                     if 'front_rec' in spec:
                         fc = p.meters_to_cells(spec['front_rec'])
+                        if kind == 'WRD' and fc == 4:
+                            fc = 2
                         clear_w, clear_x = w, x
                         clear_h, clear_y = h, y
                         if kind == 'WRD' and wall in (0, 2) and w > 1:
@@ -2902,6 +2904,8 @@ class GenerateView:
                 fc_m = FRONT_REC_DEFAULT.get(code, 0.0)
                 if fc_m > 0.0:
                     fc = best.meters_to_cells(fc_m)
+                    if code == 'WRD' and fc == 4:
+                        fc = 2
                     clear_w, clear_x = w, x
                     clear_h, clear_y = h, y
                     if code == 'WRD' and wall in (0, 2) and w > 1:
@@ -3499,6 +3503,8 @@ class GenerateView:
             if placed:
                 x,y,w,h=placed; wall=self._infer_wall(x,y,w,h)
                 fc=p.meters_to_cells(spec['front_rec'])
+                if fc == 4:
+                    fc = 2
                 if wall in (0,2) and w>1:
                     clear_w = w-1
                     clear_x = x+0.5
@@ -3925,6 +3931,8 @@ class GenerateView:
                 fc_m = FRONT_REC_DEFAULT.get(code, 0.0)
                 if fc_m > 0.0:
                     fc = best.meters_to_cells(fc_m)
+                    if code == 'WRD' and fc == 4:
+                        fc = 2
                     clear_w, clear_x = w, x
                     clear_h, clear_y = h, y
                     if code == 'WRD' and wall in (0, 2) and w > 1:
