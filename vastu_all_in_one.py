@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from collections import deque, defaultdict
-from math import ceil, sqrt
+from math import ceil, sqrt, floor
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
@@ -1360,22 +1360,26 @@ class GridPlan:
     def clear(self, x:int,y:int,w:int,h:int):
         for j in range(y,y+h):
             for i in range(x,x+w): self.occ[j][i]=None
-    def mark_clear(self, x:int,y:int,w:int,h:int, kind:str, owner:str):
+    def mark_clear(self, x:float, y:float, w:float, h:float, kind:str, owner:str):
         # Zero-gap: start exactly at element edge (caller must pass adjacent coords)
-        x=max(0,x); y=max(0,y)
-        w=max(0,min(w, self.gw-x)); h=max(0,min(h, self.gh-y))
-        if w>0 and h>0:
+        x0 = max(0, int(floor(x)))
+        y0 = max(0, int(floor(y)))
+        x1 = min(self.gw, int(ceil(x + w)))
+        y1 = min(self.gh, int(ceil(y + h)))
+        w_int = max(0, x1 - x0)
+        h_int = max(0, y1 - y0)
+        if w_int > 0 and h_int > 0:
             needs_clear = False
-            for j in range(y, y + h):
-                for i in range(x, x + w):
+            for j in range(y0, y0 + h_int):
+                for i in range(x0, x0 + w_int):
                     if self.occ[j][i] is not None:
                         needs_clear = True
                         break
                 if needs_clear:
                     break
             if needs_clear:
-                self.clear(x, y, w, h)
-            self.clearzones.append((x,y,w,h,kind,owner))
+                self.clear(x0, y0, w_int, h_int)
+            self.clearzones.append((x, y, w, h, kind, owner))
     def meters_to_cells(self, m:float)->int:
         return max(1, int(ceil(m/self.cell)))
 
@@ -2036,10 +2040,20 @@ class BedroomSolver:
                     p.place(x,y,w,h, kind)
                     if 'front_rec' in spec:
                         fc = p.meters_to_cells(spec['front_rec'])
-                        if wall==0: p.mark_clear(x,y+h,w,fc,'FRONT',kind)
-                        elif wall==2: p.mark_clear(x,y-fc,w,fc,'FRONT',kind)
-                        elif wall==3: p.mark_clear(x+w,y,fc,h,'FRONT',kind)
-                        else: p.mark_clear(x-fc,y,fc,h,'FRONT',kind)
+                        if kind == 'WRD' and wall in (0, 2) and w > 1:
+                            clear_w = w - 1
+                            clear_x = x + 0.5
+                        else:
+                            clear_w = w
+                            clear_x = x
+                        if wall == 0:
+                            p.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', kind)
+                        elif wall == 2:
+                            p.mark_clear(clear_x, y - fc, clear_w, fc, 'FRONT', kind)
+                        elif wall == 3:
+                            p.mark_clear(x + w, y, fc, h, 'FRONT', kind)
+                        else:
+                            p.mark_clear(x - fc, y, fc, h, 'FRONT', kind)
                     return (x,y,w,h)
         return None
 
@@ -2838,10 +2852,20 @@ class GenerateView:
                 fc_m = FRONT_REC_DEFAULT.get(code, 0.0)
                 if fc_m > 0.0:
                     fc = best.meters_to_cells(fc_m)
-                    if wall == 0: best.mark_clear(x,y+h,w,fc,'FRONT',code)
-                    elif wall == 2: best.mark_clear(x,y-fc,w,fc,'FRONT',code)
-                    elif wall == 3: best.mark_clear(x+w,y,fc,h,'FRONT',code)
-                    elif wall == 1: best.mark_clear(x-fc,y,fc,h,'FRONT',code)
+                    if code == 'WRD' and wall in (0, 2) and w > 1:
+                        clear_w = w - 1
+                        clear_x = x + 0.5
+                    else:
+                        clear_w = w
+                        clear_x = x
+                    if wall == 0:
+                        best.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', code)
+                    elif wall == 2:
+                        best.mark_clear(clear_x, y - fc, clear_w, fc, 'FRONT', code)
+                    elif wall == 3:
+                        best.mark_clear(x + w, y, fc, h, 'FRONT', code)
+                    elif wall == 1:
+                        best.mark_clear(x - fc, y, fc, h, 'FRONT', code)
             best.clearzones = merge_clearances(best.clearzones)
 
         bed_plan = best
@@ -3358,10 +3382,20 @@ class GenerateView:
             if placed:
                 x,y,w,h=placed; wall=self._infer_wall(x,y,w,h)
                 fc=p.meters_to_cells(spec['front_rec'])
-                if wall==0: p.mark_clear(x,y+h,w,fc,'FRONT','WRD')
-                elif wall==2: p.mark_clear(x,y-fc,w,fc,'FRONT','WRD')
-                elif wall==3: p.mark_clear(x+w,y,fc,h,'FRONT','WRD')
-                else: p.mark_clear(x-fc,y,fc,h,'FRONT','WRD')
+                if wall in (0,2) and w>1:
+                    clear_w = w-1
+                    clear_x = x+0.5
+                else:
+                    clear_w = w
+                    clear_x = x
+                if wall==0:
+                    p.mark_clear(clear_x, y+h, clear_w, fc, 'FRONT', 'WRD')
+                elif wall==2:
+                    p.mark_clear(clear_x, y-fc, clear_w, fc, 'FRONT', 'WRD')
+                elif wall==3:
+                    p.mark_clear(x+w, y, fc, h, 'FRONT', 'WRD')
+                else:
+                    p.mark_clear(x-fc, y, fc, h, 'FRONT', 'WRD')
         if placed:
             p.clearzones=merge_clearances(p.clearzones)
             self._log_event({"event":"add_furniture","kind":kind,"rect":placed})
@@ -3774,10 +3808,20 @@ class GenerateView:
                 fc_m = FRONT_REC_DEFAULT.get(code, 0.0)
                 if fc_m > 0.0:
                     fc = best.meters_to_cells(fc_m)
-                    if wall == 0: best.mark_clear(x,y+h,w,fc,'FRONT',code)
-                    elif wall == 2: best.mark_clear(x,y-fc,w,fc,'FRONT',code)
-                    elif wall == 3: best.mark_clear(x+w,y,fc,h,'FRONT',code)
-                    elif wall == 1: best.mark_clear(x-fc,y,fc,h,'FRONT',code)
+                    if code == 'WRD' and wall in (0, 2) and w > 1:
+                        clear_w = w - 1
+                        clear_x = x + 0.5
+                    else:
+                        clear_w = w
+                        clear_x = x
+                    if wall == 0:
+                        best.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', code)
+                    elif wall == 2:
+                        best.mark_clear(clear_x, y - fc, clear_w, fc, 'FRONT', code)
+                    elif wall == 3:
+                        best.mark_clear(x + w, y, fc, h, 'FRONT', code)
+                    elif wall == 1:
+                        best.mark_clear(x - fc, y, fc, h, 'FRONT', code)
 
         best.clearzones = merge_clearances(best.clearzones)
 
