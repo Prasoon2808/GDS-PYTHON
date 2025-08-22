@@ -1308,7 +1308,8 @@ class Openings:
         self.door_wall=WALL_LEFT  # default orientation
         self.door_center=0.25*plan.Hm
         self.door_width=0.90
-        self.swing_depth=0.60
+        # Default door swing depth: 2 grid cells (0.5 m)
+        self.swing_depth = 2 * CELL_M
         # (wall, start_m, length_m)
         self.windows=[[1, plan.Hm*0.40, 1.20], [-1,0.0,0.0]]
     def door_rect_cells(self)->Tuple[int,int,int,int]:
@@ -2337,6 +2338,8 @@ class GenerateView:
         self._combine_plans()
 
         self.bed_openings = Openings(GridPlan(self.bed_Wm, self.bed_Hm))
+        # Bedroom doors retain the previous swing depth
+        self.bed_openings.swing_depth = 0.60
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
         self.bath_openings = (
             Openings(self.bath_plan) if bath_dims else None
