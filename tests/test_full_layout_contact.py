@@ -58,6 +58,30 @@ def test_combined_plan_living_contact():
     assert gv.bath_liv_openings.door_wall == WALL_BOTTOM
 
 
+def test_living_room_resizes_for_full_adjacency():
+    gv = make_generate_view((2.0, 2.0), living_dims=(5.0, 2.0))
+    gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
+    gv.plan = GridPlan(
+        gv.bed_Wm + gv.bath_Wm + gv.liv_Wm,
+        max(gv.bed_Hm, gv.bath_Hm) + gv.liv_Hm,
+    )
+    gv._apply_openings_from_ui = _alignment_stub_factory(gv)
+
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_liv_openings.door_wall = WALL_BOTTOM
+
+    assert gv._apply_openings_from_ui()
+
+    GenerateView._combine_plans(gv)
+
+    top_gh = max(gv.bed_plan.gh, gv.bath_plan.gh)
+    assert gv.liv_plan.gw == gv.bed_plan.gw + gv.bath_plan.gw
+    for x in range(gv.bed_plan.gw + gv.bath_plan.gw):
+        assert gv.plan.occ[top_gh][x] is None
+
+
 def test_bedroom_door_misaligned():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))
     gv._apply_openings_from_ui = _alignment_stub_factory(gv)
