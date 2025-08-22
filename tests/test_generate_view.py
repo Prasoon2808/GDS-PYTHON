@@ -452,7 +452,7 @@ def test_init_schedules_solver(monkeypatch):
             pass
 
     root = DummyRoot()
-    gv = vastu_all_in_one.GenerateView(root, 4.0, 4.0, None, bath_dims=None)
+    gv = vastu_all_in_one.GenerateView(root, 4.0, 4.0, None, bath_dims=None, liv_dims=None)
     assert root.after_idle_called_with == gv._solve_and_draw
 
 
