@@ -4,7 +4,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import arrange_livingroom, LIV_RULES, CELL_M
+from vastu_all_in_one import arrange_livingroom, LIV_RULES
 
 
 def _find_rect(plan, code):
@@ -31,6 +31,7 @@ def test_arrange_livingroom_respects_clearances():
     # core furniture should be present
     assert _find_rect(plan, "SOFA") is not None
     assert _find_rect(plan, "CTAB") is not None
+    assert _find_rect(plan, "STAB") is not None
 
     # clearance rectangles (except rug) must remain empty
     for x, y, w, h, kind, _ in plan.clearzones:
