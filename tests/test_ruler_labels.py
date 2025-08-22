@@ -58,6 +58,7 @@ def test_ruler_labels_persist_across_zoom():
     gv = GenerateView.__new__(GenerateView)
     gv.bed_plan = plan
     gv.bath_plan = None
+    gv.liv_plan = None
     gv.plan = plan
     gv.bed_openings = Openings(plan)
     gv.bath_openings = None
