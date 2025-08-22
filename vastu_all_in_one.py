@@ -1262,13 +1262,82 @@ class SketchGrid:
 # Generate model
 # -----------------------
 
+
+class ColumnGrid:
+    """Helper to map grid coordinates to spreadsheet-style labels.
+
+    Vertical grid lines are labelled alphabetically (A, B, ...), while
+    horizontal lines use numbers (1, 2, ...).  Labels reference the intersection
+    at the lower-left corner of a cell, allowing cells to be addressed via a
+    combined label such as ``B3``.
+    """
+
+    def __init__(self, gw: int, gh: int):
+        self.gw = gw
+        self.gh = gh
+
+    @staticmethod
+    def col_label(idx: int) -> str:
+        label = ""
+        n = idx
+        while True:
+            label = chr(ord("A") + (n % 26)) + label
+            n = n // 26 - 1
+            if n < 0:
+                break
+        return label
+
+    @staticmethod
+    def _col_index(label: str) -> int:
+        n = 0
+        for ch in label:
+            n = n * 26 + (ord(ch) - ord("A") + 1)
+        return n - 1
+
+    @staticmethod
+    def row_label(idx: int) -> str:
+        return str(idx + 1)
+
+    def coord_to_label(self, i: int, j: int) -> str:
+        return f"{self.col_label(i)}{self.row_label(j)}"
+
+    def label_to_coord(self, label: str) -> Tuple[int, int]:
+        import re
+
+        m = re.fullmatch(r"([A-Z]+)(\d+)", label)
+        if not m:
+            raise ValueError(f"Invalid label: {label}")
+        col_s, row_s = m.groups()
+        i = self._col_index(col_s)
+        j = int(row_s) - 1
+        return i, j
+
+
 class GridPlan:
-    def __init__(self, Wm:float, Hm:float):
-        self.Wm=Wm; self.Hm=Hm; self.cell=CELL_M
-        self.gw=max(1,int(round(Wm/self.cell))); self.gh=max(1,int(round(Hm/self.cell)))
-        self.occ=[[None for _ in range(self.gw)] for _ in range(self.gh)]
+    def __init__(self, Wm: float, Hm: float, column_grid: ColumnGrid = None,
+                 x_offset: int = 0, y_offset: int = 0):
+        self.Wm = Wm
+        self.Hm = Hm
+        self.cell = CELL_M
+        self.gw = max(1, int(round(Wm / self.cell)))
+        self.gh = max(1, int(round(Hm / self.cell)))
+        self.occ = [[None for _ in range(self.gw)] for _ in range(self.gh)]
         # clearzones: (x,y,w,h,kind,owner)
-        self.clearzones: List[Tuple[int,int,int,int,str,str]]=[]
+        self.clearzones: List[Tuple[int, int, int, int, str, str]] = []
+        self.column_grid = column_grid
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+
+    def coord_to_label(self, i: int, j: int) -> str:
+        if not self.column_grid:
+            raise ValueError("ColumnGrid not attached")
+        return self.column_grid.coord_to_label(i + self.x_offset, j + self.y_offset)
+
+    def label_to_coord(self, label: str) -> Tuple[int, int]:
+        if not self.column_grid:
+            raise ValueError("ColumnGrid not attached")
+        i, j = self.column_grid.label_to_coord(label)
+        return i - self.x_offset, j - self.y_offset
     def fits(self, x:int,y:int,w:int,h:int)->bool:
         if x<0 or y<0 or x+w>self.gw or y+h>self.gh: return False
         for j in range(y,y+h):
@@ -2813,16 +2882,28 @@ class GenerateView:
                             elif wall == 2:
                                 bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+                # Establish a shared column grid spanning the combined
+                # bedroom+bathroom footprint so coordinates can be expressed
+                # via labels.  Offsets map each sub-plan into the global grid.
+                total_gw = bed_plan.gw + bath_plan.gw
+                total_gh = max(bed_plan.gh, bath_plan.gh)
+                col_grid = ColumnGrid(total_gw, total_gh)
+                bed_plan.column_grid = col_grid
+                bed_plan.x_offset = 0
+                bed_plan.y_offset = 0
+                bath_plan.column_grid = col_grid
+                bath_plan.x_offset = bed_plan.gw
+                bath_plan.y_offset = 0
+
                 # Apply the mirrored clearance rectangle from the bedroom side
-                # onto the bathroom plan so both sides of the doorway are
-                # represented. The rectangle is translated across the shared
-                # wall using integer cell offsets to keep clearances aligned
-                # exactly across the wall.
+                # onto the bathroom plan using column-grid labels so that the
+                # clearance aligns exactly on both sides of the shared wall.
                 if bath_ext:
                     bx, by, bw, bh = bath_ext
-                    bx_c = bx - bed_plan.gw
+                    lbl = bed_plan.coord_to_label(bx, by)
+                    bx_c, by_c = bath_plan.label_to_coord(lbl)
                     bath_plan.mark_clear(
-                        bx_c, by, bw, bh, "DOOR_CLEAR", "BATHROOM_DOOR"
+                        bx_c, by_c, bw, bh, "DOOR_CLEAR", "BATHROOM_DOOR"
                     )
                 bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
             else:
@@ -2834,7 +2915,7 @@ class GenerateView:
         if bath_plan:
             total_wm = self.bed_Wm + self.bath_dims[0]
             total_hm = max(self.bed_Hm, self.bath_dims[1])
-            combined = GridPlan(total_wm, total_hm)
+            combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
             # copy bedroom
             for j in range(bed_plan.gh):
                 for i in range(bed_plan.gw):
@@ -2925,7 +3006,15 @@ class GenerateView:
         bed_plan = self.bed_plan or GridPlan(self.bed_Wm, self.bed_Hm)
         total_wm = self.bed_Wm + self.bath_dims[0]
         total_hm = max(self.bed_Hm, self.bath_dims[1])
-        combined = GridPlan(total_wm, total_hm)
+        col_grid = ColumnGrid(bed_plan.gw + self.bath_plan.gw,
+                              max(bed_plan.gh, self.bath_plan.gh))
+        bed_plan.column_grid = col_grid
+        bed_plan.x_offset = 0
+        bed_plan.y_offset = 0
+        self.bath_plan.column_grid = col_grid
+        self.bath_plan.x_offset = bed_plan.gw
+        self.bath_plan.y_offset = 0
+        combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
         for j in range(bed_plan.gh):
             for i in range(bed_plan.gw):
                 code = bed_plan.occ[j][i]
@@ -2955,14 +3044,16 @@ class GenerateView:
         max_h = max(bed_gh, bath_gh)
         cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
-        scale = min((cw - 2*margin) / max(1, total_w), (ch - 2*margin) / max(1, max_h))
+        scale = min((cw - 2 * margin) / max(1, total_w), (ch - 2 * margin) / max(1, max_h))
         self.scale = scale
-        bed_ox = (cw - total_w * scale) / 2
-        bed_oy = (ch - bed_gh * scale) / 2
-        self.ox = bed_ox
-        self.oy = bed_oy
-        bath_ox = bed_ox + bed_gw * scale
-        bath_oy = (ch - bath_gh * scale) / 2
+        ox = (cw - total_w * scale) / 2
+        oy = (ch - max_h * scale) / 2
+        self.ox = ox
+        self.oy = oy
+        bed_ox = ox
+        bed_oy = oy + (max_h - bed_gh) * scale
+        bath_ox = ox + bed_gw * scale
+        bath_oy = oy + (max_h - bath_gh) * scale
         wall_width = max(4, int(scale * 0.12)) * 3
         open_width = max(1, wall_width // 3)
 
@@ -3010,6 +3101,17 @@ class GenerateView:
         draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, bed_draw_door)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True)
+
+        cg = getattr(self.plan, 'column_grid', None)
+        if cg:
+            for i in range(cg.gw + 1):
+                x = ox + i * scale
+                cv.create_text(x, oy - 12, text=cg.col_label(i), fill='#555')
+                for j in range(cg.gh + 1):
+                    y = oy + j * scale
+                    if i == 0:
+                        cv.create_text(ox - 12, y, text=cg.row_label(cg.gh - j), fill='#555')
+                    cv.create_oval(x - 2, y - 2, x + 2, y + 2, fill='#888', outline='')
 
         cv.tag_lower('grid')
 
