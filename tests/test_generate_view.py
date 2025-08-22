@@ -529,3 +529,49 @@ def test_opening_control_limits(monkeypatch):
     assert comboboxes[3].kwargs['values'] == ['Left']
     assert 'Left' not in comboboxes[4].kwargs['values']
     assert 'Left' not in comboboxes[5].kwargs['values']
+
+
+def test_mirrored_clearances_align_by_label(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    bath_clear = next(
+        (x, y, w, h)
+        for x, y, w, h, kind, owner in gv.bath_plan.clearzones
+        if kind == 'DOOR_CLEAR' and owner == 'BATHROOM_DOOR'
+    )
+    shared_op = Openings(gv.bed_plan)
+    shared_op.door_wall = WALL_RIGHT
+    shared_op.door_center = gv.bath_openings.door_center
+    shared_op.door_width = gv.bath_openings.door_width
+    shared_op.swing_depth = gv.bath_openings.swing_depth
+    _, start, _ = shared_op.door_span_cells()
+    depth = gv.bed_plan.meters_to_cells(shared_op.swing_depth)
+    outside_x = gv.bed_plan.gw + depth
+    outside_y = start
+    bed_label = gv.bed_plan.coord_to_label(outside_x, outside_y)
+    bath_label = gv.bath_plan.coord_to_label(bath_clear[0], bath_clear[1])
+
+    assert bed_label == bath_label
