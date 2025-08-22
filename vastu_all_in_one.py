@@ -2074,10 +2074,22 @@ class BedroomSolver:
                             clear_w = w - 1
                             clear_x = x + 0.5
                         elif kind == 'DRS':
-                            clear_w = max(0, w - 2)
-                            clear_h = max(0, h - 2)
-                            clear_x = x + (w - clear_w) / 2
-                            clear_y = y + (h - clear_h) / 2
+                            fc = 2 if fc == 4 else 5 if fc == 3 else fc
+                            rect_w = 5
+                            rect_d = 2
+                            clear_w = rect_w
+                            clear_h = rect_w
+                            clear_x = x + (w - rect_w) / 2
+                            clear_y = y + (h - rect_w) / 2
+                            if wall == 0:
+                                p.mark_clear(clear_x, y + h, rect_w, rect_d, 'FRONT', kind)
+                            elif wall == 2:
+                                p.mark_clear(clear_x, y - rect_d, rect_w, rect_d, 'FRONT', kind)
+                            elif wall == 3:
+                                p.mark_clear(x + w, clear_y, rect_d, rect_w, 'FRONT', kind)
+                            else:
+                                p.mark_clear(x - rect_d, clear_y, rect_d, rect_w, 'FRONT', kind)
+                            return (x, y, w, h)
                         if wall == 0:
                             p.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', kind)
                         elif wall == 2:
@@ -2896,10 +2908,20 @@ class GenerateView:
                         clear_w = w - 1
                         clear_x = x + 0.5
                     elif code == 'DRS':
-                        clear_w = max(0, w - 2)
-                        clear_h = max(0, h - 2)
-                        clear_x = x + (w - clear_w) / 2
-                        clear_y = y + (h - clear_h) / 2
+                        fc = 2 if fc == 4 else 5 if fc == 3 else fc
+                        rect_w = 5
+                        rect_d = 2
+                        clear_x = x + (w - rect_w) / 2
+                        clear_y = y + (h - rect_w) / 2
+                        if wall == 0:
+                            best.mark_clear(clear_x, y + h, rect_w, rect_d, 'FRONT', code)
+                        elif wall == 2:
+                            best.mark_clear(clear_x, y - rect_d, rect_w, rect_d, 'FRONT', code)
+                        elif wall == 3:
+                            best.mark_clear(x + w, clear_y, rect_d, rect_w, 'FRONT', code)
+                        elif wall == 1:
+                            best.mark_clear(x - rect_d, clear_y, rect_d, rect_w, 'FRONT', code)
+                        continue
                     if wall == 0:
                         best.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', code)
                     elif wall == 2:
@@ -3457,18 +3479,19 @@ class GenerateView:
                 x, y, w, h = placed
                 wall = self._infer_wall(x, y, w, h)
                 fc = p.meters_to_cells(spec['front_rec'])
-                clear_w = max(0, w - 2)
-                clear_h = max(0, h - 2)
-                clear_x = x + (w - clear_w) / 2
-                clear_y = y + (h - clear_h) / 2
+                fc = 2 if fc == 4 else 5 if fc == 3 else fc
+                rect_w = 5
+                rect_d = 2
+                clear_x = x + (w - rect_w) / 2
+                clear_y = y + (h - rect_w) / 2
                 if wall == 0:
-                    p.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', 'DRS')
+                    p.mark_clear(clear_x, y + h, rect_w, rect_d, 'FRONT', 'DRS')
                 elif wall == 2:
-                    p.mark_clear(clear_x, y - fc, clear_w, fc, 'FRONT', 'DRS')
+                    p.mark_clear(clear_x, y - rect_d, rect_w, rect_d, 'FRONT', 'DRS')
                 elif wall == 3:
-                    p.mark_clear(x + w, clear_y, fc, clear_h, 'FRONT', 'DRS')
+                    p.mark_clear(x + w, clear_y, rect_d, rect_w, 'FRONT', 'DRS')
                 else:
-                    p.mark_clear(x - fc, clear_y, fc, clear_h, 'FRONT', 'DRS')
+                    p.mark_clear(x - rect_d, clear_y, rect_d, rect_w, 'FRONT', 'DRS')
         elif kind in ('WRD_S_210','WRD_H_180'):
             spec=BEDROOM_BOOK['WARDROBE'][kind]
             W=p.meters_to_cells(spec['w']); D=p.meters_to_cells(spec['d'])
@@ -3908,10 +3931,20 @@ class GenerateView:
                         clear_w = w - 1
                         clear_x = x + 0.5
                     elif code == 'DRS':
-                        clear_w = max(0, w - 2)
-                        clear_h = max(0, h - 2)
-                        clear_x = x + (w - clear_w) / 2
-                        clear_y = y + (h - clear_h) / 2
+                        fc = 2 if fc == 4 else 5 if fc == 3 else fc
+                        rect_w = 5
+                        rect_d = 2
+                        clear_x = x + (w - rect_w) / 2
+                        clear_y = y + (h - rect_w) / 2
+                        if wall == 0:
+                            best.mark_clear(clear_x, y + h, rect_w, rect_d, 'FRONT', code)
+                        elif wall == 2:
+                            best.mark_clear(clear_x, y - rect_d, rect_w, rect_d, 'FRONT', code)
+                        elif wall == 3:
+                            best.mark_clear(x + w, clear_y, rect_d, rect_w, 'FRONT', code)
+                        elif wall == 1:
+                            best.mark_clear(x - rect_d, clear_y, rect_d, rect_w, 'FRONT', code)
+                        continue
                     if wall == 0:
                         best.mark_clear(clear_x, y + h, clear_w, fc, 'FRONT', code)
                     elif wall == 2:
