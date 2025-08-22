@@ -1090,8 +1090,24 @@ class AreaDialogCombined(tk.Toplevel):
         bed_opts=ttk.Frame(f); bed_opts.pack(fill=tk.X, pady=(5,0))
         ttk.Label(bed_opts, text='Bed Size').grid(row=0, column=0, sticky='w')
         self.bed_size=tk.StringVar(value='Auto')
-        ttk.Combobox(bed_opts, textvariable=self.bed_size,
-                     values=['Auto','SINGLE','TWIN','THREE_Q_SMALL','DOUBLE'], state='readonly', width=16).grid(row=1, column=0, sticky='w')
+        ttk.Combobox(
+            bed_opts,
+            textvariable=self.bed_size,
+            values=['Auto','SINGLE','TWIN','THREE_Q_SMALL','DOUBLE'],
+            state='readonly',
+            width=16,
+        ).grid(row=1, column=0, sticky='w')
+        ttk.Label(bed_opts, text='Door Wall').grid(row=0, column=1, sticky='w')
+        self.bed_door_wall = tk.StringVar(value='Right')
+        ttk.Combobox(
+            bed_opts,
+            textvariable=self.bed_door_wall,
+            values=['Right'],
+            state='readonly',
+            width=16,
+        ).grid(row=1, column=1, sticky='w')
+        for i in range(2):
+            bed_opts.grid_columnconfigure(i, weight=1)
 
         ttk.Label(f, text='Bathroom', font=('SF Pro Text', 12, 'bold')).pack(anchor='w', pady=(20,0))
         bath_body=ttk.Frame(f); bath_body.pack(fill=tk.X, pady=(5,0))
@@ -1146,10 +1162,10 @@ class AreaDialogCombined(tk.Toplevel):
         try:
             if self.bed_method.get()=='area':
                 A=float(self.bed_area.get()); assert A>0
-                bed_res={"mode":"area","area":A,"area_units":self.bed_area_units.get(),"bed":self.bed_size.get()}
+                bed_res={"mode":"area","area":A,"area_units":self.bed_area_units.get(),"bed":self.bed_size.get(),"door_wall":self.bed_door_wall.get()}
             else:
                 W=float(self.bed_W.get()); H=float(self.bed_H.get()); assert W>0 and H>0
-                bed_res={"mode":"dims","W":W,"H":H,"len_units":self.bed_len_units.get(),"bed":self.bed_size.get()}
+                bed_res={"mode":"dims","W":W,"H":H,"len_units":self.bed_len_units.get(),"bed":self.bed_size.get(),"door_wall":self.bed_door_wall.get()}
             if self.bath_method.get()=='area':
                 A=float(self.bath_area.get()); assert A>0
                 bath_res={"mode":"area","area":A,"area_units":self.bath_area_units.get(),"bed":"Auto"}
@@ -2790,12 +2806,12 @@ class GenerateView:
         # --- Bedroom controls ---
         ttk.Label(self.sidebar, text='Bedroom Door & Windows', font=('SF Pro Text', 13, 'bold')).pack(anchor='w', pady=(4,2))
         f=ttk.Frame(self.sidebar); f.pack(fill=tk.X)
-        self.bed_door_wall=tk.StringVar(value='Left')
+        self.bed_door_wall=tk.StringVar(value='Right')
         ttk.Label(f, text='Door wall').grid(row=0,column=0,sticky='w')
         ttk.Combobox(
             f,
             textvariable=self.bed_door_wall,
-            values=['Bottom','Top','Left'],
+            values=['Right'],
             state='readonly',
             width=8,
         ).grid(row=1, column=0)
@@ -3001,6 +3017,9 @@ class GenerateView:
         self.bed_openings.door_wall = wall_map.get(self.bed_door_wall.get(), 3)
         self.bed_openings.door_width = float(self.bed_door_w.get())
         self.bed_openings.door_center = float(self.bed_door_c.get())
+        if self.liv_dims and self.bed_openings.door_wall != WALL_RIGHT:
+            self.status.set('Bedroom door must be on shared wall.')
+            return False
         bed_allowed = {wall_map['Bottom'], wall_map['Top'], wall_map['Left']}
         self.bed_openings.windows = [
             w
@@ -3077,7 +3096,7 @@ class GenerateView:
                 if w is not None
             ]
 
-
+        return True
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
         sticky = []
@@ -3099,7 +3118,8 @@ class GenerateView:
         self._sticky_bath_items = bath_sticky
         self._sticky_liv_items = liv_sticky
         # (2) RUN THE SOLVER to regenerate
-        self._apply_openings_from_ui()
+        if not self._apply_openings_from_ui():
+            return
         self._solve_and_draw()
         self.status.set('Rooms regenerated.')
 
@@ -3121,7 +3141,12 @@ class GenerateView:
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
-        self._apply_openings_from_ui()
+        if not self._apply_openings_from_ui():
+            self.bed_plan = None
+            self.bath_plan = None
+            self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
+            self._draw()
+            return
         bed_wall, _, _ = self.bed_openings.door_span_cells()
         bath_ok = True
         # Preserve previous plan so we can restore it on failure
@@ -3131,13 +3156,6 @@ class GenerateView:
             if bath_wall != WALL_LEFT:
                 self.status.set('Bathroom door must be on shared wall.')
                 bath_ok = False
-        elif bed_wall == WALL_RIGHT:
-            self.status.set('Bedroom door cannot be on shared wall.')
-            self.bed_plan = None
-            self.bath_plan = None
-            self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
-            self._draw()
-            return
         bed_plan=GridPlan(self.bed_Wm,self.bed_Hm)
 
         # Pre-mark door clearances on the initial plan so the solver is aware
@@ -3361,7 +3379,8 @@ class GenerateView:
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
 
-        self._apply_openings_from_ui()
+        if not self._apply_openings_from_ui():
+            return
         self.bath_plan = arrange_bathroom(
             self.bath_dims[0], self.bath_dims[1], BATH_RULES,
             openings=self.bath_openings
@@ -3417,7 +3436,8 @@ class GenerateView:
             self.root.after_cancel(self.sim2_timer); self.sim2_timer = None
         self.sim_path = []; self.sim_poly = []; self.sim2_path = []; self.sim2_poly = []
 
-        self._apply_openings_from_ui()
+        if not self._apply_openings_from_ui():
+            return
         self.liv_plan = arrange_livingroom(
             self.liv_dims[0], self.liv_dims[1], LIV_RULES,
             openings=self.liv_openings
@@ -4265,18 +4285,15 @@ class GenerateView:
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
 
         # Re-apply door/window positions from UI (doesn't add furniture)
-        self._apply_openings_from_ui()
-        bed_wall, _, _ = self.bed_openings.door_span_cells()
+        if not self._apply_openings_from_ui():
+            self._draw()
+            return
         if self.bath_dims:
             bath_wall, _, _ = self.bath_openings.door_span_cells()
             if bath_wall != WALL_LEFT:
                 self.status.set('Bathroom door must be on shared wall.')
                 self._draw()
                 return
-        elif bed_wall == WALL_RIGHT:
-            self.status.set('Bedroom door cannot be on shared wall.')
-            self._draw()
-            return
 
         # New empty grid for bedroom, then re-place exactly what the user already had
         best = GridPlan(self.bed_Wm, self.bed_Hm)

@@ -95,7 +95,14 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None):
     gv.sim2_timer = None
     gv.root = DummyRoot()
     gv.sim_path = gv.sim_poly = gv.sim2_path = gv.sim2_poly = []
-    gv._apply_openings_from_ui = lambda: None
+
+    def _apply_stub():
+        if gv.liv_dims and gv.bed_openings.door_wall != WALL_RIGHT:
+            gv.status.set('Bedroom door must be on shared wall.')
+            return False
+        return True
+
+    gv._apply_openings_from_ui = _apply_stub
     gv.bed_Wm = gv.bed_Hm = 4.0
     if bath_dims:
         gv.bath_Wm, gv.bath_Hm = bath_dims
@@ -148,9 +155,48 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
 
     gv._solve_and_draw()
 
-    assert 'Bedroom door cannot be on shared wall.' not in gv.status.msg
+    assert 'Bedroom door must be on shared wall.' not in gv.status.msg
     assert isinstance(gv.bed_plan, GridPlan)
     assert isinstance(gv.bath_plan, GridPlan)
+
+
+def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {
+                'score': 1.0,
+                'coverage': 0.5,
+                'paths_ok': True,
+                'reach_windows': True,
+            }
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+    gv.bath_openings.door_wall = WALL_LEFT
+    gv.bath_openings.door_center = 1.0
+    gv.bath_openings.door_width = 0.9
+    gv.liv_openings.door_wall = WALL_BOTTOM
+    gv.liv_openings.door_center = 1.0
+    gv.liv_openings.door_width = 0.9
+
+    gv._solve_and_draw()
+
+    assert gv.status.msg == 'Bedroom door must be on shared wall.'
+    assert getattr(gv, 'bed_plan', None) is None
 
 
 def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
@@ -708,7 +754,7 @@ def test_opening_control_limits(monkeypatch):
 
     GenerateView._build_sidebar(gv)
 
-    assert 'Right' not in comboboxes[0].kwargs['values']
+    assert comboboxes[0].kwargs['values'] == ['Right']
     assert gv.bed_w1_wall.get() == 'Bottom'
     assert 'Right' not in comboboxes[1].kwargs['values']
     assert 'Right' not in comboboxes[2].kwargs['values']
