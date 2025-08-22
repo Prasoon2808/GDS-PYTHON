@@ -16,6 +16,7 @@ from vastu_all_in_one import (
     WALL_LEFT,
     WALL_TOP,
     WALL_BOTTOM,
+    CELL_M,
 )
 
 
@@ -38,7 +39,10 @@ def make_generate_view(bath_dims=(2.0, 2.0)):
     gv = GenerateView.__new__(GenerateView)
     gv.bath_dims = bath_dims
     gv.bed_openings = Openings(GridPlan(4.0, 4.0))
+    gv.bed_openings.swing_depth = 0.60
     gv.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
+    if gv.bath_openings:
+        gv.bath_openings.swing_depth = 2 * CELL_M
     gv.status = DummyStatus()
     gv.sim_timer = None
     gv.sim2_timer = None
