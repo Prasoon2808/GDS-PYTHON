@@ -2693,14 +2693,14 @@ class GenerateView:
         self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if liv_dims else None
 
         # Overall dims remain fixed for combined plan
-        self.Wm = self.bed_Wm
-        self.Hm = self.bed_Hm
-        if self.bath_plan:
-            self.Wm += self.bath_Wm
-            self.Hm = max(self.Hm, self.bath_Hm)
-        if self.liv_plan:
-            self.Wm += self.liv_Wm
-            self.Hm = max(self.Hm, self.liv_Hm)
+        self.Wm = max(
+            self.bed_Wm + (self.bath_Wm if bath_dims else 0),
+            self.liv_Wm if liv_dims else 0,
+        )
+        self.Hm = max(self.bed_Hm, self.bath_Hm if bath_dims else 0) + (
+            self.liv_Hm if liv_dims else 0
+        )
+        self._validate_living_dims()
 
         # Combined plan used by legacy helpers (_cell_rect etc.)
         self.plan = GridPlan(self.Wm, self.Hm)
@@ -2805,6 +2805,17 @@ class GenerateView:
         # Kick off initial solve after all widgets are set up so that
         # variables and geometry are ready before the heavy work runs.
         self.root.after_idle(self._solve_and_draw)
+
+    def _validate_living_dims(self):
+        """Ensure living room dimensions allow room connections."""
+        if not self.liv_dims:
+            return
+        if self.liv_dims[0] < self.bed_Wm + self.bath_Wm:
+            raise ValueError('Living room width must span bedroom and bathroom.')
+        required = max(0.60, CELL_M)
+        if self.liv_dims[1] < required:
+            raise ValueError('Living room depth insufficient for door clearance.')
+
     # ----------------- sidebar
 
     def _build_sidebar(self):

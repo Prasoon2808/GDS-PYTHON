@@ -90,3 +90,20 @@ def test_bathroom_doors_misaligned():
 
     assert not gv._apply_openings_from_ui()
     assert gv.status.msg == 'Bathroom must expose door to living room.'
+
+
+def test_living_room_too_narrow():
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 1.0))
+    with pytest.raises(ValueError):
+        gv._validate_living_dims()
+
+
+def test_living_room_too_shallow():
+    gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 0.2))
+    with pytest.raises(ValueError):
+        gv._validate_living_dims()
+
+
+def test_living_room_dims_ok():
+    gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 1.0))
+    gv._validate_living_dims()  # should not raise
