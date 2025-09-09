@@ -3473,118 +3473,66 @@ class GenerateView:
         wall_width = max(4, int(scale * 0.12)) * 3
         # Make door/window outlines thicker for better visibility
         open_width = max(2, wall_width // 2)
-        GRID_COLOR = '#dddddd'
         self.opening_item_info = {}
 
-        def draw_room(plan, openings, ox, oy, draw_door=True, room_name='bed'):
-            gw, gh = plan.gw, plan.gh
-            for i in range(gw + 1):
-                x = ox + i * scale
-                cv.create_line(
-                    x,
-                    oy,
-                    x,
-                    oy + gh * scale,
-                    fill=GRID_COLOR,
-                    tags=('plan', 'grid'),
-                )
-            for j in range(gh + 1):
-                y = oy + j * scale
-                cv.create_line(
-                    ox,
-                    y,
-                    ox + gw * scale,
-                    y,
-                    fill=GRID_COLOR,
-                    tags=('plan', 'grid'),
-                )
-            bound = set()
-            for j in range(gh):
-                for i in range(gw):
-                    code = plan.occ[j][i]
-                    if not code or code == 'DOOR':
-                        continue
-                    base = code.split(':')[0]
-                    tag = base.split('_')[0]
-                    color = PALETTE.get(tag, '#888')
-                    x0 = ox + i * scale
-                    y0 = oy + (gh - 1 - j) * scale
-                    cv.create_rectangle(
-                        x0,
-                        y0,
-                        x0 + scale,
-                        y0 + scale,
-                        outline='',
-                        fill=color,
-                        tags=('plan', tag),
-                    )
-                    if tag not in bound:
-                        cv.tag_bind(
-                            tag,
-                            '<Enter>',
-                            lambda e, c=tag: self._show_tooltip(e, c),
-                        )
-                        cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
-                        bound.add(tag)
-
-            for (x, y, w, h, kind, owner) in plan.clearzones:
-                x0 = ox + x * scale
-                y0 = oy + (gh - (y + h)) * scale
-                cv.create_rectangle(
-                    x0,
-                    y0,
-                    x0 + w * scale,
-                    y0 + h * scale,
-                    outline=PALETTE['CLEAR'],
-                    dash=(8, 6),
-                    width=2,
-                    tags=('plan', 'clear'),
-                )
-
-            cv.create_rectangle(
-                ox,
-                oy,
-                ox + gw * scale,
-                oy + gh * scale,
-                outline=WALL_COLOR,
-                fill='',
-                width=wall_width,
-                tags=('plan', 'room'),
-            )
-            self._draw_room_openings(
-                cv,
-                openings,
-                ox,
-                oy,
+        self._draw_all_layers(
+            self.bed_plan,
+            self.bed_openings,
+            bed_ox,
+            bed_oy,
+            scale,
+            wall_width,
+            open_width,
+            True,
+            'bed',
+        )
+        if self.bath_plan:
+            self._draw_all_layers(
+                self.bath_plan,
+                self.bath_openings,
+                bath_ox,
+                bath_oy,
                 scale,
                 wall_width,
                 open_width,
-                draw_door,
-                room_name,
+                True,
+                'bath',
             )
-
-        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, True, 'bed')
-        if self.bath_plan:
-            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True, 'bath')
             if getattr(self, 'bath_liv_openings', None):
                 self.bath_liv_openings.p = self.bath_plan
-                draw_room(
+                self._draw_all_layers(
                     self.bath_plan,
                     self.bath_liv_openings,
                     bath_ox,
                     bath_oy,
+                    scale,
+                    wall_width,
+                    open_width,
                     True,
                     'bath',
                 )
         if getattr(self, 'liv_plan', None):
-            draw_room(self.liv_plan, self.liv_openings, liv_ox, liv_oy, True, 'living')
+            self._draw_all_layers(
+                self.liv_plan,
+                self.liv_openings,
+                liv_ox,
+                liv_oy,
+                scale,
+                wall_width,
+                open_width,
+                True,
+                'living',
+            )
             if getattr(self, 'liv_bath_openings', None):
                 self.liv_bath_openings.p = self.liv_plan
-                draw_room(
+                self._draw_all_layers(
                     self.liv_plan,
                     self.liv_bath_openings,
                     liv_ox,
                     liv_oy,
+                    scale,
+                    wall_width,
+                    open_width,
                     True,
                     'living',
                 )
@@ -3620,6 +3568,108 @@ class GenerateView:
         if self.sim2_path:
             i, j = self.sim2_path[min(self.sim2_index, len(self.sim2_path) - 1)]
             self._draw_human_block(i, j, HUMAN2_COLOR, which=2)
+
+    def _draw_all_layers(
+        self,
+        plan,
+        openings,
+        ox,
+        oy,
+        scale,
+        wall_width,
+        open_width,
+        draw_door=True,
+        room_name='bed',
+    ):
+        cv = self.canvas
+        gw, gh = plan.gw, plan.gh
+        GRID_COLOR = '#dddddd'
+        for i in range(gw + 1):
+            x = ox + i * scale
+            cv.create_line(
+                x,
+                oy,
+                x,
+                oy + gh * scale,
+                fill=GRID_COLOR,
+                tags=('plan', 'grid'),
+            )
+        for j in range(gh + 1):
+            y = oy + j * scale
+            cv.create_line(
+                ox,
+                y,
+                ox + gw * scale,
+                y,
+                fill=GRID_COLOR,
+                tags=('plan', 'grid'),
+            )
+        bound = set()
+        for (x, y, w, h, kind, owner) in plan.clearzones:
+            x0 = ox + x * scale
+            y0 = oy + (gh - (y + h)) * scale
+            cv.create_rectangle(
+                x0,
+                y0,
+                x0 + w * scale,
+                y0 + h * scale,
+                outline=PALETTE['CLEAR'],
+                dash=(8, 6),
+                width=2,
+                tags=('plan', 'clear'),
+            )
+        for j in range(gh):
+            for i in range(gw):
+                code = plan.occ[j][i]
+                if not code or code == 'DOOR':
+                    continue
+                base = code.split(':')[0]
+                tag = base.split('_')[0]
+                color = PALETTE.get(tag, '#888')
+                x0 = ox + i * scale
+                y0 = oy + (gh - 1 - j) * scale
+                cv.create_rectangle(
+                    x0,
+                    y0,
+                    x0 + scale,
+                    y0 + scale,
+                    outline='',
+                    fill=color,
+                    tags=('plan', 'furn', tag),
+                )
+                if tag not in bound:
+                    cv.tag_bind(
+                        tag,
+                        '<Enter>',
+                        lambda e, c=tag: self._show_tooltip(e, c),
+                    )
+                    cv.tag_bind(tag, '<Leave>', self._hide_tooltip)
+                    bound.add(tag)
+        cv.create_rectangle(
+            ox,
+            oy,
+            ox + gw * scale,
+            oy + gh * scale,
+            outline=WALL_COLOR,
+            fill='',
+            width=wall_width,
+            tags=('plan', 'room'),
+        )
+        self._draw_room_openings(
+            cv,
+            openings,
+            ox,
+            oy,
+            scale,
+            wall_width,
+            open_width,
+            draw_door,
+            room_name,
+        )
+        cv.tag_lower('clear')
+        cv.tag_raise('furn', 'clear')
+        cv.tag_raise('room', 'furn')
+        cv.tag_raise('opening', 'room')
 
     def refresh_overlay(self):
         """Rebuild the persistent column grid overlay."""

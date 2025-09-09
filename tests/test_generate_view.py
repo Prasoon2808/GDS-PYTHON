@@ -88,6 +88,9 @@ class BoundingCanvas:
     def tag_lower(self, *args, **kwargs):
         pass
 
+    def tag_raise(self, *args, **kwargs):
+        pass
+
     def bbox(self, tag):
         if not self.items:
             return None

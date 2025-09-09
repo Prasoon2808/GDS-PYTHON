@@ -45,6 +45,15 @@ class CountingCanvas:
     def tag_lower(self, *args, **kwargs):
         pass
 
+    def tag_raise(self, *args, **kwargs):
+        pass
+
+    def tag_bind(self, *args, **kwargs):
+        pass
+
+    def tag_lower(self, *args, **kwargs):
+        pass
+
     def coords(self, *args, **kwargs):
         pass
 
