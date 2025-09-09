@@ -1835,6 +1835,28 @@ def default_furniture_sets(extra_sets: Optional[List[Tuple[str, ...]]] = None) -
         base.extend(extra_sets)
     return base
 
+
+def default_kitchen_sets(extra_sets: Optional[List[Tuple[str, ...]]] = None) -> List[Tuple[str, ...]]:
+    """Return the default search order for kitchen appliance combinations.
+
+    The ordering progresses from the simplest requirement (a single
+    appliance) to the full work triangle of refrigerator, sink, and
+    cooktop.  ``extra_sets`` permits callers to extend the search without
+    modifying the core routine.
+    """
+    base: List[Tuple[str, ...]] = [
+        ("SINK",),
+        ("COOK",),
+        ("REF",),
+        ("SINK", "COOK"),
+        ("SINK", "REF"),
+        ("COOK", "REF"),
+        ("SINK", "COOK", "REF"),
+    ]
+    if extra_sets:
+        base.extend(extra_sets)
+    return base
+
 class BedroomSolver:
     def __init__(self,
                  plan:GridPlan,
@@ -2420,6 +2442,90 @@ class BedroomSolver:
                     b0, b1 = s, s+L
                     if not (a1<b0 or b1<a0):
                         score += A['DESK']['WIN']; break
+        return score
+
+
+class KitchenSolver:
+    def __init__(self,
+                 plan: GridPlan,
+                 openings: Openings,
+                 rng: random.Random,
+                 weights: Dict[str, float],
+                 book: Dict[str, Dict] = KITCHEN_BOOK):
+        self.p = plan
+        self.op = openings
+        self.rng = rng
+        self.weights = weights
+        self.book = book
+        self.c = KITCHEN_BOOK['CLEAR']
+
+    def run(self,
+            appliance_sets: Optional[List[Tuple[str, ...]]] = None,
+            iters: int = 200,
+            time_budget_ms: int = 520,
+            max_attempts: int = 3) -> Tuple[Optional[GridPlan], Dict]:
+        sets = appliance_sets or default_kitchen_sets()
+        for req in reversed(sets):
+            needed = Counter(req)
+            if all(len(list(components_by_code(self.p, code))) >= cnt
+                   for code, cnt in needed.items()):
+                feats = {'work_triangle_bonus': self._work_triangle_bonus(self.p)}
+                adj = self._adjacency_score(self.p)
+                feats['adjacency'] = adj
+                score = dot_score(self.weights, feats)
+                score += self.weights.get('adjacency', 0.6) * adj
+                return self.p, {'features': feats, 'score': score}
+        return None, {'status': 'missing_appliance'}
+
+    def _work_triangle_bonus(self, plan: GridPlan) -> float:
+        nodes = ['SINK', 'COOK', 'REF']
+        coords = []
+        for code in nodes:
+            comps = list(components_by_code(plan, code))
+            if not comps:
+                return 0.0
+            x, y, w, h, _ = comps[0]
+            coords.append((x + w / 2.0, y + h / 2.0))
+        return 1.0
+
+    def _adjacency_score(self, plan: GridPlan) -> float:
+        A = {
+            'SINK': {'REF': +1.0, 'COOK': +1.0},
+            'COOK': {'REF': +0.5},
+        }
+
+        def boxes(code):
+            comps = components_by_code(plan, code)
+            if comps:
+                x, y, w, h, _ = comps[0]
+                return (x, y, x + w - 1, y + h - 1)
+            return None
+
+        score = 0.0
+        bsink = boxes('SINK')
+        if bsink:
+            sx0, sy0, sx1, sy1 = bsink
+            for other, wt in A['SINK'].items():
+                b = boxes(other)
+                if not b:
+                    continue
+                ox0, oy0, ox1, oy1 = b
+                dx = max(0, max(ox0 - sx1, sx0 - ox1))
+                dy = max(0, max(oy0 - sy1, sy0 - oy1))
+                score += wt * (1.0 / (1.0 + dx + dy))
+
+        bcook = boxes('COOK')
+        if bcook:
+            cx0, cy0, cx1, cy1 = bcook
+            for other, wt in A.get('COOK', {}).items():
+                b = boxes(other)
+                if not b:
+                    continue
+                ox0, oy0, ox1, oy1 = b
+                dx = max(0, max(ox0 - cx1, cx0 - ox1))
+                dy = max(0, max(oy0 - cy1, cy0 - oy1))
+                score += wt * (1.0 / (1.0 + dx + dy))
+
         return score
 
 # -----------------------
