@@ -3006,17 +3006,20 @@ class GenerateView:
         self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if self.liv_dims else None
         self.kitch_plan = GridPlan(self.kitch_Wm, self.kitch_Hm) if self.kitch_dims else None
 
-        # Overall dims remain fixed for combined plan
-        top_w = self.bed_Wm + (self.bath_Wm if bath_dims else 0)
-        bottom_w = (
-            (self.liv_Wm if self.liv_dims else 0)
-            + (self.kitch_Wm if self.kitch_dims else 0)
+        # Overall dimensions for combined plan follow the 2x2 layout:
+        # bedroom/living column on the left, bathroom/kitchen column on the
+        # right.  Width is the bedroom width plus the larger of bathroom or
+        # kitchen widths.  Height sums the taller of the bedroom/bathroom row
+        # and the taller of the living/kitchen row.
+        right_w = max(
+            self.bath_Wm if bath_dims else 0.0,
+            self.kitch_Wm if self.kitch_dims else 0.0,
         )
-        self.Wm = max(top_w, bottom_w)
-        top_h = max(self.bed_Hm, self.bath_Hm if bath_dims else 0)
+        self.Wm = self.bed_Wm + right_w
+        top_h = max(self.bed_Hm, self.bath_Hm if bath_dims else 0.0)
         bottom_h = max(
-            self.liv_Hm if self.liv_dims else 0,
-            self.kitch_Hm if self.kitch_dims else 0,
+            self.liv_Hm if self.liv_dims else 0.0,
+            self.kitch_Hm if self.kitch_dims else 0.0,
         )
         self.Hm = top_h + bottom_h
 
@@ -3148,12 +3151,14 @@ class GenerateView:
         if not self.liv_dims:
             return
         self.liv_auto_adjusted = []
-        min_width = self.bed_Wm + self.bath_Wm
+        # Living room should span the bedroom width so that the kitchen can
+        # abut it on the right.  Expand width if necessary.
+        min_width = self.bed_Wm
         if self.liv_dims[0] < min_width:
             self.liv_dims = (min_width, self.liv_dims[1])
             self.liv_Wm = min_width
             self.liv_auto_adjusted.append(
-                f"Living room width increased to {min_width:.2f} m to span bedroom and bathroom."
+                f"Living room width increased to {min_width:.2f} m to align with bedroom."
             )
         required = max(0.60, CELL_M)
         if self.liv_dims[1] < required:
@@ -3559,15 +3564,17 @@ class GenerateView:
             else:
                 kitch_plan = None
 
-        top_gw = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
+        left_gw = bed_plan.gw
+        right_gw = max(
+            bath_plan.gw if bath_plan else 0,
+            kitch_plan.gw if kitch_plan else 0,
+        )
         top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
-        liv_gw = liv_plan.gw if liv_plan else 0
-        liv_gh = liv_plan.gh if liv_plan else 0
-        kitch_gw = kitch_plan.gw if kitch_plan else 0
-        kitch_gh = kitch_plan.gh if kitch_plan else 0
-        bottom_gw = liv_gw + kitch_gw
-        bottom_gh = max(liv_gh, kitch_gh)
-        total_gw = max(top_gw, bottom_gw)
+        bottom_gh = max(
+            liv_plan.gh if liv_plan else 0,
+            kitch_plan.gh if kitch_plan else 0,
+        )
+        total_gw = left_gw + right_gw
         total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
         bed_plan.column_grid = col_grid
@@ -3575,7 +3582,7 @@ class GenerateView:
         bed_plan.y_offset = 0
         if bath_plan:
             bath_plan.column_grid = col_grid
-            bath_plan.x_offset = bed_plan.gw
+            bath_plan.x_offset = left_gw
             bath_plan.y_offset = 0
         if liv_plan:
             liv_plan.column_grid = col_grid
@@ -3583,8 +3590,21 @@ class GenerateView:
             liv_plan.y_offset = top_gh
         if kitch_plan:
             kitch_plan.column_grid = col_grid
-            kitch_plan.x_offset = liv_gw
+            kitch_plan.x_offset = left_gw
             kitch_plan.y_offset = top_gh
+
+        # Validate adjacency: kitchen must share boundaries with both bathroom
+        # (above) and living room (left).  The living room must span the
+        # bedroom width so that the shared wall exists.
+        if kitch_plan and bath_plan and liv_plan:
+            if not (
+                kitch_plan.x_offset == bath_plan.x_offset == left_gw
+                and kitch_plan.y_offset == liv_plan.y_offset == top_gh
+                and liv_plan.gw == left_gw
+            ):
+                raise ValueError(
+                    "Kitchen must be adjacent to both bathroom and living room"
+                )
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext
@@ -4499,7 +4519,7 @@ class GenerateView:
             oy -= yoff; ny -= yoff
         elif room == 'kitchen' and getattr(self, 'kitch_plan', None):
             target_plan = self.kitch_plan
-            xoff = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
+            xoff = self.bed_plan.gw
             yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
             ox -= xoff; nx -= xoff
             oy -= yoff; ny -= yoff
@@ -4679,17 +4699,20 @@ class GenerateView:
             self.plan = self.bed_plan
             return
 
-        top_gw = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
-        top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
-        bottom_gw = (
-            (self.liv_plan.gw if has_liv else 0)
-            + (self.kitch_plan.gw if has_kitch else 0)
+        # Arrange plans in a 2x2 grid:
+        # [bed][bath]
+        # [liv][kitch]
+        left_gw = self.bed_plan.gw
+        right_gw = max(
+            self.bath_plan.gw if has_bath else 0,
+            self.kitch_plan.gw if has_kitch else 0,
         )
+        top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
         bottom_gh = max(
             self.liv_plan.gh if has_liv else 0,
             self.kitch_plan.gh if has_kitch else 0,
         )
-        total_gw = max(top_gw, bottom_gw)
+        total_gw = left_gw + right_gw
         total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
 
@@ -4698,7 +4721,7 @@ class GenerateView:
         self.bed_plan.y_offset = 0
         if has_bath:
             self.bath_plan.column_grid = col_grid
-            self.bath_plan.x_offset = self.bed_plan.gw
+            self.bath_plan.x_offset = left_gw
             self.bath_plan.y_offset = 0
         if has_liv:
             self.liv_plan.column_grid = col_grid
@@ -4706,9 +4729,7 @@ class GenerateView:
             self.liv_plan.y_offset = top_gh
         if has_kitch:
             self.kitch_plan.column_grid = col_grid
-            self.kitch_plan.x_offset = (
-                self.liv_plan.gw if has_liv else 0
-            )
+            self.kitch_plan.x_offset = left_gw
             self.kitch_plan.y_offset = top_gh
 
         # ``GridPlan`` derives its internal grid dimensions from the supplied

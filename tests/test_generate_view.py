@@ -499,7 +499,7 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
     assert isinstance(gv.bed_plan, GridPlan)
     assert isinstance(gv.bath_plan, GridPlan)
     assert isinstance(gv.liv_plan, GridPlan)
-    assert gv.plan.gw == max(gv.bed_plan.gw + gv.bath_plan.gw, gv.liv_plan.gw)
+    assert gv.plan.gw == gv.bed_plan.gw + gv.bath_plan.gw
 
     bath_clear = next(
         (x, y, w, h)
@@ -941,9 +941,9 @@ def setup_drag_view(include_liv=False, include_kitch=False):
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
     gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if include_liv else None
     gv.kitch_plan = GridPlan(gv.kitch_Wm, gv.kitch_Hm) if include_kitch else None
-    bottom_w = (gv.liv_Wm if include_liv else 0) + (gv.kitch_Wm if include_kitch else 0)
+    bottom_w = gv.bed_Wm + (gv.kitch_Wm if include_kitch else 0)
     bottom_h = max(gv.liv_Hm if include_liv else 0, gv.kitch_Hm if include_kitch else 0)
-    gv.Wm = max(gv.bed_Wm + gv.bath_Wm, bottom_w)
+    gv.Wm = gv.bed_Wm + max(gv.bath_Wm, gv.kitch_Wm if include_kitch else 0)
     gv.Hm = max(gv.bed_Hm, gv.bath_Hm) + bottom_h
     gv.plan = GridPlan(gv.Wm, gv.Hm)
     GenerateView._combine_plans(gv)
@@ -1013,7 +1013,7 @@ def test_on_up_updates_only_kitch_plan():
     gv = setup_drag_view(include_kitch=True)
     gv.kitch_plan.place(0, 0, 1, 1, 'SINK')
     GenerateView._combine_plans(gv)
-    xoff = gv.liv_plan.gw if gv.liv_plan else 0
+    xoff = gv.bed_plan.gw
     yoff = max(gv.bed_plan.gh, gv.bath_plan.gh)
     gv.drag_item = {
         'orig': [xoff, yoff, 1, 1],
