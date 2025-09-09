@@ -797,6 +797,12 @@ def test_opening_click_opens_dialog(monkeypatch):
     gv._on_canvas_click(event)
     gv.canvas.dtag(door_id, 'current')
 
+    # ids are regenerated after redraw
+    for item, info in gv.opening_item_info.items():
+        if info.get('room') == 'bed' and info.get('type') == 'window':
+            window_id = item
+            break
+
     gv.canvas.addtag_withtag('current', window_id)
     gv._on_canvas_click(event)
 
@@ -1088,74 +1094,185 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
     assert hasattr(gv, 'furn_kind'), 'Furniture controls missing'
 
 
-def test_opening_control_limits(monkeypatch):
-    import types
-    import tkinter as tk
+def test_opening_dialog_prepopulates_values(monkeypatch):
     import vastu_all_in_one
 
-    master = tk.Tcl()
-    tk._default_root = master
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
 
-    comboboxes = []
+        def run(self):
+            return self.plan, {
+                'score': 1.0,
+                'coverage': 0.5,
+                'paths_ok': True,
+                'reach_windows': True,
+            }
 
-    class FakeWidget:
-        def __init__(self, master=None, **kwargs):
-            self.children = []
-            self.kwargs = kwargs
-            if master is not None and hasattr(master, 'children'):
-                master.children.append(self)
-        def pack(self, *args, **kwargs):
-            return self
-        def grid(self, *args, **kwargs):
-            return self
-        def destroy(self):
-            pass
-        def winfo_children(self):
-            return self.children
-        def grid_columnconfigure(self, *args, **kwargs):
-            pass
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        return GridPlan(w, h)
 
-    class FakeCombobox(FakeWidget):
-        def __init__(self, master=None, **kwargs):
-            super().__init__(master, **kwargs)
-            comboboxes.append(self)
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
 
-    fake_ttk = types.SimpleNamespace(
-        Frame=FakeWidget,
-        Label=FakeWidget,
-        Combobox=FakeCombobox,
-        Scale=FakeWidget,
-        Button=FakeWidget,
-        Checkbutton=FakeWidget,
-    )
-    monkeypatch.setattr(vastu_all_in_one, 'ttk', fake_ttk)
+    class TagCanvas(BoundingCanvas):
+        def __init__(self, width=200, height=200):
+            super().__init__(width, height)
+            self._id = 0
 
-    gv = GenerateView.__new__(GenerateView)
-    gv.room_label = 'Bedroom'
-    gv.sidebar = FakeWidget()
-    gv.bed_Hm = 4.0
-    gv.bed_Wm = 4.0
-    gv.bath_dims = (2.0, 2.0)
-    gv.liv_dims = None
-    gv.liv_plan = None
-    gv.zoom_factor = tk.DoubleVar(value=1.0)
+        def create_line(self, *args, **kwargs):
+            self._id += 1
+            self.items.append({
+                'id': self._id,
+                'type': 'line',
+                'tags': kwargs.get('tags', ()),
+                'bbox': (
+                    min(args[0], args[2]),
+                    min(args[1], args[3]),
+                    max(args[0], args[2]),
+                    max(args[1], args[3]),
+                ),
+            })
+            return self._id
 
-    for name in [
-        '_solve_and_draw', '_apply_batch_and_generate', '_add_furniture',
-        '_remove_furniture', '_simulate_one', '_simulate_two',
-        'simulate_circulation', '_export_png']:
-        setattr(gv, name, lambda *a, **kw: None)
+        def create_rectangle(self, x0, y0, x1, y1, **kwargs):
+            self._id += 1
+            self.items.append({
+                'id': self._id,
+                'type': 'rect',
+                'bbox': (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
+                'tags': kwargs.get('tags', ()),
+                **kwargs,
+            })
+            return self._id
 
-    GenerateView._build_sidebar(gv)
+        def create_oval(self, x0, y0, x1, y1, **kwargs):
+            self._id += 1
+            self.items.append({
+                'id': self._id,
+                'type': 'oval',
+                'bbox': (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
+                'tags': kwargs.get('tags', ()),
+                **kwargs,
+            })
+            return self._id
 
-    assert comboboxes[0].kwargs['values'] == ['Right']
-    assert gv.bed_w1_wall.get() == 'Top'
-    assert 'Right' not in comboboxes[1].kwargs['values']
-    assert 'Right' not in comboboxes[2].kwargs['values']
+        def create_text(self, x, y, **kwargs):
+            self._id += 1
+            self.items.append({
+                'id': self._id,
+                'type': 'text',
+                'bbox': (x, y, x, y),
+                'tags': kwargs.get('tags', ()),
+                **kwargs,
+            })
+            return self._id
 
-    assert comboboxes[3].kwargs['values'] == ['Left']
-    assert 'Left' not in comboboxes[4].kwargs['values']
-    assert 'Left' not in comboboxes[5].kwargs['values']
+        def find_withtag(self, tag):
+            return tuple(i['id'] for i in self.items if tag in i.get('tags', ()))
+
+        def itemcget(self, item_id, attr):
+            for i in self.items:
+                if i['id'] == item_id:
+                    return i.get(attr, '')
+            return ''
+
+        def addtag_withtag(self, tag, item_id):
+            for i in self.items:
+                if i['id'] == item_id and tag not in i.get('tags', ()):
+                    i['tags'] = i.get('tags', ()) + (tag,)
+
+        def dtag(self, item_id, tag):
+            for i in self.items:
+                if i['id'] == item_id:
+                    i['tags'] = tuple(t for t in i.get('tags', ()) if t != tag)
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.canvas = TagCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+
+    captured = []
+    applied = []
+
+    def fake_apply_openings():
+        applied.append(
+            (
+                gv.bed_openings.door_wall,
+                gv.bed_openings.door_width,
+                gv.bed_openings.door_center,
+                tuple(gv.bed_openings.windows[0]),
+            )
+        )
+        return True
+
+    gv._apply_openings_from_ui = fake_apply_openings
+
+    class DummyDialog:
+        def __init__(self, root, info, on_apply):
+            openings = info['openings']
+            if info['type'] == 'door':
+                wall = openings.door_wall
+                length = openings.door_width
+                center = openings.door_center
+                openings.door_width += 0.2
+                openings.door_center += 0.1
+            else:
+                idx = info['index']
+                wall, start, length = openings.windows[idx]
+                center = start + length / 2
+                openings.windows[idx] = [wall, start + 0.1, length + 0.2]
+            captured.append((info['type'], wall, length, center))
+            if on_apply:
+                on_apply()
+
+    monkeypatch.setattr(vastu_all_in_one, 'OpeningDialog', DummyDialog)
+
+    gv._solve_and_draw()
+
+    door_wall = gv.bed_openings.door_wall
+    door_width = gv.bed_openings.door_width
+    door_center = gv.bed_openings.door_center
+    win_wall, win_start, win_len = gv.bed_openings.windows[0]
+    win_center = win_start + win_len / 2
+
+    door_id = None
+    window_id = None
+    for item, info in gv.opening_item_info.items():
+        if info.get('room') != 'bed':
+            continue
+        if info.get('type') == 'door':
+            door_id = item
+        elif info.get('type') == 'window':
+            window_id = item
+
+    assert door_id is not None and window_id is not None
+
+    event = type('E', (), {'x': 0, 'y': 0})()
+
+    gv.canvas.addtag_withtag('current', door_id)
+    gv._on_canvas_click(event)
+    gv.canvas.dtag(door_id, 'current')
+
+    # ids are regenerated after redraw
+    for item, info in gv.opening_item_info.items():
+        if info.get('room') == 'bed' and info.get('type') == 'window':
+            window_id = item
+            break
+
+    gv.canvas.addtag_withtag('current', window_id)
+    gv._on_canvas_click(event)
+
+    assert captured[0] == ('door', door_wall, door_width, door_center)
+    assert captured[1] == ('window', win_wall, win_len, win_center)
+
+    assert (door_wall, door_width + 0.2, door_center + 0.1, (win_wall, win_start, win_len)) in applied
+    assert (door_wall, door_width + 0.2, door_center + 0.1, (win_wall, win_start + 0.1, win_len + 0.2)) in applied
 
 
 def test_mirrored_clearances_align_by_label(monkeypatch):
