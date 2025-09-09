@@ -836,39 +836,7 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
     gv.bath_liv_openings = None
     gv.liv_bath_openings = None
 
-    master = tk._default_root
-    gv.bed_door_wall = tk.StringVar(master, value='Right')
-    gv.bed_door_w = tk.DoubleVar(master, value=0.9)
-    gv.bed_door_c = tk.DoubleVar(master, value=1.0)
-    gv.bed_w1_wall = tk.StringVar(master, value='None')
-    gv.bed_w1_len = tk.DoubleVar(master, value=0.0)
-    gv.bed_w1_c = tk.DoubleVar(master, value=0.0)
-    gv.bed_w2_wall = tk.StringVar(master, value='None')
-    gv.bed_w2_len = tk.DoubleVar(master, value=0.0)
-    gv.bed_w2_c = tk.DoubleVar(master, value=0.0)
-
-    gv.bath_door_wall = tk.StringVar(master, value='Left')
-    gv.bath_door_w = tk.DoubleVar(master, value=0.9)
-    gv.bath_door_c = tk.DoubleVar(master, value=1.0)
-    gv.bath_w1_wall = tk.StringVar(master, value='None')
-    gv.bath_w1_len = tk.DoubleVar(master, value=0.0)
-    gv.bath_w1_c = tk.DoubleVar(master, value=0.0)
-    gv.bath_w2_wall = tk.StringVar(master, value='None')
-    gv.bath_w2_len = tk.DoubleVar(master, value=0.0)
-    gv.bath_w2_c = tk.DoubleVar(master, value=0.0)
-
-    gv.bath_liv_door_w = tk.DoubleVar(master, value=0.9)
-    gv.bath_liv_door_c = tk.DoubleVar(master, value=1.0)
-
-    gv.liv_door_wall = tk.StringVar(master, value='Bottom')
-    gv.liv_door_w = tk.DoubleVar(master, value=0.9)
-    gv.liv_door_c = tk.DoubleVar(master, value=1.0)
-    gv.liv_w1_wall = tk.StringVar(master, value='None')
-    gv.liv_w1_len = tk.DoubleVar(master, value=0.0)
-    gv.liv_w1_c = tk.DoubleVar(master, value=0.0)
-    gv.liv_w2_wall = tk.StringVar(master, value='None')
-    gv.liv_w2_len = tk.DoubleVar(master, value=0.0)
-    gv.liv_w2_c = tk.DoubleVar(master, value=0.0)
+    gv.bed_openings.door_wall = WALL_RIGHT
 
     gv.bath_plan = GridPlan(*gv.bath_dims)
     gv.liv_plan = GridPlan(*gv.liv_dims)
@@ -877,7 +845,8 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
     gv.liv_plan.x_offset = gv.bath_plan.gw
     gv.liv_plan.y_offset = 0
 
-    assert GenerateView._apply_openings_from_ui(gv)
+    gv._apply_openings_from_ui = GenerateView._apply_openings_from_ui.__get__(gv)
+    assert gv._apply_openings_from_ui()
     assert gv.bath_liv_openings is not None
     assert gv.liv_bath_openings is not None
 
