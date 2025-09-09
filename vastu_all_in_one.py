@@ -3681,9 +3681,13 @@ class GenerateView:
                 and kitch_plan.y_offset == liv_plan.y_offset == top_gh
                 and liv_plan.gw == left_gw
             ):
-                raise ValueError(
+                # Inform user of invalid adjacency and revert without drawing
+                self.status.set(
                     "Kitchen must be adjacent to both bathroom and living room"
                 )
+                if prev_plan is not None:
+                    self.plan = prev_plan
+                return
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext
