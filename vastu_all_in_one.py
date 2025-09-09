@@ -1172,14 +1172,14 @@ class AreaDialog(tk.Toplevel):
     def _cancel(self): self.result=None; self.destroy()
 
 class AreaDialogCombined(tk.Toplevel):
-    """Dialog for capturing bedroom and bathroom dimensions at once."""
+    """Dialog for capturing bedroom, bathroom, living room and kitchen dimensions."""
     UNITS = AreaDialog.UNITS
     def __init__(self, parent: tk.Misc, mode_label: str):
         super().__init__(parent)
         self.title('Room Inputs')
         self.transient(parent); self.grab_set(); self.resizable(False, False)
         self.result=None
-        w,h=640,760; self._center(parent,w,h)
+        w,h=640,880; self._center(parent,w,h)
         f=ttk.Frame(self, padding=24); f.pack(fill=tk.BOTH, expand=True)
         ttk.Label(f, text=f'{mode_label}: set room inputs', font=('SF Pro Text', 14, 'bold')).pack(anchor='w')
 
@@ -1255,6 +1255,23 @@ class AreaDialogCombined(tk.Toplevel):
         self.liv_len_units=tk.StringVar(value='m'); ttk.Combobox(liv_body, textvariable=self.liv_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
         for i in range(5): liv_body.grid_columnconfigure(i, weight=1)
 
+        ttk.Label(f, text='Kitchen', font=('SF Pro Text', 12, 'bold')).pack(anchor='w', pady=(20,0))
+        kitch_body=ttk.Frame(f); kitch_body.pack(fill=tk.X, pady=(5,0))
+        self.kitch_method=tk.StringVar(value='area')
+        ttk.Radiobutton(kitch_body, text='Area', variable=self.kitch_method, value='area').grid(row=0, column=0, sticky='w')
+        ttk.Radiobutton(kitch_body, text='W × H', variable=self.kitch_method, value='dims').grid(row=0, column=1, sticky='w', padx=10)
+        ttk.Label(kitch_body, text='Area').grid(row=1, column=0, sticky='w')
+        self.kitch_area=tk.StringVar(value='9'); ttk.Entry(kitch_body, textvariable=self.kitch_area, width=10).grid(row=2, column=0, sticky='we')
+        ttk.Label(kitch_body, text='Units').grid(row=1, column=1, sticky='w')
+        self.kitch_area_units=tk.StringVar(value='m²'); ttk.Combobox(kitch_body, textvariable=self.kitch_area_units, values=self.UNITS, state='readonly', width=10).grid(row=2, column=1)
+        ttk.Label(kitch_body, text='W (for W×H)').grid(row=1, column=2, sticky='w')
+        self.kitch_W=tk.StringVar(value='3.0'); ttk.Entry(kitch_body, textvariable=self.kitch_W, width=10).grid(row=2, column=2)
+        ttk.Label(kitch_body, text='H (for W×H)').grid(row=1, column=3, sticky='w')
+        self.kitch_H=tk.StringVar(value='3.0'); ttk.Entry(kitch_body, textvariable=self.kitch_H, width=10).grid(row=2, column=3)
+        ttk.Label(kitch_body, text='Len units').grid(row=1, column=4, sticky='w')
+        self.kitch_len_units=tk.StringVar(value='m'); ttk.Combobox(kitch_body, textvariable=self.kitch_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
+        for i in range(5): kitch_body.grid_columnconfigure(i, weight=1)
+
         a=ttk.Frame(f); a.pack(fill=tk.X, pady=(12,0))
         ttk.Button(a, text='Continue', style='Primary.TButton', command=self._ok).pack(side=tk.RIGHT)
         ttk.Button(a, text='Cancel', command=self._cancel).pack(side=tk.RIGHT, padx=(0,8))
@@ -1290,7 +1307,13 @@ class AreaDialogCombined(tk.Toplevel):
             else:
                 W=float(self.liv_W.get()); H=float(self.liv_H.get()); assert W>0 and H>0
                 liv_res={"mode":"dims","W":W,"H":H,"len_units":self.liv_len_units.get(),"bed":"Auto"}
-            self.result={"bedroom":bed_res,"bathroom":bath_res,"livingroom":liv_res}
+            if self.kitch_method.get()=='area':
+                A=float(self.kitch_area.get()); assert A>0
+                kitch_res={"mode":"area","area":A,"area_units":self.kitch_area_units.get(),"bed":"Auto"}
+            else:
+                W=float(self.kitch_W.get()); H=float(self.kitch_H.get()); assert W>0 and H>0
+                kitch_res={"mode":"dims","W":W,"H":H,"len_units":self.kitch_len_units.get(),"bed":"Auto"}
+            self.result={"bedroom":bed_res,"bathroom":bath_res,"livingroom":liv_res,"kitchen":kitch_res}
         except Exception:
             self.bell(); self.title('Room Inputs – enter valid numbers'); return
         self.destroy()
@@ -5356,17 +5379,20 @@ class App:
             bed_res = cd.result.get('bedroom', {})
             bath_res = cd.result.get('bathroom', {})
             liv_res = cd.result.get('livingroom', {})
+            kitch_res = cd.result.get('kitchen', {})
         except Exception:
             bed_res = {"mode": "dims", "W": 4.2, "H": 3.0, "len_units": "m", "bed": "Auto"}
             bath_res = {"mode": "dims", "W": 2.4, "H": 1.8, "len_units": "m", "bed": "Auto"}
             liv_res = {"mode": "dims", "W": 3.0, "H": 3.0, "len_units": "m", "bed": "Auto"}
+            kitch_res = {"mode": "dims", "W": 3.0, "H": 3.0, "len_units": "m", "bed": "Auto"}
 
         bed_dims = self._compute_dims_from_result(bed_res)
         bath_dims = self._compute_dims_from_result(bath_res)
         liv_dims = self._compute_dims_from_result(liv_res) if liv_res else None
+        kitch_dims = self._compute_dims_from_result(kitch_res) if kitch_res else None
 
         # open the chosen workspace
-        self._open_workspace(mode, bed_dims, bath_dims, liv_dims)
+        self._open_workspace(mode, bed_dims, bath_dims, liv_dims, kitch_dims)
 
     def _compute_dims_from_result(self, res: Dict) -> Tuple[float,float,Optional[str]]:
         if res.get("mode") == "area":
@@ -5392,6 +5418,7 @@ class App:
         bed_dims: Tuple[float, float, Optional[str]],
         bath_dims: Tuple[float, float, Optional[str]],
         liv_dims: Optional[Tuple[float, float, Optional[str]]] = None,
+        kitch_dims: Optional[Tuple[float, float, Optional[str]]] = None,
     ):
       
         # clear landing and any previous workspaces so only one view remains
@@ -5419,6 +5446,11 @@ class App:
                 liv_tuple = (Wl, Hl)
             else:
                 liv_tuple = None
+            if kitch_dims:
+                Wk, Hk, _ = kitch_dims
+                kitch_tuple = (Wk, Hk)
+            else:
+                kitch_tuple = None
             GenerateView(
                 self.root,
                 Wb,
@@ -5427,6 +5459,7 @@ class App:
                 room_label='Plan',
                 bath_dims=(Wc, Hc),
                 liv_dims=liv_tuple,
+                kitch_dims=kitch_tuple,
                 pack_side=tk.LEFT,
                 on_back=self._back_to_landing,
             )
@@ -5446,7 +5479,7 @@ class App:
         # Quick path: default bedroom and bathroom sizes
         bed_dims = (4.2, 3.0, None)
         bath_dims = (2.4, 1.8, None)
-        self._open_workspace('generate', bed_dims, bath_dims, None)
+        self._open_workspace('generate', bed_dims, bath_dims, None, None)
 
 # ---- AND REPLACE YOUR MAIN GUARD WITH THIS -----------------------------------
 
