@@ -89,3 +89,46 @@ class DoorLegendOverlay:
             fill="#000",
             tags=("legend",),
         )
+
+
+class LegendPopover:
+    """Floating popover used to describe a selected canvas element."""
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+
+    def show(self, x: float, y: float, text: str, color: str) -> None:
+        """Display a popover at (x, y) with ``text`` and ``color`` square."""
+        self.hide()
+        text_id = self.canvas.create_text(
+            x + 16,
+            y,
+            text=text,
+            fill="black",
+            anchor="nw",
+            tags=("legend-popover",),
+        )
+        bbox = self.canvas.bbox(text_id)
+        rect_id = self.canvas.create_rectangle(
+            x,
+            y - 4,
+            bbox[2] + 4,
+            bbox[3] + 4,
+            fill="white",
+            outline="black",
+            tags=("legend-popover",),
+        )
+        self.canvas.tag_raise(text_id, rect_id)
+        color_id = self.canvas.create_rectangle(
+            x + 2,
+            y + 2,
+            x + 14,
+            y + 14,
+            fill=color,
+            outline="black",
+            tags=("legend-popover",),
+        )
+        self.canvas.tag_raise(color_id, rect_id)
+
+    def hide(self) -> None:
+        self.canvas.delete("legend-popover")

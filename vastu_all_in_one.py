@@ -5,7 +5,7 @@ from math import ceil, sqrt, floor
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
-from ui.overlays import ColumnGridOverlay, DoorLegendOverlay
+from ui.overlays import ColumnGridOverlay, LegendPopover
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
@@ -2753,8 +2753,9 @@ class GenerateView:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.zoom_factor = tk.DoubleVar(value=1.0)
         self.grid_overlay = ColumnGridOverlay(self.canvas)
-        # Overlay legend to describe door color
-        self.legend_overlay = DoorLegendOverlay(self.canvas, DOOR_FILL)
+        # Floating legend popovers for openings
+        self.popover = LegendPopover(self.canvas)
+        self.opening_item_info = {}
 
         # Tooltip elements are managed via the 'tooltip' tag
 
@@ -3644,8 +3645,9 @@ class GenerateView:
         # Make door/window outlines thicker for better visibility
         open_width = max(2, wall_width // 2)
         GRID_COLOR = '#dddddd'
+        self.opening_item_info = {}
 
-        def draw_room(plan, openings, ox, oy, draw_door=True):
+        def draw_room(plan, openings, ox, oy, draw_door=True, room_name='bed'):
             gw, gh = plan.gw, plan.gh
             for i in range(gw + 1):
                 x = ox + i * scale
@@ -3721,12 +3723,20 @@ class GenerateView:
                 tags=('plan', 'room'),
             )
             self._draw_room_openings(
-                cv, openings, ox, oy, scale, wall_width, open_width, draw_door
+                cv,
+                openings,
+                ox,
+                oy,
+                scale,
+                wall_width,
+                open_width,
+                draw_door,
+                room_name,
             )
 
-        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, True)
+        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, True, 'bed')
         if self.bath_plan:
-            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True)
+            draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True, 'bath')
             if getattr(self, 'bath_liv_openings', None):
                 self.bath_liv_openings.p = self.bath_plan
                 draw_room(
@@ -3735,9 +3745,10 @@ class GenerateView:
                     bath_ox,
                     bath_oy,
                     True,
+                    'bath',
                 )
         if getattr(self, 'liv_plan', None):
-            draw_room(self.liv_plan, self.liv_openings, liv_ox, liv_oy, True)
+            draw_room(self.liv_plan, self.liv_openings, liv_ox, liv_oy, True, 'living')
             if getattr(self, 'liv_bath_openings', None):
                 self.liv_bath_openings.p = self.liv_plan
                 draw_room(
@@ -3746,13 +3757,15 @@ class GenerateView:
                     liv_ox,
                     liv_oy,
                     True,
+                    'living',
                 )
 
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
             self.grid_overlay.redraw(col_grid, ox, oy, scale)
-        if hasattr(self, 'legend_overlay'):
-            self.legend_overlay.redraw()
+        # clear previous popovers when redrawing
+        if hasattr(self, 'popover'):
+            self.popover.hide()
 
         def draw_path(poly, color):
             if len(poly) >= 2:
@@ -3808,17 +3821,49 @@ class GenerateView:
 
     def _hide_tooltip(self, event=None):
         self.canvas.delete('tooltip')
+        if hasattr(self, 'popover'):
+            self.popover.hide()
 
-
+    def _on_canvas_click(self, event):
+        """Show a popover when a door or window is clicked."""
+        item = self.canvas.find_withtag('current')
+        self.popover.hide()
+        if not item:
+            return
+        info = getattr(self, 'opening_item_info', {}).get(item[0])
+        if not info:
+            return
+        wall_map = {0: 'Bottom', 1: 'Right', 2: 'Top', 3: 'Left'}
+        wall = wall_map.get(info['wall'], 'Unknown')
+        length_m = info['length'] * info['cell']
+        center_m = (info['start'] + info['length'] / 2) * info['cell']
+        if info['type'] == 'door':
+            text = (
+                f"Door ({info['room']})\n"
+                f"Wall: {wall}\n"
+                f"Width: {length_m:.2f} m\n"
+                f"Center: {center_m:.2f} m"
+            )
+        else:
+            text = (
+                f"Window ({info['room']})\n"
+                f"Wall: {wall}\n"
+                f"Length: {length_m:.2f} m\n"
+                f"Center: {center_m:.2f} m"
+            )
+        self.popover.show(event.x + 12, event.y + 12, text, info['color'])
+        return 'break'
 
     def _draw_room_openings(self, cv, openings, ox, oy, scale,
-                            wall_width, open_width, draw_door=True):
+                            wall_width, open_width, draw_door=True,
+                            room_name='bed'):
 
         if openings is None:
             return
         gw, gh = openings.p.gw, openings.p.gh
+        cell = openings.p.cell
 
-        def seg(wall, start, length, fill_color):
+        def seg(wall, start, length, fill_color, kind):
             if wall < 0 or length <= 0:
                 return
             w = gw * scale
@@ -3847,7 +3892,7 @@ class GenerateView:
                 x1 = ox + w + half
                 y0 = oy + h - (s + L)
                 y1 = oy + h - s
-            cv.create_rectangle(
+            item = cv.create_rectangle(
                 x0,
                 y0,
                 x1,
@@ -3857,13 +3902,23 @@ class GenerateView:
                 fill=fill_color,
                 tags=('plan', 'opening'),
             )
+            self.opening_item_info[item] = {
+                'type': kind,
+                'room': room_name,
+                'wall': wall,
+                'start': start,
+                'length': length,
+                'cell': cell,
+                'color': fill_color,
+            }
+            cv.tag_bind(item, '<Button-1>', self._on_canvas_click)
 
         if draw_door:
             dwall, dstart, dwidth = openings.door_span_cells()
-            seg(dwall, dstart, dwidth, DOOR_FILL)
+            seg(dwall, dstart, dwidth, DOOR_FILL, 'door')
 
         for wall, start, length in openings.window_spans_cells():
-            seg(wall, start, length, WIN_FILL)
+            seg(wall, start, length, WIN_FILL, 'window')
 
     def _draw_opening_segment(self, cv, wall, start, length, color, width):
         if wall<0 or length<=0: return
