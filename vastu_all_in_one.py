@@ -2691,21 +2691,31 @@ class GenerateView:
             self.liv_Wm = lw; self.liv_Hm = lh
         else:
             self.liv_Wm = self.liv_Hm = 0.0
+        self._validate_living_dims()
 
         # Maintain separate plans for bedroom, bathroom and living room.
         self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
         self.bath_plan = GridPlan(self.bath_Wm, self.bath_Hm) if bath_dims else None
-        self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if liv_dims else None
+        self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if self.liv_dims else None
 
         # Overall dims remain fixed for combined plan
         self.Wm = max(
             self.bed_Wm + (self.bath_Wm if bath_dims else 0),
-            self.liv_Wm if liv_dims else 0,
+            self.liv_Wm if self.liv_dims else 0,
         )
         self.Hm = max(self.bed_Hm, self.bath_Hm if bath_dims else 0) + (
-            self.liv_Hm if liv_dims else 0
+            self.liv_Hm if self.liv_dims else 0
         )
-        self._validate_living_dims()
+
+        # Inform users if dimensions were auto-adjusted
+        if getattr(self, "liv_auto_adjusted", []):
+            try:
+                from tkinter import messagebox
+                messagebox.showinfo(
+                    "Adjusted dimensions", "\n".join(self.liv_auto_adjusted)
+                )
+            except Exception:
+                print("Adjusted dimensions:", "; ".join(self.liv_auto_adjusted))
 
         # Combined plan used by legacy helpers (_cell_rect etc.)
         self.plan = GridPlan(self.Wm, self.Hm)
@@ -2815,11 +2825,21 @@ class GenerateView:
         """Ensure living room dimensions allow room connections."""
         if not self.liv_dims:
             return
-        if self.liv_dims[0] < self.bed_Wm + self.bath_Wm:
-            raise ValueError('Living room width must span bedroom and bathroom.')
+        self.liv_auto_adjusted = []
+        min_width = self.bed_Wm + self.bath_Wm
+        if self.liv_dims[0] < min_width:
+            self.liv_dims = (min_width, self.liv_dims[1])
+            self.liv_Wm = min_width
+            self.liv_auto_adjusted.append(
+                f"Living room width increased to {min_width:.2f} m to span bedroom and bathroom."
+            )
         required = max(0.60, CELL_M)
         if self.liv_dims[1] < required:
-            raise ValueError('Living room depth insufficient for door clearance.')
+            self.liv_dims = (self.liv_dims[0], required)
+            self.liv_Hm = required
+            self.liv_auto_adjusted.append(
+                f"Living room depth increased to {required:.2f} m for door clearance."
+            )
 
     # ----------------- sidebar
 

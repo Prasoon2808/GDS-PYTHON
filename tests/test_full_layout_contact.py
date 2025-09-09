@@ -15,6 +15,7 @@ from vastu_all_in_one import (
     WALL_TOP,
     WALL_BOTTOM,
     opposite_wall,
+    CELL_M,
 )
 
 from test_generate_view import make_generate_view
@@ -98,19 +99,23 @@ def test_bathroom_doors_misaligned():
 
 def test_living_room_too_narrow():
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 1.0))
-    with pytest.raises(ValueError):
-        gv._validate_living_dims()
+    gv._validate_living_dims()
+    assert gv.liv_Wm == gv.bed_Wm + gv.bath_Wm
+    assert gv.liv_auto_adjusted
 
 
 def test_living_room_too_shallow():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 0.2))
-    with pytest.raises(ValueError):
-        gv._validate_living_dims()
+    gv._validate_living_dims()
+    required = max(0.60, CELL_M)
+    assert gv.liv_Hm == pytest.approx(required)
+    assert gv.liv_auto_adjusted
 
 
 def test_living_room_dims_ok():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 1.0))
     gv._validate_living_dims()  # should not raise
+    assert not gv.liv_auto_adjusted
 
 def test_missing_bathroom_living_door():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))
