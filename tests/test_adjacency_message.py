@@ -96,10 +96,11 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
 
     monkeypatch.setattr(vastu_all_in_one, "arrange_bathroom", dummy_arrange_bathroom)
     monkeypatch.setattr(vastu_all_in_one, "arrange_livingroom", dummy_arrange_livingroom)
+    monkeypatch.setattr(vastu_all_in_one, "shares_edge", lambda a, b: False)
 
     gv._solve_and_draw()
     assert (
         gv.status.msg
-        == "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
+        == "Kitchen must share a wall with the Bathroom. Currently it does not."
     )
 

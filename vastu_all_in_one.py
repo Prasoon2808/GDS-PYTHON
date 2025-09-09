@@ -3936,18 +3936,15 @@ class GenerateView:
                         self.plan = prev_plan
                     return
 
-            if kitch_plan and bath_plan and liv_plan:
+            if kitch_plan and bath_plan:
                 share_bath = shares_edge(kitch_plan, bath_plan)
-                share_liv = shares_edge(kitch_plan, liv_plan)
-                if share_bath and share_liv:
+                if share_bath:
                     adjacency_ok = True
                     break
-                if not share_bath:
-                    regen_bath = True
-                    regen_kitch = True
-                if not share_liv:
+                regen_bath = True
+                regen_kitch = True
+                if liv_plan:
                     regen_liv = True
-                    regen_kitch = True
                 continue
             else:
                 adjacency_ok = True
@@ -3955,7 +3952,7 @@ class GenerateView:
 
         if not adjacency_ok and not failure_msg:
             self.status.set(
-                "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
+                "Kitchen must share a wall with the Bathroom. Currently it does not."
             )
             if prev_plan is not None:
                 self.plan = prev_plan
