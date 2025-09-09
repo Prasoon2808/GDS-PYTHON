@@ -65,12 +65,14 @@ def test_arrange_bathroom_deterministic_and_uses_rule_sizes():
 
 
 def test_arrange_bathroom_partial_plan_when_space_limited():
-    """When some fixtures cannot fit the room, others should still be placed."""
-    plan = arrange_bathroom(1.2, 2.0, BATH_RULES)
+    """All core fixtures are instantiated even when space is tight."""
+    with pytest.warns(UserWarning):
+        plan = arrange_bathroom(1.2, 2.0, BATH_RULES)
 
     # Tub is wider than the room; it should be omitted
     assert _find_rect(plan, "TUB") is None
 
-    # Other fixtures that fit should still appear
-    assert _find_rect(plan, "WC") is not None or _find_rect(plan, "LAV") is not None or _find_rect(plan, "SHR") is not None
+    # Core fixtures should still appear
+    for code in ("WC", "LAV", "SHR"):
+        assert _find_rect(plan, code) is not None
 

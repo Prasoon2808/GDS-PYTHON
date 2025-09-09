@@ -5,6 +5,7 @@ from math import ceil, sqrt, floor
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
+import warnings
 from ui.overlays import ColumnGridOverlay, LegendPopover
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
@@ -2498,6 +2499,17 @@ def arrange_bathroom(
             p.mark_clear(fx, fy, fw, fh, 'FRONT', code)
         return True
 
+    def _force_place(p: GridPlan, w: int, h: int, code: str) -> bool:
+        """Place ``code`` somewhere on ``p`` even if rules cannot be satisfied."""
+        for sw in range(w, 0, -1):
+            for sh in range(h, 0, -1):
+                for y in range(0, p.gh - sh + 1):
+                    for x in range(0, p.gw - sw + 1):
+                        if p.fits(x, y, sw, sh):
+                            p.place(x, y, sw, sh, code)
+                            return True
+        return False
+
     units = rules.get('units', {})
     in_m = units.get('IN_M', 0.0254)
 
@@ -2527,7 +2539,7 @@ def arrange_bathroom(
             ext = add_door_clearance(p, op, owner)
             setattr(op, 'ext_rect', ext)
 
-    # Attempt to place each fixture individually, skipping those that don't fit.
+    # Attempt to place each fixture individually; warn and force placement when needed.
 
     for tub_len in tub_lengths:
         tw = p.meters_to_cells(tub_len)
@@ -2535,22 +2547,38 @@ def arrange_bathroom(
         if _place_with_front(p, 0, p.gh - td, tw, td, 'TUB', clear['tub_front'], True):
             break
 
-    for shr_size in shr_opts:
-        sw = p.meters_to_cells(shr_size.get('w', 36) * in_m)
-        sd = p.meters_to_cells(shr_size.get('d', 36) * in_m)
+    shr_dims = [
+        (p.meters_to_cells(s.get('w', 36) * in_m),
+         p.meters_to_cells(s.get('d', 36) * in_m))
+        for s in shr_opts
+    ]
+    shr_placed = False
+    for sw, sd in shr_dims:
         if _place_with_front(p, max(0, p.gw - sw), p.gh - sd, sw, sd,
                              'SHR', clear['shr_front'], True):
+            shr_placed = True
             break
+    if not shr_placed:
+        warnings.warn('Shower could not be placed with required clearances', UserWarning)
+        sw, sd = shr_dims[0]
+        _force_place(p, sw, sd, 'SHR')
 
     ww = p.meters_to_cells(clear['wc_side'] * 2)
     wd = p.meters_to_cells(0.76)
     wc_placed = _place_with_front(p, 0, 0, ww, wd, 'WC', clear['wc_front'], False)
+    if not wc_placed:
+        warnings.warn('Water closet could not be placed with required clearances', UserWarning)
+        _force_place(p, ww, wd, 'WC')
 
     lw = p.meters_to_cells(clear['lav_side'] * 2)
     ld = p.meters_to_cells(0.6)
     gap_req = p.meters_to_cells(clear['lav_to_fixture'])
-    if (not wc_placed) or (p.gw - ww - lw >= gap_req):
-        _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False)
+    lav_placed = _place_with_front(p, p.gw - lw, 0, lw, ld, 'LAV', clear['lav_front'], False)
+    if not lav_placed:
+        warnings.warn('Lavatory could not be placed with required clearances', UserWarning)
+        _force_place(p, lw, ld, 'LAV')
+    elif wc_placed and (p.gw - ww - lw < gap_req):
+        warnings.warn('Lavatory clearance to adjacent fixture not met', UserWarning)
 
     return p
 
