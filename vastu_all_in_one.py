@@ -2517,7 +2517,6 @@ class KitchenSolver:
                 adj = self._adjacency_score(plan)
                 feats['adjacency'] = adj
                 score = dot_score(self.weights, feats)
-                score += self.weights.get('adjacency', 0.6) * adj
                 return plan, {'features': feats, 'score': score}
         return None, {'status': 'missing_appliance'}
 
