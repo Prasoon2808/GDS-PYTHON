@@ -3554,12 +3554,24 @@ class GenerateView:
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
         if self.sim2_timer: self.root.after_cancel(self.sim2_timer); self.sim2_timer=None
         self.sim_path=[]; self.sim_poly=[]; self.sim2_path=[]; self.sim2_poly=[]
-        if not self._apply_openings_from_ui():
-            self.bed_plan = None
-            self.bath_plan = None
-            self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
-            self._draw()
-            return
+        openings_ok = self._apply_openings_from_ui()
+        if not openings_ok:
+            auto_aligned = False
+            if self.liv_dims and getattr(self.bed_openings, 'door_wall', None) != WALL_RIGHT:
+                self.bed_openings.door_wall = WALL_RIGHT
+                auto_aligned = True
+                openings_ok = self._apply_openings_from_ui()
+            if auto_aligned and openings_ok:
+                self.status.set('Bedroom door auto-aligned to living room.')
+            else:
+                current_status = self.status.get() if hasattr(self.status, 'get') else getattr(self.status, 'msg', '')
+                if not current_status:
+                    self.status.set('Invalid openings; unable to generate layout.')
+                self.bed_plan = None
+                self.bath_plan = None
+                self.plan = GridPlan(self.bed_Wm, self.bed_Hm)
+                self._draw()
+                return
         bed_wall, _, _ = self.bed_openings.door_span_cells()
         bath_ok = True
         # Preserve previous plan so we can restore it on failure
