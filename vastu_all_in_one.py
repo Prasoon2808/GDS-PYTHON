@@ -2621,6 +2621,8 @@ def arrange_livingroom(
     sofa_dep = furn.get('sofas', {}).get('depth_m_range', [0.9])[0]
     side_w = furn.get('end_tables', {}).get('width_m_range', [0.3])[0]
     side_d = furn.get('end_tables', {}).get('depth_m_range', [0.4])[0]
+    chair_w = furn.get('straight_chairs', {}).get('width_m_range', [0.5])[0]
+    chair_d = furn.get('straight_chairs', {}).get('depth_m_range', [0.5])[0]
 
     sofa_to_coffee = tables.get('typical_distance_sofa_front_to_coffee_edge_m', [0.45])[0]
     lane = max(
@@ -2666,6 +2668,19 @@ def arrange_livingroom(
     cy = sd + gap
     coffee_placed = _place_with_clear(p, cx, cy, cw, cd, 'CTAB', front_m=lane, against_top=False)
 
+    # Pair of chairs facing the sofa beyond the coffee table
+    if coffee_placed:
+        chw = p.meters_to_cells(chair_w)
+        chd = p.meters_to_cells(chair_d)
+        aisle = p.meters_to_cells(lane)
+        gap_between = p.meters_to_cells(0.5)
+        total_w = 2 * chw + gap_between
+        chy = cy + cd + aisle
+        if chy + chd <= p.gh and total_w <= p.gw:
+            chx = max(0, (p.gw - total_w) // 2)
+            _place_with_clear(p, chx, chy, chw, chd, 'CHAR', against_top=False)
+            _place_with_clear(p, chx + chw + gap_between, chy, chw, chd, 'CHAR', against_top=False)
+
     # Rug covering the conversation area (recorded as a clearzone)
     if coffee_placed:
         rx = max(0, min(sx, cx) - p.meters_to_cells(0.1))
@@ -2690,6 +2705,7 @@ PALETTE.setdefault('SOFA', '#86e3ce')
 PALETTE.setdefault('CTAB', '#d0f4ea')  # coffee table
 PALETTE.setdefault('STAB', '#a1c6ea')  # side table
 PALETTE.setdefault('RUG',  '#f6d186')
+PALETTE.setdefault('CHAR', '#c4b7cb')  # chair
 
 # Dining elements (color family distinct from LR)
 PALETTE.setdefault('DTAB',   '#ffb3c1')  # dining table
@@ -2718,6 +2734,7 @@ ITEM_LABELS = {
     'CTAB': 'Coffee Table',
     'STAB': 'Side Table',
     'RUG': 'Rug',
+    'CHAR': 'Chair',
     'DTAB': 'Dining Table',
     'DCHAIR': 'Dining Chair',
     'DSIDE': 'Sideboard',
@@ -2739,7 +2756,7 @@ HUMAN2_COLOR='#ffdd55'
 class GenerateView:
     BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
-    LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'DTAB', 'DCHAIR', 'DSIDE'}
+    LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
 
     def __init__(
         self,
