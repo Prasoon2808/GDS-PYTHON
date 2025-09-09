@@ -1177,9 +1177,9 @@ class AreaDialogCombined(tk.Toplevel):
     def __init__(self, parent: tk.Misc, mode_label: str):
         super().__init__(parent)
         self.title('Room Inputs')
-        self.transient(parent); self.grab_set(); self.resizable(False, False)
+        self.transient(parent); self.grab_set(); self.resizable(True, True)
         self.result=None
-        w,h=640,880; self._center(parent,w,h)
+        w,h=640,1020; self._center(parent,w,h)
         f=ttk.Frame(self, padding=24); f.pack(fill=tk.BOTH, expand=True)
         ttk.Label(f, text=f'{mode_label}: set room inputs', font=('SF Pro Text', 14, 'bold')).pack(anchor='w')
 
