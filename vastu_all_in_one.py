@@ -3643,7 +3643,7 @@ class GenerateView:
             else:
                 kitch_plan = None
 
-        left_gw = bed_plan.gw
+        left_gw = max(bed_plan.gw, liv_plan.gw if liv_plan else 0)
         right_gw = max(
             bath_plan.gw if bath_plan else 0,
             kitch_plan.gw if kitch_plan else 0,
@@ -4789,7 +4789,7 @@ class GenerateView:
         # Arrange plans in a 2x2 grid:
         # [bed][bath]
         # [liv][kitch]
-        left_gw = self.bed_plan.gw
+        left_gw = max(self.bed_plan.gw, self.liv_plan.gw if has_liv else 0)
         right_gw = max(
             self.bath_plan.gw if has_bath else 0,
             self.kitch_plan.gw if has_kitch else 0,
