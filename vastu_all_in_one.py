@@ -2787,6 +2787,18 @@ PALETTE.setdefault('SHR', '#a3d5ff')
 PALETTE.setdefault('TUB', '#fff3b0')
 PALETTE.setdefault('LAV', '#c5e1a5')
 
+# Kitchen elements
+PALETTE.setdefault('SINK',  '#add8e6')
+PALETTE.setdefault('COOK',  '#ffcccb')
+PALETTE.setdefault('REFR',  '#b0e0e6')
+PALETTE.setdefault('DW',    '#ffe4b5')
+PALETTE.setdefault('ISLN',  '#e6e6fa')
+PALETTE.setdefault('BASE',  '#deb887')
+PALETTE.setdefault('WALL',  '#f5deb3')
+PALETTE.setdefault('HOOD',  '#d8bfd8')
+PALETTE.setdefault('OVEN',  '#ffc0cb')
+PALETTE.setdefault('MICRO', '#dda0dd')
+
 ITEM_LABELS = {
     'BED': 'Bed',
     'BST': 'Night Table',
@@ -2807,7 +2819,17 @@ ITEM_LABELS = {
     'DTAB': 'Dining Table',
     'DCHAIR': 'Dining Chair',
     'DSIDE': 'Sideboard',
-    'CHEST': 'Chest'
+    'CHEST': 'Chest',
+    'SINK': 'Sink',
+    'COOK': 'Cooktop',
+    'REFR': 'Refrigerator',
+    'DW': 'Dishwasher',
+    'ISLN': 'Island',
+    'BASE': 'Base Cabinet',
+    'WALL': 'Wall Cabinet',
+    'HOOD': 'Range Hood',
+    'OVEN': 'Oven',
+    'MICRO': 'Microwave'
 }
 
 
@@ -2826,6 +2848,7 @@ class GenerateView:
     BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
     LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
+    KITCH_CODES = {'SINK', 'COOK', 'REFR', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
 
     def __init__(
         self,
@@ -4181,13 +4204,20 @@ class GenerateView:
 
 
         comp = self._hit_component(e.x, e.y)
-        if comp and comp[4] in (self.BED_CODES | self.BATH_CODES | self.LIV_CODES):
+        if comp and comp[4] in (
+            self.BED_CODES
+            | self.BATH_CODES
+            | self.LIV_CODES
+            | self.KITCH_CODES
+        ):
             x, y, w, h = comp[:4]
             code = comp[4]
             if code in self.BATH_CODES:
                 room = 'bath'
             elif code in self.LIV_CODES:
                 room = 'living'
+            elif code in self.KITCH_CODES:
+                room = 'kitchen'
             else:
                 room = 'bed'
             self.selected = {'rect': [x, y, w, h], 'code': code}
