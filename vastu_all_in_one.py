@@ -2485,7 +2485,10 @@ class KitchenSolver:
         self.rng = rng
         self.weights = weights
         self.book = book
-        self.c = KITCHEN_BOOK['CLEAR']
+        # Allow callers to override clearance distances by supplying a custom
+        # ``book`` mapping with a ``CLEAR`` section.  Falling back to an empty
+        # mapping keeps behavior consistent with the default catalog.
+        self.c = self.book.get('CLEAR', {})
 
     def run(self,
             appliance_sets: Optional[List[Tuple[str, ...]]] = None,
