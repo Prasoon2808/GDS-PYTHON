@@ -2965,6 +2965,7 @@ class GenerateView:
         room_label: str = 'Bedroom',
         bath_dims: Optional[Tuple[float, float]] = None,
         liv_dims: Optional[Tuple[float, float]] = None,
+        kitch_dims: Optional[Tuple[float, float]] = None,
         pack_side=tk.LEFT,
         on_back=None,
     ):
@@ -2987,19 +2988,32 @@ class GenerateView:
             self.liv_Wm = self.liv_Hm = 0.0
         self._validate_living_dims()
 
-        # Maintain separate plans for bedroom, bathroom and living room.
+        self.kitch_dims = kitch_dims
+        if kitch_dims:
+            kw, kh = kitch_dims
+            self.kitch_Wm = kw; self.kitch_Hm = kh
+        else:
+            self.kitch_Wm = self.kitch_Hm = 0.0
+
+        # Maintain separate plans for bedroom, bathroom, living room and kitchen.
         self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
         self.bath_plan = GridPlan(self.bath_Wm, self.bath_Hm) if bath_dims else None
         self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if self.liv_dims else None
+        self.kitch_plan = GridPlan(self.kitch_Wm, self.kitch_Hm) if self.kitch_dims else None
 
         # Overall dims remain fixed for combined plan
-        self.Wm = max(
-            self.bed_Wm + (self.bath_Wm if bath_dims else 0),
-            self.liv_Wm if self.liv_dims else 0,
+        top_w = self.bed_Wm + (self.bath_Wm if bath_dims else 0)
+        bottom_w = (
+            (self.liv_Wm if self.liv_dims else 0)
+            + (self.kitch_Wm if self.kitch_dims else 0)
         )
-        self.Hm = max(self.bed_Hm, self.bath_Hm if bath_dims else 0) + (
-            self.liv_Hm if self.liv_dims else 0
+        self.Wm = max(top_w, bottom_w)
+        top_h = max(self.bed_Hm, self.bath_Hm if bath_dims else 0)
+        bottom_h = max(
+            self.liv_Hm if self.liv_dims else 0,
+            self.kitch_Hm if self.kitch_dims else 0,
         )
+        self.Hm = top_h + bottom_h
 
         # Inform users if dimensions were auto-adjusted
         if getattr(self, "liv_auto_adjusted", []):
@@ -3035,6 +3049,11 @@ class GenerateView:
         )
         if self.liv_openings:
             self.liv_openings.swing_depth = 0.60
+        self.kitch_openings = (
+            Openings(self.kitch_plan) if kitch_dims else None
+        )
+        if self.kitch_openings:
+            self.kitch_openings.swing_depth = 0.60
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
@@ -3252,14 +3271,23 @@ class GenerateView:
         sticky = []
         bath_sticky = []
         liv_sticky = []
+        kitch_sticky = []
         if getattr(self, 'selected_locked', False) and getattr(self, 'selected', None):
             x, y, w, h = self.selected['rect']
             code = self.selected['code']
             wall = self._infer_wall(x, y, w, h)
             bed_gw = getattr(self.bed_plan, 'gw', 0)
             bath_gw = self.bath_plan.gw if getattr(self, 'bath_plan', None) else 0
-            if getattr(self, 'liv_plan', None) and x >= bed_gw + bath_gw:
-                liv_sticky.append((code, x - bed_gw - bath_gw, y, w, h, wall))
+            top_gh = max(
+                getattr(self.bed_plan, 'gh', 0),
+                self.bath_plan.gh if getattr(self, 'bath_plan', None) else 0,
+            )
+            liv_gw = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
+            if y >= top_gh:
+                if getattr(self, 'kitch_plan', None) and x >= liv_gw:
+                    kitch_sticky.append((code, x - liv_gw, y - top_gh, w, h, wall))
+                else:
+                    liv_sticky.append((code, x, y - top_gh, w, h, wall))
             elif getattr(self, 'bath_plan', None) and x >= bed_gw:
                 bath_sticky.append((code, x - bed_gw, y, w, h, wall))
             else:
@@ -3267,6 +3295,7 @@ class GenerateView:
         self._sticky_items = sticky  # only keep the locked item (if any)
         self._sticky_bath_items = bath_sticky
         self._sticky_liv_items = liv_sticky
+        self._sticky_kitch_items = kitch_sticky
         # (2) RUN THE SOLVER to regenerate
         if not self._apply_openings_from_ui():
             return
@@ -3497,13 +3526,44 @@ class GenerateView:
                 self._add_door_clearance(liv_plan, 'DOOR', self.liv_openings)
             else:
                 liv_plan = None
+        # Kitchen generation
+        kitch_plan = None
+        if getattr(self, 'kitch_dims', None):
+            kitch_plan = GridPlan(self.kitch_dims[0], self.kitch_dims[1])
+            if self.kitch_openings:
+                self.kitch_openings.p = kitch_plan
+            ksolver = KitchenSolver(
+                kitch_plan,
+                self.kitch_openings,
+                random.Random(),
+                getattr(self, 'weights', {}),
+            )
+            kbest, _ = ksolver.run()
+            if isinstance(kbest, GridPlan):
+                if self.kitch_openings:
+                    dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
+                    for j in range(dy, dy + dh):
+                        for i in range(dx, dx + dw):
+                            kbest.occ[j][i] = 'DOOR'
+                kitch_sticky = getattr(self, '_sticky_kitch_items', [])
+                for (code, x, y, w, h, _wall) in kitch_sticky:
+                    kbest.clear(x, y, w, h)
+                    kbest.place(x, y, w, h, code)
+                kbest.clearzones = merge_clearances(kbest.clearzones)
+                kitch_plan = kbest
+            else:
+                kitch_plan = None
 
         top_gw = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
         top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
         liv_gw = liv_plan.gw if liv_plan else 0
         liv_gh = liv_plan.gh if liv_plan else 0
-        total_gw = max(top_gw, liv_gw)
-        total_gh = top_gh + liv_gh
+        kitch_gw = kitch_plan.gw if kitch_plan else 0
+        kitch_gh = kitch_plan.gh if kitch_plan else 0
+        bottom_gw = liv_gw + kitch_gw
+        bottom_gh = max(liv_gh, kitch_gh)
+        total_gw = max(top_gw, bottom_gw)
+        total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
         bed_plan.column_grid = col_grid
         bed_plan.x_offset = 0
@@ -3516,6 +3576,10 @@ class GenerateView:
             liv_plan.column_grid = col_grid
             liv_plan.x_offset = 0
             liv_plan.y_offset = top_gh
+        if kitch_plan:
+            kitch_plan.column_grid = col_grid
+            kitch_plan.x_offset = liv_gw
+            kitch_plan.y_offset = top_gh
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext
@@ -3526,11 +3590,14 @@ class GenerateView:
             bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
         if liv_plan:
             liv_plan.clearzones = merge_clearances(liv_plan.clearzones)
+        if kitch_plan:
+            kitch_plan.clearzones = merge_clearances(kitch_plan.clearzones)
 
         # assign plans and combine with maximal-contact offsets
         self.bed_plan = bed_plan
         self.bath_plan = bath_plan
         self.liv_plan = liv_plan
+        self.kitch_plan = kitch_plan
         self._combine_plans()
 
         self.meta = meta
@@ -3659,10 +3726,14 @@ class GenerateView:
         bath_gh = self.bath_plan.gh if self.bath_plan else 0
         liv_gw = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
         liv_gh = self.liv_plan.gh if getattr(self, 'liv_plan', None) else 0
+        kitch_gw = self.kitch_plan.gw if getattr(self, 'kitch_plan', None) else 0
+        kitch_gh = self.kitch_plan.gh if getattr(self, 'kitch_plan', None) else 0
         top_w = bed_gw + bath_gw
         top_h = max(bed_gh, bath_gh)
-        total_w = max(top_w, liv_gw)
-        total_h = top_h + liv_gh
+        bottom_w = liv_gw + kitch_gw
+        bottom_h = max(liv_gh, kitch_gh)
+        total_w = max(top_w, bottom_w)
+        total_h = top_h + bottom_h
         cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
         scale = min((cw - 2 * margin) / max(1, total_w),
@@ -3684,8 +3755,11 @@ class GenerateView:
         bed_oy = oy + (top_h - bed_gh) * scale
         bath_ox = ox + bed_gw * scale
         bath_oy = oy + (top_h - bath_gh) * scale
+        bottom_oy = oy + top_h * scale
         liv_ox = ox
-        liv_oy = oy + top_h * scale
+        liv_oy = bottom_oy + (bottom_h - liv_gh) * scale
+        kitch_ox = ox + liv_gw * scale
+        kitch_oy = bottom_oy + (bottom_h - kitch_gh) * scale
         wall_width = max(4, int(scale * 0.12)) * 3
         # Make door/window outlines thicker for better visibility
         open_width = max(2, wall_width // 2)
@@ -3752,6 +3826,18 @@ class GenerateView:
                     True,
                     'living',
                 )
+        if getattr(self, 'kitch_plan', None):
+            self._draw_all_layers(
+                self.kitch_plan,
+                self.kitch_openings,
+                kitch_ox,
+                kitch_oy,
+                scale,
+                wall_width,
+                open_width,
+                True,
+                'kitchen',
+            )
 
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
@@ -4568,20 +4654,29 @@ class GenerateView:
         plans = [self.bed_plan]
         has_bath = bool(self.bath_plan)
         has_liv = bool(getattr(self, 'liv_plan', None))
+        has_kitch = bool(getattr(self, 'kitch_plan', None))
         if has_bath:
             plans.append(self.bath_plan)
         if has_liv:
             plans.append(self.liv_plan)
+        if has_kitch:
+            plans.append(self.kitch_plan)
         if len(plans) == 1:
             self.plan = self.bed_plan
             return
 
         top_gw = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
         top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
-        liv_gw = self.liv_plan.gw if has_liv else 0
-        liv_gh = self.liv_plan.gh if has_liv else 0
-        total_gw = max(top_gw, liv_gw)
-        total_gh = top_gh + liv_gh
+        bottom_gw = (
+            (self.liv_plan.gw if has_liv else 0)
+            + (self.kitch_plan.gw if has_kitch else 0)
+        )
+        bottom_gh = max(
+            self.liv_plan.gh if has_liv else 0,
+            self.kitch_plan.gh if has_kitch else 0,
+        )
+        total_gw = max(top_gw, bottom_gw)
+        total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
 
         self.bed_plan.column_grid = col_grid
@@ -4595,6 +4690,12 @@ class GenerateView:
             self.liv_plan.column_grid = col_grid
             self.liv_plan.x_offset = 0
             self.liv_plan.y_offset = top_gh
+        if has_kitch:
+            self.kitch_plan.column_grid = col_grid
+            self.kitch_plan.x_offset = (
+                self.liv_plan.gw if has_liv else 0
+            )
+            self.kitch_plan.y_offset = top_gh
 
         # ``GridPlan`` derives its internal grid dimensions from the supplied
         # physical size (``Wm``/``Hm``).  When the per-room plans use widths or
@@ -4626,11 +4727,14 @@ class GenerateView:
         """Synchronize per-room plans with current combined plan."""
         has_bath = bool(self.bath_plan)
         has_liv = bool(getattr(self, 'liv_plan', None))
-        if has_bath or has_liv:
+        has_kitch = bool(getattr(self, 'kitch_plan', None))
+        if has_bath or has_liv or has_kitch:
             bed = GridPlan(self.bed_Wm, self.bed_Hm)
             bath = GridPlan(self.bath_Wm, self.bath_Hm) if has_bath else None
             liv = GridPlan(self.liv_Wm, self.liv_Hm) if has_liv else None
+            kitch = GridPlan(self.kitch_Wm, self.kitch_Hm) if has_kitch else None
             top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
+            liv_gw = self.liv_plan.gw if has_liv else 0
             for j in range(self.plan.gh):
                 for i in range(self.plan.gw):
                     code = self.plan.occ[j][i]
@@ -4640,27 +4744,37 @@ class GenerateView:
                         bed.occ[j][i] = code
                     elif has_bath and j < top_gh and i >= self.bed_plan.gw:
                         bath.occ[j][i - self.bed_plan.gw] = code
-                    elif has_liv and j >= top_gh:
-                        liv.occ[j - top_gh][i] = code
+                    elif j >= top_gh:
+                        if has_liv and i < liv_gw:
+                            liv.occ[j - top_gh][i] = code
+                        elif has_kitch:
+                            kitch.occ[j - top_gh][i - liv_gw] = code
             for x, y, w, h, kind, owner in self.plan.clearzones:
                 if y + h <= top_gh and x + w <= self.bed_plan.gw:
                     bed.clearzones.append((x, y, w, h, kind, owner))
                 elif has_bath and y + h <= top_gh and x >= self.bed_plan.gw:
                     bath.clearzones.append((x - self.bed_plan.gw, y, w, h, kind, owner))
-                elif has_liv and y >= top_gh:
-                    liv.clearzones.append((x, y - top_gh, w, h, kind, owner))
+                elif y >= top_gh:
+                    if has_liv and x + w <= liv_gw:
+                        liv.clearzones.append((x, y - top_gh, w, h, kind, owner))
+                    elif has_kitch:
+                        kitch.clearzones.append((x - liv_gw, y - top_gh, w, h, kind, owner))
             bed.clearzones = merge_clearances(bed.clearzones)
             if has_bath:
                 bath.clearzones = merge_clearances(bath.clearzones)
             if has_liv:
                 liv.clearzones = merge_clearances(liv.clearzones)
+            if has_kitch:
+                kitch.clearzones = merge_clearances(kitch.clearzones)
             self.bed_plan = bed
             self.bath_plan = bath
             self.liv_plan = liv
+            self.kitch_plan = kitch
         else:
             self.bed_plan = self.plan
-
-
+            self.bath_plan = None
+            self.liv_plan = None
+            self.kitch_plan = None
     def _solve_and_draw_preserve(self):
         """Rebuild the plan ONLY from previously placed items, no new furniture."""
         if self.sim_timer: self.root.after_cancel(self.sim_timer); self.sim_timer=None
