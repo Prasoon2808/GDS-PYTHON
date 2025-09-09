@@ -14,6 +14,7 @@ from vastu_all_in_one import (
     WALL_RIGHT,
     WALL_TOP,
     WALL_BOTTOM,
+    opposite_wall,
 )
 
 from test_generate_view import make_generate_view
@@ -48,6 +49,7 @@ def test_combined_plan_living_contact():
 
     assert gv._apply_openings_from_ui()
 
+    pre_wall = gv.bath_liv_openings.door_wall
     GenerateView._combine_plans(gv)
 
     assert gv.liv_plan.y_offset == max(gv.bed_plan.gh, gv.bath_plan.gh)
@@ -55,7 +57,8 @@ def test_combined_plan_living_contact():
     assert gv.liv_plan.gw >= gv.bed_plan.gw + gv.bath_plan.gw
     assert gv.bed_openings.door_wall == WALL_BOTTOM
     assert gv.bath_openings.door_wall == WALL_LEFT
-    assert gv.bath_liv_openings.door_wall == WALL_BOTTOM
+    assert gv.bath_liv_openings.door_wall == pre_wall
+    assert opposite_wall(pre_wall) == WALL_TOP
 
 
 def test_bedroom_door_misaligned():
