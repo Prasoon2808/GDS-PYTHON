@@ -27,7 +27,7 @@ def _alignment_stub_factory(gv):
         if gv.bath_openings.door_wall != WALL_LEFT:
             gv.status.set('Bathroom must expose door to bedroom.')
             return False
-        if gv.bath_liv_openings.door_wall != WALL_BOTTOM:
+        if gv.bath_liv_openings is None or gv.bath_liv_openings.door_wall != WALL_BOTTOM:
             gv.status.set('Bathroom must expose door to living room.')
             return False
         return True
@@ -87,6 +87,18 @@ def test_bathroom_doors_misaligned():
     gv.bed_openings.door_wall = WALL_BOTTOM
     gv.bath_openings.door_wall = WALL_LEFT
     gv.bath_liv_openings.door_wall = WALL_LEFT
+
+    assert not gv._apply_openings_from_ui()
+    assert gv.status.msg == 'Bathroom must expose door to living room.'
+
+
+def test_missing_bathroom_living_door():
+    gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))
+    gv.bath_liv_openings = None
+    gv._apply_openings_from_ui = _alignment_stub_factory(gv)
+
+    gv.bed_openings.door_wall = WALL_BOTTOM
+    gv.bath_openings.door_wall = WALL_LEFT
 
     assert not gv._apply_openings_from_ui()
     assert gv.status.msg == 'Bathroom must expose door to living room.'

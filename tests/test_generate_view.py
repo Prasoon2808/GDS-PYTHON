@@ -524,7 +524,7 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
     gv.bath_openings.door_wall = WALL_LEFT
     gv.bath_openings.door_center = 1.0
     gv.bath_openings.door_width = 0.9
-    gv.bath_liv_openings.door_wall = WALL_RIGHT
+    gv.bath_liv_openings.door_wall = WALL_BOTTOM
     gv.bath_liv_openings.door_center = 1.2
     gv.bath_liv_openings.door_width = 0.9
     gv.liv_openings.door_wall = WALL_BOTTOM
@@ -543,7 +543,7 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
             assert gv.bath_plan.occ[j][i] == 'DOOR'
 
     shared_op = Openings(gv.liv_plan)
-    shared_op.door_wall = WALL_LEFT
+    shared_op.door_wall = WALL_TOP
     shared_op.door_center = gv.bath_liv_openings.door_center
     shared_op.door_width = gv.bath_liv_openings.door_width
     shared_op.swing_depth = gv.bath_liv_openings.swing_depth
