@@ -196,7 +196,7 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
     assert isinstance(gv.bath_plan, GridPlan)
 
 
-def test_bedroom_door_not_on_shared_wall_auto_aligns(monkeypatch):
+def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
     import vastu_all_in_one
 
     class DummyBedroomSolver:
@@ -236,44 +236,8 @@ def test_bedroom_door_not_on_shared_wall_auto_aligns(monkeypatch):
 
     gv._solve_and_draw()
 
-    assert gv.bed_openings.door_wall == WALL_RIGHT
-    assert 'BED' in GenerateView._plan_codes(gv.bed_plan)
-
-
-def test_incomplete_openings_auto_align(monkeypatch):
-    import vastu_all_in_one
-
-    class DummyBedroomSolver:
-        def __init__(self, plan, *args, **kwargs):
-            self.plan = plan
-
-        def run(self):
-            self.plan.place(0, 0, 1, 1, 'BED')
-            return self.plan, {
-                'score': 1.0,
-                'coverage': 0.5,
-                'paths_ok': True,
-                'reach_windows': True,
-            }
-
-    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
-        p = GridPlan(w, h)
-        if openings:
-            add_door_clearance(p, openings, 'DOOR')
-        if secondary_openings:
-            secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
-        return p
-
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-
-    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
-    gv.bed_openings.door_wall = None
-
-    gv._solve_and_draw()
-
-    assert gv.bed_openings.door_wall == WALL_RIGHT
-    assert 'BED' in GenerateView._plan_codes(gv.bed_plan)
+    assert gv.status.msg == 'Bedroom door must be on shared wall.'
+    assert getattr(gv, 'bed_plan', None) is None
 
 
 def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
