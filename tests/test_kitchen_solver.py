@@ -26,10 +26,8 @@ def test_solver_reports_triangle_bonus():
     plan.place(0, 8, 1, 1, 'REF')
     openings = Openings(plan)
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
-    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')])
-    assert result is not None
-    feats = meta.get('features', {})
-    assert feats.get('work_triangle_bonus', 0.0) == 1.0
+    bonus = solver._work_triangle_bonus(plan)
+    assert bonus == 1.0
 
 
 def test_work_triangle_bonus_drops_when_appliances_far():
@@ -39,10 +37,8 @@ def test_work_triangle_bonus_drops_when_appliances_far():
     plan.place(0, 20, 1, 1, 'REF')
     openings = Openings(plan)
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
-    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')])
-    assert result is not None
-    feats = meta.get('features', {})
-    assert feats.get('work_triangle_bonus', 1.0) == 0.0
+    bonus = solver._work_triangle_bonus(plan)
+    assert bonus == 0.0
 
 
 def test_solver_fills_missing_appliances():

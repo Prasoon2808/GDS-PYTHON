@@ -1947,7 +1947,9 @@ class BedroomSolver:
                     if not res:
                         continue
                     base_score = dot_score(self.weights, feats)
-                    adj = self._adjacency_score(res)
+                    adj, ok = self._adjacency_score(res)
+                    if not ok:
+                        continue
                     feats['adjacency'] = adj
                     base_score += self.weights.get('adjacency', 0.6) * adj
                     if self.mlp:
@@ -2442,42 +2444,76 @@ class BedroomSolver:
         ok = (coverage>0.60 and reach_windows)
         return ok, coverage, reach_windows
 
-    def _adjacency_score(self, plan:GridPlan) -> float:
-        """
-        Coarse adjacency score using simple matrix; higher is better.
+    def _adjacency_score(self, plan:GridPlan) -> Tuple[float, bool]:
+        """Return adjacency score and validity flag.
+
+        Each required adjacency has an explicit distance threshold measured in
+        grid cells.  If any pair exceeds its threshold the layout is flagged as
+        invalid and a score of ``0.0`` is returned.
         """
         A = {
-            'BED': {'BST': +2.0, 'WRD': +0.8, 'DRS': +0.6, 'DESK': +0.4},
-            'DESK': {'WIN': +1.5},  # desk near windows
+            'BED': {
+                'BST': (+2.0, 1),   # side-table must be adjacent
+                'WRD': (+0.8, 2),   # wardrobe within two cells
+                'DRS': (+0.6, 3),   # dresser reasonably close
+                'DESK': (+0.4, 2),  # desk near bed
+            },
+            'DESK': {
+                'WIN': (+1.5, 1),   # desk near window
+            },
         }
+
         def boxes(code):
             comps = components_by_code(plan, code)
             if comps:
-                x,y,w,h,_ = comps[0]
-                return (x,y,x+w-1,y+h-1)
+                x, y, w, h, _ = comps[0]
+                return (x, y, x + w - 1, y + h - 1)
             return None
+
         score = 0.0
         bbed = boxes('BED')
         if bbed:
             bx0, by0, bx1, by1 = bbed
-            for other, wt in A['BED'].items():
+            for other, (wt, thresh) in A['BED'].items():
                 b = boxes(other)
-                if not b: continue
+                if not b:
+                    continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - bx1, bx0 - ox1))
                 dy = max(0, max(oy0 - by1, by0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
+
         # desk near window
         bdesk = boxes('DESK')
         if bdesk:
             dx0, dy0, dx1, dy1 = bdesk
+            best_dist = None
+            gw, gh = plan.gw, plan.gh
             for wall, s, L in self.op.window_spans_cells():
-                if wall in (0,2):
-                    a0, a1 = dx0, dx1
-                    b0, b1 = s, s+L
-                    if not (a1<b0 or b1<a0):
-                        score += A['DESK']['WIN']; break
-        return score
+                if wall in (0, 2):
+                    wx0, wx1 = s, s + L - 1
+                    wx_dist = max(0, max(wx0 - dx1, dx0 - wx1))
+                    wy = 0 if wall == 0 else gh - 1
+                    wy_dist = max(0, max(wy - dy1, dy0 - wy))
+                    dist = wx_dist + wy_dist
+                else:
+                    wy0, wy1 = s, s + L - 1
+                    wy_dist = max(0, max(wy0 - dy1, dy0 - wy1))
+                    wx = 0 if wall == 3 else gw - 1
+                    wx_dist = max(0, max(wx - dx1, dx0 - wx))
+                    dist = wx_dist + wy_dist
+                if best_dist is None or dist < best_dist:
+                    best_dist = dist
+            if best_dist is not None:
+                wt, thresh = A['DESK']['WIN']
+                if best_dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + best_dist))
+
+        return score, True
 
 
 class KitchenSolver:
@@ -2521,7 +2557,9 @@ class KitchenSolver:
                     break
             if success:
                 feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
-                adj = self._adjacency_score(plan)
+                adj, ok = self._adjacency_score(plan)
+                if not ok:
+                    continue
                 feats['adjacency'] = adj
                 score = dot_score(self.weights, feats)
                 return plan, {'features': feats, 'score': score}
@@ -2576,10 +2614,11 @@ class KitchenSolver:
         perimeter = d1 + d2 + d3
         return 1.0 if 4.0 <= perimeter <= 7.0 else 0.0
 
-    def _adjacency_score(self, plan: GridPlan) -> float:
+    def _adjacency_score(self, plan: GridPlan) -> Tuple[float, bool]:
+        """Return adjacency score and validity flag for kitchen layouts."""
         A = {
-            'SINK': {'REF': +1.0, 'COOK': +1.0},
-            'COOK': {'REF': +0.5},
+            'SINK': {'REF': (+1.0, 5), 'COOK': (+1.0, 4)},
+            'COOK': {'REF': (+0.5, 5)},
         }
 
         def boxes(code):
@@ -2593,28 +2632,34 @@ class KitchenSolver:
         bsink = boxes('SINK')
         if bsink:
             sx0, sy0, sx1, sy1 = bsink
-            for other, wt in A['SINK'].items():
+            for other, (wt, thresh) in A['SINK'].items():
                 b = boxes(other)
                 if not b:
                     continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - sx1, sx0 - ox1))
                 dy = max(0, max(oy0 - sy1, sy0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
 
         bcook = boxes('COOK')
         if bcook:
             cx0, cy0, cx1, cy1 = bcook
-            for other, wt in A.get('COOK', {}).items():
+            for other, (wt, thresh) in A.get('COOK', {}).items():
                 b = boxes(other)
                 if not b:
                     continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - cx1, cx0 - ox1))
                 dy = max(0, max(oy0 - cy1, cy0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
 
-        return score
+        return score, True
 
 # -----------------------
 # Clearance merging
