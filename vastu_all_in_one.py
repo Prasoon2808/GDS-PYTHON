@@ -3038,12 +3038,16 @@ class GenerateView:
         # Bedroom doors retain the previous swing depth
         self.bed_openings.swing_depth = 0.60
         self.bed_openings.door_wall = WALL_RIGHT
+        # First window defaults to the top wall
+        self.bed_openings.windows[0][0] = WALL_TOP
         self.openings = self.bed_openings  # maintain compatibility for bedroom ops
         self.bath_openings = (
             Openings(self.bath_plan) if bath_dims else None
         )
         if self.bath_openings:
             self.bath_openings.swing_depth = CELL_M
+            # First window defaults to the top wall
+            self.bath_openings.windows[0][0] = WALL_TOP
         self.bath_liv_openings = (
             Openings(self.bath_plan) if bath_dims and liv_dims else None
         )
@@ -3058,7 +3062,28 @@ class GenerateView:
             Openings(self.kitch_plan) if kitch_dims else None
         )
         if self.kitch_openings:
-            self.kitch_openings.swing_depth = 0.60
+            # Populate door/window defaults from rules and default window wall
+            door_def = (
+                KITCH_RULES.get('openings', {})
+                .get('DOOR', {})
+                .get('default', {})
+            )
+            self.kitch_openings.door_width = door_def.get(
+                'w', self.kitch_openings.door_width
+            )
+            self.kitch_openings.swing_depth = door_def.get(
+                'swing_clear', self.kitch_openings.swing_depth
+            )
+            win_def = (
+                KITCH_RULES.get('openings', {})
+                .get('WIN', {})
+                .get('default', {})
+            )
+            # First window defaults to the top wall
+            self.kitch_openings.windows[0][0] = WALL_TOP
+            self.kitch_openings.windows[0][2] = win_def.get(
+                'w', self.kitch_openings.windows[0][2]
+            )
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
