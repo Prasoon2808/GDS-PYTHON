@@ -58,3 +58,34 @@ class ColumnGridOverlay:
                 )
                 self.canvas.create_text(x, y, text=text, fill="#555", tags=("overlay",))
         self.canvas.tag_lower("grid")
+
+
+class DoorLegendOverlay:
+    """Simple legend showing the color used to draw doors."""
+
+    def __init__(self, canvas, color: str, label: str = "Door"):
+        self.canvas = canvas
+        self.color = color
+        self.label = label
+
+    def redraw(self) -> None:
+        self.canvas.delete("legend")
+        size = 20
+        x0, y0 = 10, 10
+        self.canvas.create_rectangle(
+            x0,
+            y0,
+            x0 + size,
+            y0 + size,
+            fill=self.color,
+            outline="#000",
+            tags=("legend",),
+        )
+        self.canvas.create_text(
+            x0 + size + 6,
+            y0 + size / 2,
+            text=self.label,
+            anchor="w",
+            fill="#000",
+            tags=("legend",),
+        )
