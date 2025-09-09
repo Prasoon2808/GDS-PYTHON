@@ -22,7 +22,7 @@ from vastu_all_in_one import (
     CELL_M,
     DOOR_FILL,
 )
-from ui.overlays import ColumnGridOverlay
+from ui.overlays import ColumnGridOverlay, LegendPopover
 
 
 class DummyStatus:
@@ -622,10 +622,10 @@ def test_bedroom_door_drawn_with_bathroom(monkeypatch):
     calls = {}
     orig = gv._draw_room_openings
 
-    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door):
+    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door, room_name='bed'):
         if openings is gv.bed_openings:
             calls['bed'] = draw_door
-        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door)
+        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door, room_name)
 
     gv._draw_room_openings = spy
     gv._solve_and_draw()
@@ -679,6 +679,118 @@ def test_door_rectangle_present(monkeypatch):
         if i.get('fill') == DOOR_FILL and 'opening' in i.get('tags', ())
     ]
     assert door_items, 'Door rectangle not found'
+
+
+def test_opening_popover_shows_details(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            return self.plan, {
+                'score': 1.0,
+                'coverage': 0.5,
+                'paths_ok': True,
+                'reach_windows': True,
+            }
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
+
+    class TagCanvas(BoundingCanvas):
+        def __init__(self, width=200, height=200):
+            super().__init__(width, height)
+            self._id = 0
+
+        def create_line(self, *args, **kwargs):
+            self._id += 1
+            self.items.append({'id': self._id, 'type': 'line', 'tags': kwargs.get('tags', ()), **{'bbox': (min(args[0], args[2]), min(args[1], args[3]), max(args[0], args[2]), max(args[1], args[3]))}})
+            return self._id
+
+        def create_rectangle(self, x0, y0, x1, y1, **kwargs):
+            self._id += 1
+            self.items.append({'id': self._id, 'type': 'rect', 'bbox': (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), 'tags': kwargs.get('tags', ()), **kwargs})
+            return self._id
+
+        def create_oval(self, x0, y0, x1, y1, **kwargs):
+            self._id += 1
+            self.items.append({'id': self._id, 'type': 'oval', 'bbox': (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)), 'tags': kwargs.get('tags', ()), **kwargs})
+            return self._id
+
+        def create_text(self, x, y, **kwargs):
+            self._id += 1
+            self.items.append({'id': self._id, 'type': 'text', 'bbox': (x, y, x, y), 'tags': kwargs.get('tags', ()), **kwargs})
+            return self._id
+
+        def find_withtag(self, tag):
+            return tuple(i['id'] for i in self.items if tag in i.get('tags', ()))
+
+        def itemcget(self, item_id, attr):
+            for i in self.items:
+                if i['id'] == item_id:
+                    return i.get(attr, '')
+            return ''
+
+        def type(self, item_id):
+            for i in self.items:
+                if i['id'] == item_id:
+                    return i.get('type')
+            return ''
+
+        def addtag_withtag(self, tag, item_id):
+            for i in self.items:
+                if i['id'] == item_id and tag not in i.get('tags', ()): 
+                    i['tags'] = i.get('tags', ()) + (tag,)
+
+        def dtag(self, item_id, tag):
+            for i in self.items:
+                if i['id'] == item_id:
+                    i['tags'] = tuple(t for t in i.get('tags', ()) if t != tag)
+
+        def tag_raise(self, *args, **kwargs):
+            pass
+
+    gv = make_generate_view((2.0, 2.0))
+    gv.canvas = TagCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv.popover = LegendPopover(gv.canvas)
+    gv._apply_openings_from_ui = lambda: True
+    gv._solve_and_draw()
+
+    door_id = None
+    window_id = None
+    for item in gv.canvas.find_withtag('opening'):
+        fill = gv.canvas.itemcget(item, 'fill')
+        if fill == DOOR_FILL:
+            door_id = item
+        else:
+            window_id = item
+
+    assert door_id is not None and window_id is not None
+
+    event = type('E', (), {'x': 0, 'y': 0})()
+
+    gv.canvas.addtag_withtag('current', door_id)
+    gv._on_canvas_click(event)
+    texts = [gv.canvas.itemcget(i, 'text') for i in gv.canvas.find_withtag('legend-popover') if gv.canvas.type(i) == 'text']
+    assert any('Door' in t for t in texts)
+
+    gv.canvas.dtag(door_id, 'current')
+    gv.canvas.addtag_withtag('current', window_id)
+    gv._on_canvas_click(event)
+    texts = [gv.canvas.itemcget(i, 'text') for i in gv.canvas.find_withtag('legend-popover') if gv.canvas.type(i) == 'text']
+    assert any('Window' in t for t in texts)
 
 
 def test_bath_living_door_drawn_and_mirrored(monkeypatch):
@@ -763,10 +875,10 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
     calls = {}
     orig = gv._draw_room_openings
 
-    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door):
+    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door, room_name='bed'):
         if openings in (gv.bath_liv_openings, gv.liv_bath_openings):
             calls[openings] = draw_door
-        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door)
+        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door, room_name)
 
     gv._draw_room_openings = spy
     gv._solve_and_draw()
