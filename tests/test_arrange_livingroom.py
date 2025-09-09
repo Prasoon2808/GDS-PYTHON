@@ -4,7 +4,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import arrange_livingroom, LIV_RULES
+from vastu_all_in_one import arrange_livingroom, LIV_RULES, GridPlan, Openings
 
 
 def _find_rect(plan, code):
@@ -62,4 +62,13 @@ def test_arrange_livingroom_partial_plan_when_space_limited():
 
     assert _find_rect(plan, "SOFA") is None
     assert _find_rect(plan, "CTAB") is not None
+
+
+def test_arrange_livingroom_no_default_windows_when_unspecified():
+    base = GridPlan(5.0, 4.0)
+    openings = Openings(base)
+    plan = arrange_livingroom(5.0, 4.0, LIV_RULES, openings=openings)
+
+    assert openings.window_spans_cells() == []
+    assert all(owner != 'WINDOW' for *_, owner in plan.clearzones)
 
