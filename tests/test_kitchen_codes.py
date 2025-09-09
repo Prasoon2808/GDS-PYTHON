@@ -16,7 +16,7 @@ from test_generate_view import setup_drag_view
 
 def test_kitchen_codes_and_selection():
     codes = {
-        'SINK', 'COOK', 'REFR', 'DW', 'ISLN',
+        'SINK', 'COOK', 'REF', 'DW', 'ISLN',
         'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'
     }
     assert GenerateView.KITCH_CODES == codes
@@ -37,7 +37,7 @@ def test_grid_snapshot_assigns_unique_ints_to_kitchen_codes():
     expected = {
         'SINK': 7,
         'COOK': 8,
-        'REFR': 9,
+        'REF': 9,
         'DW': 10,
         'ISLN': 11,
         'BASE': 12,
