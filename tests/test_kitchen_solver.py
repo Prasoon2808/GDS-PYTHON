@@ -38,3 +38,11 @@ def test_solver_fills_missing_appliances():
     assert result is not None, 'solver failed to place appliances'
     for code in ('SINK', 'COOK', 'REF'):
         assert list(components_by_code(result, code)), f'{code} not placed'
+
+
+def test_custom_book_clear_override():
+    plan = GridPlan(2.0, 2.0)
+    openings = Openings(plan)
+    custom_book = {'CLEAR': {'front_min': 0.123}}
+    solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={}, book=custom_book)
+    assert solver.c.get('front_min') == 0.123
