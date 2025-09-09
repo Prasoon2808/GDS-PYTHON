@@ -920,7 +920,7 @@ class DummyCanvas:
         pass
 
 
-def setup_drag_view(include_liv=False):
+def setup_drag_view(include_liv=False, include_kitch=False):
     gv = GenerateView.__new__(GenerateView)
     gv.bed_Wm = gv.bed_Hm = 3.0
     gv.bath_Wm = gv.bath_Hm = 3.0
@@ -931,11 +931,20 @@ def setup_drag_view(include_liv=False):
     else:
         gv.liv_Wm = gv.liv_Hm = 0.0
         gv.liv_dims = None
+    if include_kitch:
+        gv.kitch_Wm = gv.kitch_Hm = 2.0
+        gv.kitch_dims = (2.0, 2.0)
+    else:
+        gv.kitch_Wm = gv.kitch_Hm = 0.0
+        gv.kitch_dims = None
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
     gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if include_liv else None
-    gv.Wm = max(gv.bed_Wm + gv.bath_Wm, gv.liv_Wm if include_liv else 0)
-    gv.Hm = max(gv.bed_Hm, gv.bath_Hm) + (gv.liv_Hm if include_liv else 0)
+    gv.kitch_plan = GridPlan(gv.kitch_Wm, gv.kitch_Hm) if include_kitch else None
+    bottom_w = (gv.liv_Wm if include_liv else 0) + (gv.kitch_Wm if include_kitch else 0)
+    bottom_h = max(gv.liv_Hm if include_liv else 0, gv.kitch_Hm if include_kitch else 0)
+    gv.Wm = max(gv.bed_Wm + gv.bath_Wm, bottom_w)
+    gv.Hm = max(gv.bed_Hm, gv.bath_Hm) + bottom_h
     gv.plan = GridPlan(gv.Wm, gv.Hm)
     GenerateView._combine_plans(gv)
     gv.canvas = DummyCanvas()
@@ -999,6 +1008,26 @@ def test_on_up_updates_only_liv_plan():
     assert gv.liv_plan.occ[0][1] == 'SOFA'
     assert all('SOFA' not in row for row in gv.bed_plan.occ)
 
+
+def test_on_up_updates_only_kitch_plan():
+    gv = setup_drag_view(include_kitch=True)
+    gv.kitch_plan.place(0, 0, 1, 1, 'SINK')
+    GenerateView._combine_plans(gv)
+    xoff = gv.liv_plan.gw if gv.liv_plan else 0
+    yoff = max(gv.bed_plan.gh, gv.bath_plan.gh)
+    gv.drag_item = {
+        'orig': [xoff, yoff, 1, 1],
+        'live': [xoff + 1, yoff, 1, 1],
+        'code': 'SINK',
+        'room': 'kitchen',
+        'ghost': None,
+    }
+    GenerateView._on_up(gv, type('E', (), {})())
+    assert gv.kitch_plan.occ[0][1] == 'SINK'
+    assert all('SINK' not in row for row in gv.bed_plan.occ)
+    assert all('SINK' not in row for row in gv.bath_plan.occ)
+    if gv.liv_plan:
+        assert all('SINK' not in row for row in gv.liv_plan.occ)
 
 def test_locked_bath_item_reapplied_after_generate(monkeypatch):
     import vastu_all_in_one

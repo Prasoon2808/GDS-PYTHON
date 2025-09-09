@@ -2959,6 +2959,7 @@ class GenerateView:
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
     LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
     KITCH_CODES = {'SINK', 'COOK', 'REFR', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
+    ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
 
     def __init__(
         self,
@@ -4400,12 +4401,7 @@ class GenerateView:
 
 
         comp = self._hit_component(e.x, e.y)
-        if comp and comp[4] in (
-            self.BED_CODES
-            | self.BATH_CODES
-            | self.LIV_CODES
-            | self.KITCH_CODES
-        ):
+        if comp and comp[4] in self.ALL_FURN_CODES:
             x, y, w, h = comp[:4]
             code = comp[4]
             if code in self.BATH_CODES:
@@ -4457,6 +4453,11 @@ class GenerateView:
             yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
             nx = clamp(i, 0, self.liv_plan.gw - w)
             ny = clamp(j, yoff, yoff + self.liv_plan.gh - h)
+        elif room == 'kitchen' and getattr(self, 'kitch_plan', None):
+            top_gh = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            xoff = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
+            nx = clamp(i, xoff, xoff + self.kitch_plan.gw - w)
+            ny = clamp(j, top_gh, top_gh + self.kitch_plan.gh - h)
         else:
             nx = clamp(i, 0, self.plan.gw - w)
             ny = clamp(j, 0, self.plan.gh - h)
@@ -4491,11 +4492,20 @@ class GenerateView:
             xoff = self.bed_plan.gw
             yoff = 0
             ox -= xoff; nx -= xoff
-        else:
+        elif room == 'living':
             target_plan = self.liv_plan
             xoff = 0
             yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
             oy -= yoff; ny -= yoff
+        elif room == 'kitchen' and getattr(self, 'kitch_plan', None):
+            target_plan = self.kitch_plan
+            xoff = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
+            yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            ox -= xoff; nx -= xoff
+            oy -= yoff; ny -= yoff
+        else:
+            target_plan = self.plan
+            xoff = yoff = 0
 
         # clear original block before testing commit
         target_plan.clear(ox, oy, ow, oh)
