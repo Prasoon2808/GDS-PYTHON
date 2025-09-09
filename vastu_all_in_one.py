@@ -2623,6 +2623,15 @@ def rects_touch_or_overlap(a,b)->bool:
     if ay+ah < by or by+bh < ay: return False
     return True
 
+def shares_edge(a, b) -> bool:
+    ax, ay, aw, ah = a.x_offset, a.y_offset, a.gw, a.gh
+    bx, by, bw, bh = b.x_offset, b.y_offset, b.gw, b.gh
+    vx_touch = ax + aw == bx or bx + bw == ax
+    vy_overlap = not (ay + ah <= by or by + bh <= ay)
+    hx_touch = ay + ah == by or by + bh == ay
+    hx_overlap = not (ax + aw <= bx or bx + bw <= ax)
+    return (vx_touch and vy_overlap) or (hx_touch and hx_overlap)
+
 def add_door_clearance(p: GridPlan, op: Openings, owner: str):
     """Mark clearance for a door defined by ``op`` onto ``p`` and return the
     mirrored rectangle on the opposite side of the doorway.
@@ -3673,17 +3682,12 @@ class GenerateView:
             kitch_plan.y_offset = top_gh
 
         # Validate adjacency: kitchen must share boundaries with both bathroom
-        # (above) and living room (left).  The living room must span the
-        # bedroom width so that the shared wall exists.
+        # (above) and living room (left).
         if kitch_plan and bath_plan and liv_plan:
-            if not (
-                kitch_plan.x_offset == bath_plan.x_offset == left_gw
-                and kitch_plan.y_offset == liv_plan.y_offset == top_gh
-                and liv_plan.gw == left_gw
-            ):
+            if not (shares_edge(kitch_plan, bath_plan) and shares_edge(kitch_plan, liv_plan)):
                 # Inform user of invalid adjacency and revert without drawing
                 self.status.set(
-                    "Kitchen must be adjacent to both bathroom and living room"
+                    "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
                 )
                 if prev_plan is not None:
                     self.plan = prev_plan
