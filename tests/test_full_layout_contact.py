@@ -40,7 +40,9 @@ def _alignment_stub_factory(gv):
 def test_combined_plan_living_contact():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    gv.bed_plan.place(0, 0, 1, 1, 'BED')
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
+    gv.liv_plan.place(0, 0, 1, 1, 'SOFA')
     gv.plan = GridPlan(gv.bed_Wm + gv.bath_Wm + gv.liv_Wm, max(gv.bed_Hm, gv.bath_Hm) + gv.liv_Hm)
     gv._apply_openings_from_ui = _alignment_stub_factory(gv)
 
@@ -137,6 +139,15 @@ def test_living_invalid_without_shared_door(monkeypatch):
     gv.bath_liv_openings = None
     gv.liv_bath_openings = None
 
+    class DummyBedroomSolver:
+        def __init__(self, plan, *a, **k):
+            self.plan = plan
+
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {}
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(
         vastu_all_in_one, 'arrange_bathroom', lambda *a, **k: GridPlan(*gv.bath_dims)
     )

@@ -597,6 +597,7 @@ def test_bedroom_door_drawn_with_bathroom(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
@@ -645,6 +646,7 @@ def test_door_rectangle_present(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {
                 'score': 1.0,
                 'coverage': 0.5,
@@ -694,6 +696,7 @@ def test_opening_click_opens_dialog(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {
                 'score': 1.0,
                 'coverage': 0.5,
@@ -821,6 +824,7 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
 
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
@@ -1134,6 +1138,7 @@ def test_opening_dialog_prepopulates_values(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {
                 'score': 1.0,
                 'coverage': 0.5,
