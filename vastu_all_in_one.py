@@ -3686,6 +3686,51 @@ class GenerateView:
             kitch_plan.x_offset = left_gw
             kitch_plan.y_offset = top_gh
 
+        if liv_plan and kitch_plan:
+            def _shared_wall(a: GridPlan, b: GridPlan) -> int:
+                ax0, ay0 = a.x_offset, a.y_offset
+                ax1, ay1 = ax0 + a.gw, ay0 + a.gh
+                bx0, by0 = b.x_offset, b.y_offset
+                bx1, by1 = bx0 + b.gw, by0 + b.gh
+                if ax1 == bx0 and max(ay0, by0) < min(ay1, by1):
+                    return WALL_RIGHT
+                if bx1 == ax0 and max(ay0, by0) < min(ay1, ay1):
+                    return WALL_LEFT
+                if ay1 == by0 and max(ax0, bx0) < min(ax1, bx1):
+                    return WALL_TOP
+                if by1 == ay0 and max(ax0, bx0) < min(ax1, bx1):
+                    return WALL_BOTTOM
+                return WALL_BOTTOM
+
+            def _has_door(p: GridPlan, wall: int) -> bool:
+                if wall == WALL_LEFT:
+                    return any(p.occ[j][0] == 'DOOR' for j in range(p.gh))
+                if wall == WALL_RIGHT:
+                    return any(p.occ[j][p.gw - 1] == 'DOOR' for j in range(p.gh))
+                if wall == WALL_BOTTOM:
+                    return any(p.occ[0][i] == 'DOOR' for i in range(p.gw))
+                if wall == WALL_TOP:
+                    return any(p.occ[p.gh - 1][i] == 'DOOR' for i in range(p.gw))
+                return False
+
+            shared_wall = _shared_wall(kitch_plan, liv_plan)
+            if not _has_door(liv_plan, shared_wall):
+                self.liv_kitch_openings = Openings(liv_plan)
+                self.liv_kitch_openings.door_wall = shared_wall
+                dx, dy, dw, dh = self.liv_kitch_openings.door_rect_cells()
+                for j in range(dy, dy + dh):
+                    for i in range(dx, dx + dw):
+                        liv_plan.occ[j][i] = 'DOOR'
+                self._add_door_clearance(liv_plan, 'KITCHEN_DOOR', self.liv_kitch_openings)
+
+                self.kitch_liv_openings = Openings(kitch_plan)
+                self.kitch_liv_openings.door_wall = opposite_wall(shared_wall)
+                dx, dy, dw, dh = self.kitch_liv_openings.door_rect_cells()
+                for j in range(dy, dy + dh):
+                    for i in range(dx, dx + dw):
+                        kitch_plan.occ[j][i] = 'DOOR'
+                self._add_door_clearance(kitch_plan, 'LIVING_DOOR', self.kitch_liv_openings)
+
         if os.environ.get("DEBUG_LAYOUT") == "1":
             for name, p in (
                 ("bed", bed_plan),
