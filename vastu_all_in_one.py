@@ -1928,15 +1928,16 @@ class BedroomSolver:
             iters: int = 900,
             time_budget_ms: int = 520,
             max_attempts: int = 3,
-            furniture_sets: Optional[List[Tuple[str, ...]]] = None
+            furniture_sets: Optional[List[Tuple[str, ...]]] = None,
+            min_adjacency: float = 0.0
             ) -> Tuple[Optional[GridPlan], Dict]:
         sets = furniture_sets or default_furniture_sets()
+        best_overall = None; meta_overall = None
         # search from most demanding combination to least
         for req in reversed(sets):
             needed = Counter(req)
             for _ in range(max_attempts):
                 t0 = time.time()
-                best = None; best_meta = {}; best_score = -1e9
                 seeds = seed_templates(self.p, self.bed_key)
                 beam = []
                 tries = 0
@@ -1961,14 +1962,24 @@ class BedroomSolver:
                             base_score += 0.40 * self.ensemble.score(feats)
                         except Exception:
                             pass
-                    beam.append((base_score, res, {**meta, 'features': feats, 'score': base_score}))
+                    cand_meta = {**meta, 'features': feats, 'score': base_score, 'adjacency': adj}
+                    beam.append((base_score, res, cand_meta))
                     beam.sort(key=lambda x: -x[0])
                     beam = beam[:6]
+                    if adj >= 1.0 and all(len(list(components_by_code(res, code))) >= count
+                                         for code, count in needed.items()):
+                        if adj >= min_adjacency:
+                            return res, cand_meta
                 if beam:
                     best_score, best, best_meta = beam[0]
-                if best and all(len(list(components_by_code(best, code))) >= count
-                                 for code, count in needed.items()):
-                    return best, best_meta
+                    if best_meta['features'].get('adjacency', 0.0) >= min_adjacency and \
+                       all(len(list(components_by_code(best, code))) >= count for code, count in needed.items()):
+                        return best, best_meta
+                    if meta_overall is None or \
+                       best_meta['features'].get('adjacency', 0.0) > meta_overall['features'].get('adjacency', 0.0):
+                        best_overall, meta_overall = best, best_meta
+        if meta_overall:
+            return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
         return None, {'status': 'no_bed'}
 
     def _attempt(self, seed:Dict):
@@ -2537,32 +2548,53 @@ class KitchenSolver:
             appliance_sets: Optional[List[Tuple[str, ...]]] = None,
             iters: int = 200,
             time_budget_ms: int = 520,
-            max_attempts: int = 3) -> Tuple[Optional[GridPlan], Dict]:
+            max_attempts: int = 3,
+            min_adjacency: float = 0.0) -> Tuple[Optional[GridPlan], Dict]:
         sets = appliance_sets or default_kitchen_sets()
+        best_overall = None; meta_overall = None
         for req in reversed(sets):
             needed = Counter(req)
-            plan = deepcopy(self.p)
-            success = True
-            for code, cnt in needed.items():
-                existing = list(components_by_code(plan, code))
-                missing = cnt - len(existing)
-                for _ in range(missing):
-                    spot = self._find_placement(plan, code)
-                    if spot is None:
-                        success = False
+            for _ in range(max_attempts):
+                t0 = time.time()
+                tries = 0
+                best = None; best_meta = None; best_adj = -1.0
+                while (time.time() - t0) * 1000 < time_budget_ms and tries < iters:
+                    tries += 1
+                    plan = deepcopy(self.p)
+                    success = True
+                    for code, cnt in needed.items():
+                        existing = list(components_by_code(plan, code))
+                        missing = cnt - len(existing)
+                        for _ in range(missing):
+                            spot = self._find_placement(plan, code)
+                            if spot is None:
+                                success = False
+                                break
+                            x, y, w, h = spot
+                            plan.place(x, y, w, h, code)
+                        if not success:
+                            break
+                    if not success:
+                        continue
+                    feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
+                    adj, ok = self._adjacency_score(plan)
+                    if not ok:
+                        continue
+                    feats['adjacency'] = adj
+                    score = dot_score(self.weights, feats)
+                    cand_meta = {'features': feats, 'score': score, 'adjacency': adj}
+                    if adj > best_adj or (adj == best_adj and score > (best_meta or {}).get('score', -1e9)):
+                        best_adj = adj
+                        best = plan
+                        best_meta = cand_meta
+                    if adj >= 1.0:
                         break
-                    x, y, w, h = spot
-                    plan.place(x, y, w, h, code)
-                if not success:
-                    break
-            if success:
-                feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
-                adj, ok = self._adjacency_score(plan)
-                if not ok:
-                    continue
-                feats['adjacency'] = adj
-                score = dot_score(self.weights, feats)
-                return plan, {'features': feats, 'score': score}
+                if best and best_meta['features'].get('adjacency', 0.0) >= min_adjacency:
+                    return best, best_meta
+                if best and (meta_overall is None or best_meta['features']['adjacency'] > meta_overall['features']['adjacency']):
+                    best_overall, meta_overall = best, best_meta
+        if meta_overall:
+            return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
         return None, {'status': 'missing_appliance'}
 
     def _find_placement(self, plan: GridPlan, code: str) -> Optional[Tuple[int, int, int, int]]:
