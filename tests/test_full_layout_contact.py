@@ -102,8 +102,8 @@ def test_bathroom_doors_misaligned():
 def test_living_room_too_narrow():
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 1.0))
     gv._validate_living_dims()
-    assert gv.liv_Wm == gv.bed_Wm
-    assert gv.liv_auto_adjusted
+    assert gv.liv_Wm == pytest.approx(3.0)
+    assert not gv.liv_auto_adjusted
 
 
 def test_living_room_too_shallow():
@@ -118,6 +118,25 @@ def test_living_room_dims_ok():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 1.0))
     gv._validate_living_dims()  # should not raise
     assert not gv.liv_auto_adjusted
+
+
+def test_narrow_living_room_abuts_kitchen():
+    gv = make_generate_view((2.0, 2.0), living_dims=(2.0, 2.0))
+    gv._validate_living_dims()
+    gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    gv.bed_plan.place(0, 0, 1, 1, "BED")
+    gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm)
+    gv.liv_plan.place(0, 0, 1, 1, "SOFA")
+    gv.kitch_plan = GridPlan(2.0, 2.0)
+    gv.kitch_plan.place(0, 0, 1, 1, "SINK")
+    gv.kitch_Wm = gv.kitch_Hm = 2.0
+
+    GenerateView._combine_plans(gv)
+
+    assert gv.liv_plan.x_offset == gv.bed_plan.gw - gv.liv_plan.gw
+    assert gv.liv_plan.x_offset + gv.liv_plan.gw == gv.kitch_plan.x_offset
+    assert gv.plan.occ[gv.liv_plan.y_offset][gv.liv_plan.x_offset] == "SOFA"
+    assert gv.plan.occ[gv.kitch_plan.y_offset][gv.kitch_plan.x_offset] == "SINK"
 
 def test_missing_bathroom_living_door():
     gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))

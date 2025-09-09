@@ -3410,15 +3410,7 @@ class GenerateView:
         if not self.liv_dims:
             return
         self.liv_auto_adjusted = []
-        # Living room should span the bedroom width so that the kitchen can
-        # abut it on the right.  Expand width if necessary.
-        min_width = self.bed_Wm
-        if self.liv_dims[0] < min_width:
-            self.liv_dims = (min_width, self.liv_dims[1])
-            self.liv_Wm = min_width
-            self.liv_auto_adjusted.append(
-                f"Living room width increased to {min_width:.2f} m to align with bedroom."
-            )
+        # Ensure a minimum depth so that a door can swing into the living room.
         required = max(0.60, CELL_M)
         if self.liv_dims[1] < required:
             self.liv_dims = (self.liv_dims[0], required)
@@ -5121,8 +5113,12 @@ class GenerateView:
             self.bath_plan.y_offset = 0
         if liv_valid:
             self.liv_plan.column_grid = col_grid
-            self.liv_plan.x_offset = 0
             self.liv_plan.y_offset = top_gh
+            if self.liv_plan.gw < left_gw:
+                # Right-align so the kitchen can abut a narrower living room.
+                self.liv_plan.x_offset = left_gw - self.liv_plan.gw
+            else:
+                self.liv_plan.x_offset = 0
         if kitch_valid:
             self.kitch_plan.column_grid = col_grid
             self.kitch_plan.x_offset = left_gw
@@ -5178,31 +5174,34 @@ class GenerateView:
             liv = GridPlan(self.liv_Wm, self.liv_Hm) if has_liv else None
             kitch = GridPlan(self.kitch_Wm, self.kitch_Hm) if has_kitch else None
             top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
-            liv_gw = self.liv_plan.gw if has_liv else 0
+            left_gw = max(self.bed_plan.gw, self.liv_plan.gw if has_liv else 0)
+            liv_start = left_gw - (self.liv_plan.gw if has_liv else 0)
             for j in range(self.plan.gh):
                 for i in range(self.plan.gw):
                     code = self.plan.occ[j][i]
                     if not code:
                         continue
-                    if j < top_gh and i < self.bed_plan.gw:
-                        bed.occ[j][i] = code
-                    elif has_bath and j < top_gh and i >= self.bed_plan.gw:
-                        bath.occ[j][i - self.bed_plan.gw] = code
-                    elif j >= top_gh:
-                        if has_liv and i < liv_gw:
-                            liv.occ[j - top_gh][i] = code
-                        elif has_kitch:
-                            kitch.occ[j - top_gh][i - liv_gw] = code
+                    if j < top_gh:
+                        if i < self.bed_plan.gw:
+                            bed.occ[j][i] = code
+                        elif has_bath and i >= left_gw:
+                            bath.occ[j][i - left_gw] = code
+                    else:
+                        if has_liv and liv_start <= i < left_gw:
+                            liv.occ[j - top_gh][i - liv_start] = code
+                        elif has_kitch and i >= left_gw:
+                            kitch.occ[j - top_gh][i - left_gw] = code
             for x, y, w, h, kind, owner in self.plan.clearzones:
-                if y + h <= top_gh and x + w <= self.bed_plan.gw:
-                    bed.clearzones.append((x, y, w, h, kind, owner))
-                elif has_bath and y + h <= top_gh and x >= self.bed_plan.gw:
-                    bath.clearzones.append((x - self.bed_plan.gw, y, w, h, kind, owner))
-                elif y >= top_gh:
-                    if has_liv and x + w <= liv_gw:
-                        liv.clearzones.append((x, y - top_gh, w, h, kind, owner))
-                    elif has_kitch:
-                        kitch.clearzones.append((x - liv_gw, y - top_gh, w, h, kind, owner))
+                if y + h <= top_gh:
+                    if x + w <= self.bed_plan.gw:
+                        bed.clearzones.append((x, y, w, h, kind, owner))
+                    elif has_bath and x >= left_gw:
+                        bath.clearzones.append((x - left_gw, y, w, h, kind, owner))
+                else:
+                    if has_liv and liv_start <= x and x + w <= left_gw:
+                        liv.clearzones.append((x - liv_start, y - top_gh, w, h, kind, owner))
+                    elif has_kitch and x >= left_gw:
+                        kitch.clearzones.append((x - left_gw, y - top_gh, w, h, kind, owner))
             bed.clearzones = merge_clearances(bed.clearzones)
             if has_bath:
                 bath.clearzones = merge_clearances(bath.clearzones)
