@@ -3240,22 +3240,8 @@ class GenerateView:
         self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if self.liv_dims else None
         self.kitch_plan = GridPlan(self.kitch_Wm, self.kitch_Hm) if self.kitch_dims else None
 
-        # Overall dimensions for combined plan follow the 2x2 layout:
-        # bedroom/living column on the left, bathroom/kitchen column on the
-        # right.  Width is the bedroom width plus the larger of bathroom or
-        # kitchen widths.  Height sums the taller of the bedroom/bathroom row
-        # and the taller of the living/kitchen row.
-        right_w = max(
-            self.bath_Wm if bath_dims else 0.0,
-            self.kitch_Wm if self.kitch_dims else 0.0,
-        )
-        self.Wm = self.bed_Wm + right_w
-        top_h = max(self.bed_Hm, self.bath_Hm if bath_dims else 0.0)
-        bottom_h = max(
-            self.liv_Hm if self.liv_dims else 0.0,
-            self.kitch_Hm if self.kitch_dims else 0.0,
-        )
-        self.Hm = top_h + bottom_h
+        # Determine layout based on room adjacencies and update offsets/overall size.
+        self._layout_rooms()
 
         # Inform users if dimensions were auto-adjusted
         if getattr(self, "liv_auto_adjusted", []):
@@ -5055,6 +5041,64 @@ class GenerateView:
         self._sync_room_plans()
         self._draw()
 
+    def _layout_rooms(self):
+        """Calculate room offsets and overall size based on adjacencies."""
+        bed = getattr(self, 'bed_plan', None)
+        bath = getattr(self, 'bath_plan', None)
+        liv = getattr(self, 'liv_plan', None)
+        kitch = getattr(self, 'kitch_plan', None)
+
+        plans = [p for p in (bed, bath, liv, kitch) if p]
+        if not plans:
+            self.Wm = self.Hm = 0.0
+            return
+
+        # Determine layout orientation: place living beside bedroom when it is as
+        # tall as the bedroom, otherwise treat it as a corridor beneath.
+        orient_right = liv is not None and bed is not None and liv.gh >= bed.gh
+
+        if orient_right:
+            left_gw = max(bed.gw if bed else 0, bath.gw if bath else 0)
+            right_gw = max(liv.gw if liv else 0, kitch.gw if kitch else 0)
+            top_gh = max(bed.gh if bed else 0, liv.gh if liv else 0)
+            bottom_gh = max(bath.gh if bath else 0, kitch.gh if kitch else 0)
+
+            if bed:
+                bed.x_offset = 0; bed.y_offset = 0
+            if liv:
+                liv.x_offset = left_gw; liv.y_offset = 0
+            if bath:
+                bath.y_offset = top_gh
+                if bath.gw < left_gw:
+                    bath.x_offset = left_gw - bath.gw
+                else:
+                    bath.x_offset = 0
+            if kitch:
+                kitch.x_offset = left_gw; kitch.y_offset = top_gh
+        else:
+            left_gw = max(bed.gw if bed else 0, liv.gw if liv else 0)
+            right_gw = max(bath.gw if bath else 0, kitch.gw if kitch else 0)
+            top_gh = max(bed.gh if bed else 0, bath.gh if bath else 0)
+            bottom_gh = max(liv.gh if liv else 0, kitch.gh if kitch else 0)
+
+            if bed:
+                bed.x_offset = 0; bed.y_offset = 0
+            if bath:
+                bath.x_offset = left_gw; bath.y_offset = 0
+            if liv:
+                liv.y_offset = top_gh
+                if liv.gw < left_gw:
+                    liv.x_offset = left_gw - liv.gw
+                else:
+                    liv.x_offset = 0
+            if kitch:
+                kitch.x_offset = left_gw; kitch.y_offset = top_gh
+
+        total_gw = left_gw + right_gw
+        total_gh = top_gh + bottom_gh
+        self.Wm = total_gw * CELL_M
+        self.Hm = total_gh * CELL_M
+
 
     def _combine_plans(self):
         """Merge per-room plans into ``self.plan``."""
@@ -5086,43 +5130,15 @@ class GenerateView:
             self.plan = plans[0]
             return
 
-        # Arrange plans in a 2x2 grid:
-        # [bed][bath]
-        # [liv][kitch]
-        left_gw = max(self.bed_plan.gw if bed_valid else 0, self.liv_plan.gw if liv_valid else 0)
-        right_gw = max(
-            self.bath_plan.gw if bath_valid else 0,
-            self.kitch_plan.gw if kitch_valid else 0,
-        )
-        top_gh = max(self.bed_plan.gh if bed_valid else 0, self.bath_plan.gh if bath_valid else 0)
-        bottom_gh = max(
-            self.liv_plan.gh if liv_valid else 0,
-            self.kitch_plan.gh if kitch_valid else 0,
-        )
-        total_gw = left_gw + right_gw
-        total_gh = top_gh + bottom_gh
-        col_grid = ColumnGrid(total_gw, total_gh)
+        # If offsets not already assigned, compute layout now.
+        if all(getattr(p, 'x_offset', 0) == 0 and getattr(p, 'y_offset', 0) == 0 for p in plans):
+            self._layout_rooms()
 
-        if bed_valid:
-            self.bed_plan.column_grid = col_grid
-            self.bed_plan.x_offset = 0
-            self.bed_plan.y_offset = 0
-        if bath_valid:
-            self.bath_plan.column_grid = col_grid
-            self.bath_plan.x_offset = left_gw
-            self.bath_plan.y_offset = 0
-        if liv_valid:
-            self.liv_plan.column_grid = col_grid
-            self.liv_plan.y_offset = top_gh
-            if self.liv_plan.gw < left_gw:
-                # Right-align so the kitchen can abut a narrower living room.
-                self.liv_plan.x_offset = left_gw - self.liv_plan.gw
-            else:
-                self.liv_plan.x_offset = 0
-        if kitch_valid:
-            self.kitch_plan.column_grid = col_grid
-            self.kitch_plan.x_offset = left_gw
-            self.kitch_plan.y_offset = top_gh
+        total_gw = max(p.x_offset + p.gw for p in plans)
+        total_gh = max(p.y_offset + p.gh for p in plans)
+        col_grid = ColumnGrid(total_gw, total_gh)
+        for p in plans:
+            p.column_grid = col_grid
 
         if os.environ.get("DEBUG_LAYOUT") == "1":
             for name, p in (
@@ -5137,14 +5153,6 @@ class GenerateView:
                         f"{(p.x_offset, p.y_offset, p.gw, p.gh)}"
                     )
 
-        # ``GridPlan`` derives its internal grid dimensions from the supplied
-        # physical size (``Wm``/``Hm``).  When the per-room plans use widths or
-        # heights that are not exact multiples of ``CELL_M`` this can lead to
-        # rounding differences: the summed metres may produce a grid that is
-        # smaller than the total number of columns/rows we intend to index.
-        # Derive the combined physical dimensions directly from the desired
-        # grid dimensions so that ``combined.occ`` is guaranteed to be large
-        # enough for all offsets.
         total_wm = total_gw * CELL_M
         total_hm = total_gh * CELL_M
 
