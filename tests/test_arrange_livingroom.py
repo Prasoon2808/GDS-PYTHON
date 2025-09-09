@@ -32,6 +32,7 @@ def test_arrange_livingroom_respects_clearances():
     assert _find_rect(plan, "SOFA") is not None
     assert _find_rect(plan, "CTAB") is not None
     assert _find_rect(plan, "STAB") is not None
+    assert _find_rect(plan, "CHAR") is not None
 
     # clearance rectangles (except rug) must remain empty
     for x, y, w, h, kind, _ in plan.clearzones:
@@ -62,6 +63,7 @@ def test_arrange_livingroom_partial_plan_when_space_limited():
 
     assert _find_rect(plan, "SOFA") is None
     assert _find_rect(plan, "CTAB") is not None
+    assert _find_rect(plan, "CHAR") is None
 
 
 def test_arrange_livingroom_no_default_windows_when_unspecified():
