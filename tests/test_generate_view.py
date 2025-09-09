@@ -92,6 +92,9 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None):
     gv.bath_liv_openings = Openings(GridPlan(*bath_dims)) if bath_dims and living_dims else None
     if gv.bath_liv_openings:
         gv.bath_liv_openings.swing_depth = CELL_M
+    gv.liv_bath_openings = Openings(GridPlan(*living_dims)) if bath_dims and living_dims else None
+    if gv.liv_bath_openings:
+        gv.liv_bath_openings.swing_depth = CELL_M
     gv.liv_openings = Openings(GridPlan(*living_dims)) if living_dims else None
     if gv.liv_openings:
         gv.liv_openings.swing_depth = 0.60
@@ -532,6 +535,9 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
     gv.bath_liv_openings.door_wall = WALL_BOTTOM
     gv.bath_liv_openings.door_center = 1.2
     gv.bath_liv_openings.door_width = 0.9
+    gv.liv_bath_openings.door_wall = WALL_TOP
+    gv.liv_bath_openings.door_center = 1.2
+    gv.liv_bath_openings.door_width = 0.9
     gv.liv_openings.door_wall = WALL_BOTTOM
     gv.liv_openings.door_center = 1.0
     gv.liv_openings.door_width = 0.9
@@ -549,12 +555,8 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
         for i in range(bx2, bx2 + bw2):
             assert gv.bath_plan.occ[j][i] == 'DOOR'
 
-    shared_op = Openings(gv.liv_plan)
-    shared_op.door_wall = opposite_wall(gv.bath_liv_openings.door_wall)
-    shared_op.door_center = gv.bath_liv_openings.door_center
-    shared_op.door_width = gv.bath_liv_openings.door_width
-    shared_op.swing_depth = gv.bath_liv_openings.swing_depth
-    lx, ly, lw, lh = shared_op.door_rect_cells()
+    gv.liv_bath_openings.p = gv.liv_plan
+    lx, ly, lw, lh = gv.liv_bath_openings.door_rect_cells()
     for j in range(ly, ly + lh):
         for i in range(lx, lx + lw):
             assert gv.liv_plan.occ[j][i] == 'DOOR'
@@ -563,8 +565,149 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
         owner == 'LIVING_DOOR' and kind == 'DOOR_CLEAR'
         for *_, kind, owner in gv.liv_plan.clearzones
     )
-    assert shared_op.door_wall == WALL_TOP
+    assert gv.liv_bath_openings.door_wall == WALL_TOP
 
+
+def test_bedroom_door_drawn_with_bathroom(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        return GridPlan(w, h)
+
+    def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
+    gv.canvas = BoundingCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+
+    gv._apply_openings_from_ui = lambda: True
+
+    calls = {}
+    orig = gv._draw_room_openings
+
+    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door):
+        if openings is gv.bed_openings:
+            calls['bed'] = draw_door
+        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door)
+
+    gv._draw_room_openings = spy
+    gv._solve_and_draw()
+
+    assert calls.get('bed') is True
+
+
+def test_bath_living_door_drawn_and_mirrored(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            return self.plan, {'score': 1.0, 'coverage': 0.5, 'paths_ok': True, 'reach_windows': True}
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        p = GridPlan(w, h)
+        return p
+
+    def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
+    gv.canvas = BoundingCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv.bath_liv_openings = None
+    gv.liv_bath_openings = None
+
+    master = tk._default_root
+    gv.bed_door_wall = tk.StringVar(master, value='Right')
+    gv.bed_door_w = tk.DoubleVar(master, value=0.9)
+    gv.bed_door_c = tk.DoubleVar(master, value=1.0)
+    gv.bed_w1_wall = tk.StringVar(master, value='None')
+    gv.bed_w1_len = tk.DoubleVar(master, value=0.0)
+    gv.bed_w1_c = tk.DoubleVar(master, value=0.0)
+    gv.bed_w2_wall = tk.StringVar(master, value='None')
+    gv.bed_w2_len = tk.DoubleVar(master, value=0.0)
+    gv.bed_w2_c = tk.DoubleVar(master, value=0.0)
+
+    gv.bath_door_wall = tk.StringVar(master, value='Left')
+    gv.bath_door_w = tk.DoubleVar(master, value=0.9)
+    gv.bath_door_c = tk.DoubleVar(master, value=1.0)
+    gv.bath_w1_wall = tk.StringVar(master, value='None')
+    gv.bath_w1_len = tk.DoubleVar(master, value=0.0)
+    gv.bath_w1_c = tk.DoubleVar(master, value=0.0)
+    gv.bath_w2_wall = tk.StringVar(master, value='None')
+    gv.bath_w2_len = tk.DoubleVar(master, value=0.0)
+    gv.bath_w2_c = tk.DoubleVar(master, value=0.0)
+
+    gv.bath_liv_door_w = tk.DoubleVar(master, value=0.9)
+    gv.bath_liv_door_c = tk.DoubleVar(master, value=1.0)
+
+    gv.liv_door_wall = tk.StringVar(master, value='Bottom')
+    gv.liv_door_w = tk.DoubleVar(master, value=0.9)
+    gv.liv_door_c = tk.DoubleVar(master, value=1.0)
+    gv.liv_w1_wall = tk.StringVar(master, value='None')
+    gv.liv_w1_len = tk.DoubleVar(master, value=0.0)
+    gv.liv_w1_c = tk.DoubleVar(master, value=0.0)
+    gv.liv_w2_wall = tk.StringVar(master, value='None')
+    gv.liv_w2_len = tk.DoubleVar(master, value=0.0)
+    gv.liv_w2_c = tk.DoubleVar(master, value=0.0)
+
+    gv.bath_plan = GridPlan(*gv.bath_dims)
+    gv.liv_plan = GridPlan(*gv.liv_dims)
+    gv.bath_plan.x_offset = 0
+    gv.bath_plan.y_offset = 0
+    gv.liv_plan.x_offset = gv.bath_plan.gw
+    gv.liv_plan.y_offset = 0
+
+    assert GenerateView._apply_openings_from_ui(gv)
+    assert gv.bath_liv_openings is not None
+    assert gv.liv_bath_openings is not None
+
+    gv._apply_openings_from_ui = lambda: True
+
+    calls = {}
+    orig = gv._draw_room_openings
+
+    def spy(cv, openings, ox, oy, scale, wall_width, open_width, draw_door):
+        if openings in (gv.bath_liv_openings, gv.liv_bath_openings):
+            calls[openings] = draw_door
+        return orig(cv, openings, ox, oy, scale, wall_width, open_width, draw_door)
+
+    gv._draw_room_openings = spy
+    gv._solve_and_draw()
+
+    assert calls.get(gv.bath_liv_openings) is True
+    assert calls.get(gv.liv_bath_openings) is True
 
 def test_init_schedules_solver(monkeypatch):
     import vastu_all_in_one
