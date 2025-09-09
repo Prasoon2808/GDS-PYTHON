@@ -113,3 +113,32 @@ def test_clearance_below_furniture_and_walls():
     assert order.index(clear_id) < order.index(furn_id) < order.index(room_id)
     assert order.index(furn_id) < order.index(opening_id)
 
+
+def test_window_clearance_drawn():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    openings.door_wall = -1  # suppress door clearance
+    openings.windows = [(0, 0.5, 1.0)]
+
+    gv = GenerateView.__new__(GenerateView)
+    gv.canvas = LayeredCanvas()
+    gv.opening_item_info = {}
+    gv._draw_all_layers(plan, openings, 0, 0, 20, 2, 1, False, "bed")
+
+    clear_items = gv.canvas.find_withtag("clear")
+    assert len(clear_items) == 1
+
+
+def test_door_clearance_mirrored():
+    plan = GridPlan(2.0, 2.0)
+    openings = Openings(plan)
+    openings.windows = []
+
+    gv = GenerateView.__new__(GenerateView)
+    gv.canvas = LayeredCanvas()
+    gv.opening_item_info = {}
+    gv._draw_all_layers(plan, openings, 0, 0, 20, 2, 1, True, "bed")
+
+    clear_items = gv.canvas.find_withtag("clear")
+    assert len(clear_items) == 2
+

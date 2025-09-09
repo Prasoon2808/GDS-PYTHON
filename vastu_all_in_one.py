@@ -75,6 +75,7 @@ BATH_RULES.setdefault("units", {})["CELL_M"] = CELL_M
 LIV_RULES.setdefault("units", {})["CELL_M"] = CELL_M
 PATH_WIDTH_CELLS = RULES.get("solver", {}).get("PATH_WIDTH_CELLS", 2)
 LEARNING_RATE = RULES.get("learning", {}).get("LEARNING_RATE", 0.06)
+WINDOW_CLEARANCE_M = 0.40
 
 SIM_FILE = 'solver_simulations.jsonl'
 WEIGHT_FILE='solver_weights.json'
@@ -3605,19 +3606,7 @@ class GenerateView:
                 tags=('plan', 'grid'),
             )
         bound = set()
-        for (x, y, w, h, kind, owner) in plan.clearzones:
-            x0 = ox + x * scale
-            y0 = oy + (gh - (y + h)) * scale
-            cv.create_rectangle(
-                x0,
-                y0,
-                x0 + w * scale,
-                y0 + h * scale,
-                outline=PALETTE['CLEAR'],
-                dash=(8, 6),
-                width=2,
-                tags=('plan', 'clear'),
-            )
+        self._draw_clearances(cv, plan, openings, ox, oy, scale)
         for j in range(gh):
             for i in range(gw):
                 code = plan.occ[j][i]
@@ -3670,6 +3659,78 @@ class GenerateView:
         cv.tag_raise('furn', 'clear')
         cv.tag_raise('room', 'furn')
         cv.tag_raise('opening', 'room')
+
+    def _draw_clearances(self, cv, plan, openings, ox, oy, scale):
+        """Draw clearance rectangles from ``plan`` and ``openings``.
+
+        Existing rectangles from ``plan.clearzones`` are rendered first.  If a
+        door or windows are defined in ``openings`` but their clearances are not
+        present in ``plan.clearzones`` (common when rendering unsolved rooms),
+        corresponding rectangles are computed on-the-fly.  Door clearances are
+        mirrored so that both sides of the doorway are visualised.
+        """
+
+        gh = plan.gh
+        rects = []
+
+        # Record existing rectangles to avoid duplicates when adding computed
+        # ones from openings.
+        seen = set()
+        for x, y, w, h, *_ in plan.clearzones:
+            rects.append((x, y, w, h))
+            seen.add((x, y, w, h))
+
+        if openings is not None:
+            # Door clearance (interior + mirrored exterior)
+            wall, start, width = openings.door_span_cells()
+            if wall >= 0 and width > 0:
+                depth = plan.meters_to_cells(openings.swing_depth)
+                pw = max(1, PATH_WIDTH_CELLS)
+                if wall == WALL_BOTTOM:
+                    inside = (start, depth, width, pw)
+                    outside = (start, -depth - pw, width, pw)
+                elif wall == WALL_TOP:
+                    inside = (start, plan.gh - depth - pw, width, pw)
+                    outside = (start, plan.gh + depth, width, pw)
+                elif wall == WALL_LEFT:
+                    inside = (depth, start, pw, width)
+                    outside = (-depth - pw, start, pw, width)
+                else:  # WALL_RIGHT
+                    inside = (plan.gw - depth - pw, start, pw, width)
+                    outside = (plan.gw + depth, start, pw, width)
+                for rect in (inside, outside):
+                    if rect not in seen:
+                        rects.append(rect)
+                        seen.add(rect)
+
+            # Window clearances
+            depth = max(1, plan.meters_to_cells(WINDOW_CLEARANCE_M))
+            for wall, start, length in openings.window_spans_cells():
+                if wall == WALL_BOTTOM:
+                    rect = (start, depth, length, 1)
+                elif wall == WALL_TOP:
+                    rect = (start, plan.gh - 1 - depth, length, 1)
+                elif wall == WALL_LEFT:
+                    rect = (depth, start, 1, length)
+                else:  # WALL_RIGHT
+                    rect = (plan.gw - 1 - depth, start, 1, length)
+                if rect not in seen:
+                    rects.append(rect)
+                    seen.add(rect)
+
+        for x, y, w, h in rects:
+            x0 = ox + x * scale
+            y0 = oy + (gh - (y + h)) * scale
+            cv.create_rectangle(
+                x0,
+                y0,
+                x0 + w * scale,
+                y0 + h * scale,
+                outline=PALETTE['CLEAR'],
+                dash=(8, 6),
+                width=2,
+                tags=('plan', 'clear'),
+            )
 
     def refresh_overlay(self):
         """Rebuild the persistent column grid overlay."""
