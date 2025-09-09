@@ -1973,7 +1973,7 @@ class BedroomSolver:
         """Downsample occupancy to a small int grid for CNN/analytics."""
         mapping = {
             'BED': 1, 'BST': 2, 'WRD': 3, 'DRS': 4, 'DESK': 5, 'TVU': 6,
-            'SINK': 7, 'COOK': 8, 'REF': 9, 'REFR': 9, 'DW': 10, 'ISLN': 11,
+            'SINK': 7, 'COOK': 8, 'REF': 9, 'DW': 10, 'ISLN': 11,
             'BASE': 12, 'WALL': 13, 'HOOD': 14, 'OVEN': 15, 'MICRO': 16
         }
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
@@ -2954,7 +2954,7 @@ PALETTE.setdefault('LAV', '#c5e1a5')
 # Kitchen elements
 PALETTE.setdefault('SINK',  '#add8e6')
 PALETTE.setdefault('COOK',  '#ffcccb')
-PALETTE.setdefault('REFR',  '#b0e0e6')
+PALETTE.setdefault('REF',   '#b0e0e6')
 PALETTE.setdefault('DW',    '#ffe4b5')
 PALETTE.setdefault('ISLN',  '#e6e6fa')
 PALETTE.setdefault('BASE',  '#deb887')
@@ -2986,7 +2986,7 @@ ITEM_LABELS = {
     'CHEST': 'Chest',
     'SINK': 'Sink',
     'COOK': 'Cooktop',
-    'REFR': 'Refrigerator',
+    'REF': 'Refrigerator',
     'DW': 'Dishwasher',
     'ISLN': 'Island',
     'BASE': 'Base Cabinet',
@@ -3012,7 +3012,7 @@ class GenerateView:
     BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
     LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
-    KITCH_CODES = {'SINK', 'COOK', 'REFR', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
+    KITCH_CODES = {'SINK', 'COOK', 'REF', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
     ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
 
     def __init__(
@@ -5284,7 +5284,7 @@ class GenerateView:
     def _grid_snapshot(self, plan: 'GridPlan', max_hw: int = 16):
         mapping = {
             'BED': 1, 'BST': 2, 'WRD': 3, 'DRS': 4, 'DESK': 5, 'TVU': 6,
-            'SINK': 7, 'COOK': 8, 'REF': 9, 'REFR': 9, 'DW': 10, 'ISLN': 11,
+            'SINK': 7, 'COOK': 8, 'REF': 9, 'DW': 10, 'ISLN': 11,
             'BASE': 12, 'WALL': 13, 'HOOD': 14, 'OVEN': 15, 'MICRO': 16
         }
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
