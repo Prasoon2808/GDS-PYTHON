@@ -1947,7 +1947,11 @@ class BedroomSolver:
 
     def _grid_snapshot(self, plan:'GridPlan', max_hw: int = 16):
         """Downsample occupancy to a small int grid for CNN/analytics."""
-        mapping = {'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
+        mapping = {
+            'BED': 1, 'BST': 2, 'WRD': 3, 'DRS': 4, 'DESK': 5, 'TVU': 6,
+            'SINK': 7, 'COOK': 8, 'REF': 9, 'REFR': 9, 'DW': 10, 'ISLN': 11,
+            'BASE': 12, 'WALL': 13, 'HOOD': 14, 'OVEN': 15, 'MICRO': 16
+        }
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
         sx = max(1, plan.gw // W); sy = max(1, plan.gh // H)
         G = np.zeros((H,W), dtype=np.int8)
@@ -1958,7 +1962,7 @@ class BedroomSolver:
                 c = plan.occ[y][x]
                 if c:
                     base = c.split(':')[0]
-                    G[jj,ii] = mapping.get(base,7)
+                    G[jj,ii] = mapping.get(base,17)
                 ii+=1
                 if ii>=W: break
             jj+=1
@@ -5168,7 +5172,11 @@ class GenerateView:
         append_jsonl_locked(SIM_FILE, obj)
 
     def _grid_snapshot(self, plan: 'GridPlan', max_hw: int = 16):
-        mapping = {'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
+        mapping = {
+            'BED': 1, 'BST': 2, 'WRD': 3, 'DRS': 4, 'DESK': 5, 'TVU': 6,
+            'SINK': 7, 'COOK': 8, 'REF': 9, 'REFR': 9, 'DW': 10, 'ISLN': 11,
+            'BASE': 12, 'WALL': 13, 'HOOD': 14, 'OVEN': 15, 'MICRO': 16
+        }
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
         sx = max(1, plan.gw // W); sy = max(1, plan.gh // H)
         G = np.zeros((H, W), dtype=np.int8)
@@ -5179,7 +5187,7 @@ class GenerateView:
                 c = plan.occ[y][x]
                 if c:
                     base = c.split(':')[0]
-                    G[jj, ii] = mapping.get(base, 7)
+                    G[jj, ii] = mapping.get(base, 17)
                 ii += 1
                 if ii >= W:
                     break
