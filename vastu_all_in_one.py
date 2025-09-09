@@ -2545,15 +2545,36 @@ class KitchenSolver:
         return None
 
     def _work_triangle_bonus(self, plan: GridPlan) -> float:
+        """Return a bonus based on the kitchen work triangle.
+
+        The function measures the distances between the centers of the sink
+        (``SINK``), cooktop (``COOK``) and refrigerator (``REF``).  If any of
+        these appliances are missing, the bonus is ``0.0``.  Otherwise the three
+        pairwise distances are summed to obtain the triangle's perimeter.  A
+        perimeter in the range of 4–7 meters (inclusive) is considered optimal
+        and yields a bonus of ``1.0``; values outside this range return ``0.0``.
+        """
+
         nodes = ['SINK', 'COOK', 'REF']
-        coords = []
+        centers = []
         for code in nodes:
             comps = list(components_by_code(plan, code))
             if not comps:
                 return 0.0
             x, y, w, h, _ = comps[0]
-            coords.append((x + w / 2.0, y + h / 2.0))
-        return 1.0
+            # convert appliance center to meters
+            centers.append(((x + w / 2.0) * plan.cell,
+                            (y + h / 2.0) * plan.cell))
+
+        # compute side lengths in meters
+        d1 = sqrt((centers[0][0] - centers[1][0]) ** 2 +
+                  (centers[0][1] - centers[1][1]) ** 2)
+        d2 = sqrt((centers[1][0] - centers[2][0]) ** 2 +
+                  (centers[1][1] - centers[2][1]) ** 2)
+        d3 = sqrt((centers[2][0] - centers[0][0]) ** 2 +
+                  (centers[2][1] - centers[0][1]) ** 2)
+        perimeter = d1 + d2 + d3
+        return 1.0 if 4.0 <= perimeter <= 7.0 else 0.0
 
     def _adjacency_score(self, plan: GridPlan) -> float:
         A = {
