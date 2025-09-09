@@ -3686,6 +3686,19 @@ class GenerateView:
             kitch_plan.x_offset = left_gw
             kitch_plan.y_offset = top_gh
 
+        if os.environ.get("DEBUG_LAYOUT") == "1":
+            for name, p in (
+                ("bed", bed_plan),
+                ("bath", bath_plan),
+                ("living", liv_plan),
+                ("kitch", kitch_plan),
+            ):
+                if p:
+                    print(
+                        f"[DEBUG_LAYOUT] {name}: "
+                        f"{(p.x_offset, p.y_offset, p.gw, p.gh)}"
+                    )
+
         room_plans = [
             (bed_plan, "Bedroom"),
             (bath_plan, "Bathroom"),
@@ -4842,6 +4855,19 @@ class GenerateView:
             self.kitch_plan.column_grid = col_grid
             self.kitch_plan.x_offset = left_gw
             self.kitch_plan.y_offset = top_gh
+
+        if os.environ.get("DEBUG_LAYOUT") == "1":
+            for name, p in (
+                ("bed", self.bed_plan),
+                ("bath", self.bath_plan if has_bath else None),
+                ("living", self.liv_plan if has_liv else None),
+                ("kitch", self.kitch_plan if has_kitch else None),
+            ):
+                if p:
+                    print(
+                        f"[DEBUG_LAYOUT] {name}: "
+                        f"{(p.x_offset, p.y_offset, p.gw, p.gh)}"
+                    )
 
         # ``GridPlan`` derives its internal grid dimensions from the supplied
         # physical size (``Wm``/``Hm``).  When the per-room plans use widths or
