@@ -2564,6 +2564,13 @@ def arrange_livingroom(
 
     p = GridPlan(Wm, Hm)
     if openings:
+        # ``Openings`` seeds each plan with a placeholder window.  For the
+        # living room we don't want any implicit windows—only those the user
+        # explicitly defined or that come from rule configuration.  When the
+        # default placeholder is present (two entries with the second marked by
+        # a negative wall index) clear the list so no window is assumed.
+        if len(openings.windows) == 2 and openings.windows[1][0] < 0:
+            openings.windows = []
         dx, dy, dw, dh = openings.door_rect_cells()
         if p.fits(dx, dy, dw, dh):
             p.place(dx, dy, dw, dh, 'DOOR')
