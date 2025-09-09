@@ -178,6 +178,43 @@ DEFAULT_BEDROOM_BOOK = {
 
 BEDROOM_BOOK = RULES.get("bedroom_book") or RULES.get("BEDROOM_BOOK") or DEFAULT_BEDROOM_BOOK
 
+
+def kitchen_book_from_rules(rules: dict) -> dict:
+    """Construct a small kitchen catalog from a ``rules`` dictionary.
+
+    Only a subset of modules is currently included.  Width, depth and
+    clearance values are pulled directly from ``rules['furniture']`` so that
+    any custom rule file can override the defaults without editing the code.
+    """
+
+    furn = rules.get("furniture", {})
+
+    def _variants(module: str) -> dict:
+        mod = furn.get(module, {})
+        variants = mod.get("variants", {})
+        out = {}
+        for name, dims in variants.items():
+            out[name.upper()] = {k: dims.get(k) for k in ("w", "d") if k in dims}
+        return out
+
+    clear = furn.get("CLEAR", {})
+    return {
+        "SINK": _variants("SINK"),
+        "COOK": _variants("COOK"),
+        "REF": _variants("REF"),
+        "CLEAR": {
+            "side_rec": clear.get("side_rec"),
+            "side_min": clear.get("side_min"),
+            "front_rec": clear.get("front_rec"),
+            "front_min": clear.get("front_min"),
+            "unit_gap": clear.get("unit_gap_m"),
+        },
+    }
+
+
+DEFAULT_KITCHEN_BOOK = kitchen_book_from_rules(KITCH_RULES)
+KITCHEN_BOOK = KITCH_RULES.get("kitchen_book") or DEFAULT_KITCHEN_BOOK
+
 # -----------------------
 # Theme
 # -----------------------
