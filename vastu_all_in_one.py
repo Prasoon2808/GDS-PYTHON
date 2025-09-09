@@ -3090,8 +3090,11 @@ class GenerateView:
                 if w is not None
             ]
 
-        if self.bath_liv_openings:
-            self.bath_liv_openings.door_wall = WALL_RIGHT
+        if self.bath_dims and self.liv_dims:
+            if not self.bath_liv_openings:
+                self.status.set('Bathroom must expose door to living room.')
+                return False
+            self.bath_liv_openings.door_wall = WALL_BOTTOM
             self.bath_liv_openings.door_width = float(self.bath_liv_door_w.get())
             self.bath_liv_openings.door_center = float(self.bath_liv_door_c.get())
             self.bath_liv_openings.windows = []
@@ -3298,7 +3301,6 @@ class GenerateView:
 
         bath_plan = None
         failure_msg = None
-        bath_liv_ext = None
         if self.bath_dims and bath_ok:
             bath_plan = arrange_bathroom(
                 self.bath_dims[0], self.bath_dims[1], BATH_RULES,
@@ -3315,7 +3317,6 @@ class GenerateView:
                     for j in range(dy2, dy2 + dh2):
                         for i in range(dx2, dx2 + dw2):
                             bath_plan.occ[j][i] = 'DOOR'
-                    bath_liv_ext = getattr(self.bath_liv_openings, 'ext_rect', None)
                 bath_sticky = getattr(self, '_sticky_bath_items', [])
                 if bath_sticky:
                     fx = BATH_RULES.get('fixtures', {})
@@ -3361,7 +3362,7 @@ class GenerateView:
                         liv_plan.occ[j][i] = 'DOOR'
                 if self.bath_liv_openings:
                     shared_op = Openings(liv_plan)
-                    shared_op.door_wall = WALL_LEFT
+                    shared_op.door_wall = WALL_TOP
                     shared_op.door_center = self.bath_liv_openings.door_center
                     shared_op.door_width = self.bath_liv_openings.door_width
                     shared_op.swing_depth = self.bath_liv_openings.swing_depth
@@ -3379,14 +3380,12 @@ class GenerateView:
             else:
                 liv_plan = None
 
-        total_gw = bed_plan.gw
-        total_gh = bed_plan.gh
-        if bath_plan:
-            total_gw += bath_plan.gw
-            total_gh = max(total_gh, bath_plan.gh)
-        if liv_plan:
-            total_gw += liv_plan.gw
-            total_gh = max(total_gh, liv_plan.gh)
+        top_gw = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
+        top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
+        liv_gw = liv_plan.gw if liv_plan else 0
+        liv_gh = liv_plan.gh if liv_plan else 0
+        total_gw = max(top_gw, liv_gw)
+        total_gh = top_gh + liv_gh
         col_grid = ColumnGrid(total_gw, total_gh)
         bed_plan.column_grid = col_grid
         bed_plan.x_offset = 0
@@ -3397,19 +3396,14 @@ class GenerateView:
             bath_plan.y_offset = 0
         if liv_plan:
             liv_plan.column_grid = col_grid
-            liv_plan.x_offset = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
-            liv_plan.y_offset = 0
+            liv_plan.x_offset = 0
+            liv_plan.y_offset = top_gh
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext
             lbl = bed_plan.coord_to_label(bx, by)
             bx_c, by_c = bath_plan.label_to_coord(lbl)
             bath_plan.mark_clear(bx_c, by_c, bw, bh, 'DOOR_CLEAR', 'BATHROOM_DOOR')
-        if bath_plan and liv_plan and bath_liv_ext:
-            lx, ly, lw, lh = bath_liv_ext
-            lbl = bath_plan.coord_to_label(lx, ly)
-            lx_c, ly_c = liv_plan.label_to_coord(lbl)
-            liv_plan.mark_clear(lx_c, ly_c, lw, lh, 'DOOR_CLEAR', 'LIVING_DOOR')
         if bath_plan:
             bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
         if liv_plan:
@@ -4459,7 +4453,7 @@ class GenerateView:
             add_door_clearance(self.liv_plan, self.liv_openings, 'DOOR')
             if self.bath_liv_openings:
                 shared_op = Openings(self.liv_plan)
-                shared_op.door_wall = WALL_LEFT
+                shared_op.door_wall = WALL_TOP
                 shared_op.door_center = self.bath_liv_openings.door_center
                 shared_op.door_width = self.bath_liv_openings.door_width
                 shared_op.swing_depth = self.bath_liv_openings.swing_depth
