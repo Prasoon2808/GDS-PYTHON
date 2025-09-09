@@ -21,6 +21,7 @@ from vastu_all_in_one import (
     opposite_wall,
     CELL_M,
     DOOR_FILL,
+    WINDOW_FILL,
 )
 from ui.overlays import ColumnGridOverlay, LegendPopover
 
@@ -679,6 +680,7 @@ def test_door_rectangle_present(monkeypatch):
         if i.get('fill') == DOOR_FILL and 'opening' in i.get('tags', ())
     ]
     assert door_items, 'Door rectangle not found'
+    assert all(i.get('outline') == 'black' for i in door_items)
 
 
 def test_opening_popover_shows_details(monkeypatch):
@@ -772,9 +774,12 @@ def test_opening_popover_shows_details(monkeypatch):
     window_id = None
     for item in gv.canvas.find_withtag('opening'):
         fill = gv.canvas.itemcget(item, 'fill')
+        outline = gv.canvas.itemcget(item, 'outline')
+        assert outline == 'black'
         if fill == DOOR_FILL:
             door_id = item
         else:
+            assert fill == WINDOW_FILL
             window_id = item
 
     assert door_id is not None and window_id is not None

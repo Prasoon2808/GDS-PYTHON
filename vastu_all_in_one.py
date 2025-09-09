@@ -2650,11 +2650,12 @@ ITEM_LABELS = {
 
 
 WALL_COLOR='#000000'
-WIN_COLOR='#000000'
 
-# Use a brighter fill so doors stand out from black walls
+# Use a brighter fill so doors stand out from black walls and keep window
+# fill distinct.  Expose them as module-level constants so tests can refer to
+# them directly.
 DOOR_FILL='#ff8c00'
-WIN_FILL='#95c8ff'
+WINDOW_FILL='#95c8ff'
 
 HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
@@ -3897,7 +3898,7 @@ class GenerateView:
                 y0,
                 x1,
                 y1,
-                outline=WALL_COLOR,
+                outline='black',
                 width=open_width,
                 fill=fill_color,
                 tags=('plan', 'opening'),
@@ -3918,7 +3919,7 @@ class GenerateView:
             seg(dwall, dstart, dwidth, DOOR_FILL, 'door')
 
         for wall, start, length in openings.window_spans_cells():
-            seg(wall, start, length, WIN_FILL, 'window')
+            seg(wall, start, length, WINDOW_FILL, 'window')
 
     def _draw_opening_segment(self, cv, wall, start, length, color, width):
         if wall<0 or length<=0: return
