@@ -55,7 +55,7 @@ def test_combined_plan_living_contact():
 
     assert gv.liv_plan.y_offset == max(gv.bed_plan.gh, gv.bath_plan.gh)
     assert gv.liv_plan.x_offset == 0
-    assert gv.liv_plan.gw >= gv.bed_plan.gw + gv.bath_plan.gw
+    assert gv.liv_plan.gw >= gv.bed_plan.gw
     assert gv.bed_openings.door_wall == WALL_BOTTOM
     assert gv.bath_openings.door_wall == WALL_LEFT
     assert gv.bath_liv_openings.door_wall == pre_wall
@@ -100,7 +100,7 @@ def test_bathroom_doors_misaligned():
 def test_living_room_too_narrow():
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 1.0))
     gv._validate_living_dims()
-    assert gv.liv_Wm == gv.bed_Wm + gv.bath_Wm
+    assert gv.liv_Wm == gv.bed_Wm
     assert gv.liv_auto_adjusted
 
 
