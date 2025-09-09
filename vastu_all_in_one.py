@@ -2632,6 +2632,11 @@ def shares_edge(a, b) -> bool:
     hx_overlap = not (ax + aw <= bx or bx + bw <= ax)
     return (vx_touch and vy_overlap) or (hx_touch and hx_overlap)
 
+def overlaps(a, b) -> bool:
+    ax, ay, aw, ah = a.x_offset, a.y_offset, a.gw, a.gh
+    bx, by, bw, bh = b.x_offset, b.y_offset, b.gw, b.gh
+    return not (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay)
+
 def add_door_clearance(p: GridPlan, op: Openings, owner: str):
     """Mark clearance for a door defined by ``op`` onto ``p`` and return the
     mirrored rectangle on the opposite side of the doorway.
@@ -3680,6 +3685,21 @@ class GenerateView:
             kitch_plan.column_grid = col_grid
             kitch_plan.x_offset = left_gw
             kitch_plan.y_offset = top_gh
+
+        room_plans = [
+            (bed_plan, "Bedroom"),
+            (bath_plan, "Bathroom"),
+            (liv_plan, "Living"),
+            (kitch_plan, "Kitchen"),
+        ]
+        for (plan_a, name_a), (plan_b, name_b) in itertools.combinations(
+            [rp for rp in room_plans if rp[0]], 2
+        ):
+            if overlaps(plan_a, plan_b):
+                self.status.set(f"Rooms {name_a} and {name_b} overlap")
+                if prev_plan is not None:
+                    self.plan = prev_plan
+                return
 
         # Validate adjacency: kitchen must share boundaries with both bathroom
         # (above) and living room (left).
