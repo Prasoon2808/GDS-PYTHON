@@ -5,7 +5,7 @@ from math import ceil, sqrt, floor
 from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
-from ui.overlays import ColumnGridOverlay
+from ui.overlays import ColumnGridOverlay, DoorLegendOverlay
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
@@ -2652,7 +2652,8 @@ ITEM_LABELS = {
 WALL_COLOR='#000000'
 WIN_COLOR='#000000'
 
-DOOR_FILL='#8b4513'
+# Use a brighter fill so doors stand out from black walls
+DOOR_FILL='#ff8c00'
 WIN_FILL='#95c8ff'
 
 HUMAN1_COLOR='#ff6262'
@@ -2752,6 +2753,8 @@ class GenerateView:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.zoom_factor = tk.DoubleVar(value=1.0)
         self.grid_overlay = ColumnGridOverlay(self.canvas)
+        # Overlay legend to describe door color
+        self.legend_overlay = DoorLegendOverlay(self.canvas, DOOR_FILL)
 
         # Tooltip elements are managed via the 'tooltip' tag
 
@@ -3638,7 +3641,8 @@ class GenerateView:
         liv_ox = ox
         liv_oy = oy + top_h * scale
         wall_width = max(4, int(scale * 0.12)) * 3
-        open_width = max(1, wall_width // 3)
+        # Make door/window outlines thicker for better visibility
+        open_width = max(2, wall_width // 2)
         GRID_COLOR = '#dddddd'
 
         def draw_room(plan, openings, ox, oy, draw_door=True):
@@ -3747,6 +3751,8 @@ class GenerateView:
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
             self.grid_overlay.redraw(col_grid, ox, oy, scale)
+        if hasattr(self, 'legend_overlay'):
+            self.legend_overlay.redraw()
 
         def draw_path(poly, color):
             if len(poly) >= 2:

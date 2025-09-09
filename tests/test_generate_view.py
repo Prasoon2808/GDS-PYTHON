@@ -20,6 +20,7 @@ from vastu_all_in_one import (
     WALL_BOTTOM,
     opposite_wall,
     CELL_M,
+    DOOR_FILL,
 )
 from ui.overlays import ColumnGridOverlay
 
@@ -50,19 +51,35 @@ class BoundingCanvas:
         return self.height
 
     def delete(self, _):
-        self.items.clear()
+        tag = _
+        if tag in ("all", None):
+            self.items.clear()
+        else:
+            self.items = [i for i in self.items if tag not in i.get('tags', ())]
 
     def create_line(self, x0, y0, x1, y1, **kwargs):
-        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+        self.items.append({
+            "type": "line",
+            "bbox": (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
+            **kwargs,
+        })
 
     def create_rectangle(self, x0, y0, x1, y1, **kwargs):
-        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+        self.items.append({
+            "type": "rect",
+            "bbox": (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
+            **kwargs,
+        })
 
     def create_oval(self, x0, y0, x1, y1, **kwargs):
-        self.items.append((min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)))
+        self.items.append({
+            "type": "oval",
+            "bbox": (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
+            **kwargs,
+        })
 
     def create_text(self, x, y, **kwargs):
-        self.items.append((x, y, x, y))
+        self.items.append({"type": "text", "bbox": (x, y, x, y), **kwargs})
 
     def tag_bind(self, *args, **kwargs):
         pass
@@ -73,8 +90,8 @@ class BoundingCanvas:
     def bbox(self, tag):
         if not self.items:
             return None
-        xs = [b[0] for b in self.items] + [b[2] for b in self.items]
-        ys = [b[1] for b in self.items] + [b[3] for b in self.items]
+        xs = [b["bbox"][0] for b in self.items] + [b["bbox"][2] for b in self.items]
+        ys = [b["bbox"][1] for b in self.items] + [b["bbox"][3] for b in self.items]
         return min(xs), min(ys), max(xs), max(ys)
 
 
@@ -614,6 +631,54 @@ def test_bedroom_door_drawn_with_bathroom(monkeypatch):
     gv._solve_and_draw()
 
     assert calls.get('bed') is True
+
+
+def test_door_rectangle_present(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            return self.plan, {
+                'score': 1.0,
+                'coverage': 0.5,
+                'paths_ok': True,
+                'reach_windows': True,
+            }
+
+    def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
+        return GridPlan(w, h)
+
+    def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
+        return GridPlan(w, h)
+
+    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+
+    gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
+    gv.canvas = BoundingCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.door_center = 1.0
+    gv.bed_openings.door_width = 0.9
+
+    gv._apply_openings_from_ui = lambda: True
+    gv._solve_and_draw()
+
+    door_items = [
+        i
+        for i in gv.canvas.items
+        if i.get('fill') == DOOR_FILL and 'opening' in i.get('tags', ())
+    ]
+    assert door_items, 'Door rectangle not found'
 
 
 def test_bath_living_door_drawn_and_mirrored(monkeypatch):
