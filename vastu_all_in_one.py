@@ -3065,6 +3065,29 @@ class GenerateView:
     KITCH_CODES = {'SINK', 'COOK', 'REF', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
     ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
 
+    REQUIRED_FURNITURE = {
+        'bed_plan': {'BED'},
+        'kitch_plan': {'SINK'},
+    }
+
+    @staticmethod
+    def _plan_codes(plan: 'GridPlan') -> Set[str]:
+        return {c for row in plan.occ for c in row if c}
+
+    @classmethod
+    def _ensure_required(cls, plan: 'GridPlan', required: Set[str], room: str):
+        missing = required - cls._plan_codes(plan)
+        if missing:
+            raise ValueError(
+                f"{room} missing required furniture: {', '.join(sorted(missing))}"
+            )
+
+    @classmethod
+    def _has_required(cls, plan: 'GridPlan', required: Set[str]) -> bool:
+        if not plan:
+            return False
+        return required.issubset(cls._plan_codes(plan))
+
     def __init__(
         self,
         root: tk.Misc,
@@ -3573,6 +3596,11 @@ class GenerateView:
             if bath_ext:
                 bed_plan.mark_clear(*bath_ext, 'DOOR_CLEAR', 'BATHROOM_DOOR')
         bed_plan.clearzones = merge_clearances(bed_plan.clearzones)
+        self._ensure_required(
+            bed_plan,
+            self.REQUIRED_FURNITURE['bed_plan'],
+            'Bedroom',
+        )
 
         bath_plan = None
         failure_msg = None
@@ -3676,6 +3704,11 @@ class GenerateView:
                     kbest.clear(x, y, w, h)
                     kbest.place(x, y, w, h, code)
                 kbest.clearzones = merge_clearances(kbest.clearzones)
+                self._ensure_required(
+                    kbest,
+                    self.REQUIRED_FURNITURE['kitch_plan'],
+                    'Kitchen',
+                )
                 kitch_plan = kbest
             else:
                 kitch_plan = None
@@ -4895,59 +4928,74 @@ class GenerateView:
 
     def _combine_plans(self):
         """Merge per-room plans into ``self.plan``."""
-        plans = [self.bed_plan]
-        has_bath = bool(self.bath_plan)
-        has_liv = bool(getattr(self, 'liv_plan', None))
-        has_kitch = bool(getattr(self, 'kitch_plan', None))
-        if has_bath:
+
+        def _valid(attr: str) -> bool:
+            plan = getattr(self, attr, None)
+            req = self.REQUIRED_FURNITURE.get(attr, set())
+            return bool(plan) and self._has_required(plan, req)
+
+        bed_valid = _valid('bed_plan')
+        bath_valid = _valid('bath_plan')
+        liv_valid = _valid('liv_plan')
+        kitch_valid = _valid('kitch_plan')
+
+        plans = []
+        if bed_valid:
+            plans.append(self.bed_plan)
+        if bath_valid:
             plans.append(self.bath_plan)
-        if has_liv:
+        if liv_valid:
             plans.append(self.liv_plan)
-        if has_kitch:
+        if kitch_valid:
             plans.append(self.kitch_plan)
+
+        if not plans:
+            self.plan = None
+            return
         if len(plans) == 1:
-            self.plan = self.bed_plan
+            self.plan = plans[0]
             return
 
         # Arrange plans in a 2x2 grid:
         # [bed][bath]
         # [liv][kitch]
-        left_gw = max(self.bed_plan.gw, self.liv_plan.gw if has_liv else 0)
+        left_gw = max(self.bed_plan.gw if bed_valid else 0, self.liv_plan.gw if liv_valid else 0)
         right_gw = max(
-            self.bath_plan.gw if has_bath else 0,
-            self.kitch_plan.gw if has_kitch else 0,
+            self.bath_plan.gw if bath_valid else 0,
+            self.kitch_plan.gw if kitch_valid else 0,
         )
-        top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
+        top_gh = max(self.bed_plan.gh if bed_valid else 0, self.bath_plan.gh if bath_valid else 0)
         bottom_gh = max(
-            self.liv_plan.gh if has_liv else 0,
-            self.kitch_plan.gh if has_kitch else 0,
+            self.liv_plan.gh if liv_valid else 0,
+            self.kitch_plan.gh if kitch_valid else 0,
         )
         total_gw = left_gw + right_gw
         total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
 
-        self.bed_plan.column_grid = col_grid
-        self.bed_plan.x_offset = 0
-        self.bed_plan.y_offset = 0
-        if has_bath:
+        if bed_valid:
+            self.bed_plan.column_grid = col_grid
+            self.bed_plan.x_offset = 0
+            self.bed_plan.y_offset = 0
+        if bath_valid:
             self.bath_plan.column_grid = col_grid
             self.bath_plan.x_offset = left_gw
             self.bath_plan.y_offset = 0
-        if has_liv:
+        if liv_valid:
             self.liv_plan.column_grid = col_grid
             self.liv_plan.x_offset = 0
             self.liv_plan.y_offset = top_gh
-        if has_kitch:
+        if kitch_valid:
             self.kitch_plan.column_grid = col_grid
             self.kitch_plan.x_offset = left_gw
             self.kitch_plan.y_offset = top_gh
 
         if os.environ.get("DEBUG_LAYOUT") == "1":
             for name, p in (
-                ("bed", self.bed_plan),
-                ("bath", self.bath_plan if has_bath else None),
-                ("living", self.liv_plan if has_liv else None),
-                ("kitch", self.kitch_plan if has_kitch else None),
+                ("bed", self.bed_plan if bed_valid else None),
+                ("bath", self.bath_plan if bath_valid else None),
+                ("living", self.liv_plan if liv_valid else None),
+                ("kitch", self.kitch_plan if kitch_valid else None),
             ):
                 if p:
                     print(

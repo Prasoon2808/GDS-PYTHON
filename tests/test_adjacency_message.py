@@ -37,10 +37,12 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
     gv.bed_Wm = gv.bed_Hm = cell * 4
     gv.bath_dims = (cell, cell)
     gv.bath_Wm = gv.bath_Hm = cell
-    gv.liv_dims = (cell, cell)
-    gv.liv_Wm = gv.liv_Hm = cell
-    gv.kitch_dims = (cell, cell)
-    gv.kitch_Wm = gv.kitch_Hm = cell
+    gv.liv_dims = (cell * 2, cell)
+    gv.liv_Wm = cell * 2
+    gv.liv_Hm = cell
+    gv.kitch_dims = (cell * 2, cell)
+    gv.kitch_Wm = cell * 2
+    gv.kitch_Hm = cell
 
     for attr, w, h in [
         ("bed_openings", gv.bed_Wm, gv.bed_Hm),
@@ -70,6 +72,7 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {"score": 1.0}
 
     class DummyKitchenSolver:
@@ -77,16 +80,22 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
             self.plan = plan
 
         def run(self):
+            self.plan.place(1, 0, 1, 1, 'SINK')
             return self.plan, None
 
     monkeypatch.setattr(vastu_all_in_one, "BedroomSolver", DummyBedroomSolver)
     monkeypatch.setattr(vastu_all_in_one, "KitchenSolver", DummyKitchenSolver)
-    monkeypatch.setattr(
-        vastu_all_in_one, "arrange_bathroom", lambda *a, **k: GridPlan(cell, cell)
-    )
-    monkeypatch.setattr(
-        vastu_all_in_one, "arrange_livingroom", lambda *a, **k: GridPlan(cell, cell)
-    )
+    def dummy_arrange_bathroom(*a, **k):
+        p = GridPlan(cell, cell)
+        return p
+
+    def dummy_arrange_livingroom(*a, **k):
+        p = GridPlan(cell * 2, cell)
+        p.place(1, 0, 1, 1, 'SOFA')
+        return p
+
+    monkeypatch.setattr(vastu_all_in_one, "arrange_bathroom", dummy_arrange_bathroom)
+    monkeypatch.setattr(vastu_all_in_one, "arrange_livingroom", dummy_arrange_livingroom)
 
     gv._solve_and_draw()
     assert (
