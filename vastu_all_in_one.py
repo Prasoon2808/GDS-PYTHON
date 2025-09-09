@@ -1446,6 +1446,11 @@ WALL_TOP = 2
 WALL_LEFT = 3
 
 
+def opposite_wall(w: int) -> int:
+    """Return the wall opposite to ``w``."""
+    return (w + 2) % 4
+
+
 class Openings:
     def __init__(self, plan:GridPlan):
         self.p=plan
@@ -3105,7 +3110,28 @@ class GenerateView:
             if not self.bath_liv_openings:
                 self.status.set('Bathroom must expose door to living room.')
                 return False
-            self.bath_liv_openings.door_wall = WALL_BOTTOM
+            # Determine which wall the bathroom shares with the living room
+            # using the offsets established by ``_combine_plans``.  The door
+            # must be placed on this wall so that the bathroom and living room
+            # openings remain aligned even if the relative orientation changes.
+            def _shared_wall(b: GridPlan, l: GridPlan) -> int:
+                bx0, by0 = b.x_offset, b.y_offset
+                bx1, by1 = bx0 + b.gw, by0 + b.gh
+                lx0, ly0 = l.x_offset, l.y_offset
+                lx1, ly1 = lx0 + l.gw, ly0 + l.gh
+                if bx1 == lx0 and max(by0, ly0) < min(by1, ly1):
+                    return WALL_RIGHT
+                if lx1 == bx0 and max(by0, ly0) < min(by1, ly1):
+                    return WALL_LEFT
+                if by1 == ly0 and max(bx0, lx0) < min(bx1, lx1):
+                    return WALL_BOTTOM
+                if ly1 == by0 and max(bx0, lx0) < min(bx1, lx1):
+                    return WALL_TOP
+                return WALL_BOTTOM
+
+            self.bath_liv_openings.door_wall = _shared_wall(
+                self.bath_plan, self.liv_plan
+            )
             self.bath_liv_openings.door_width = float(self.bath_liv_door_w.get())
             self.bath_liv_openings.door_center = float(self.bath_liv_door_c.get())
             self.bath_liv_openings.windows = []
@@ -3373,7 +3399,9 @@ class GenerateView:
                         liv_plan.occ[j][i] = 'DOOR'
                 if self.bath_liv_openings:
                     shared_op = Openings(liv_plan)
-                    shared_op.door_wall = WALL_TOP
+                    shared_op.door_wall = opposite_wall(
+                        self.bath_liv_openings.door_wall
+                    )
                     shared_op.door_center = self.bath_liv_openings.door_center
                     shared_op.door_width = self.bath_liv_openings.door_width
                     shared_op.swing_depth = self.bath_liv_openings.swing_depth
@@ -3523,7 +3551,9 @@ class GenerateView:
                 self.liv_plan.occ[j][i] = 'DOOR'
         if self.bath_liv_openings:
             shared_op = Openings(self.liv_plan)
-            shared_op.door_wall = WALL_LEFT
+            shared_op.door_wall = opposite_wall(
+                self.bath_liv_openings.door_wall
+            )
             shared_op.door_center = self.bath_liv_openings.door_center
             shared_op.door_width = self.bath_liv_openings.door_width
             shared_op.swing_depth = self.bath_liv_openings.swing_depth
@@ -4464,7 +4494,9 @@ class GenerateView:
             add_door_clearance(self.liv_plan, self.liv_openings, 'DOOR')
             if self.bath_liv_openings:
                 shared_op = Openings(self.liv_plan)
-                shared_op.door_wall = WALL_TOP
+                shared_op.door_wall = opposite_wall(
+                    self.bath_liv_openings.door_wall
+                )
                 shared_op.door_center = self.bath_liv_openings.door_center
                 shared_op.door_width = self.bath_liv_openings.door_width
                 shared_op.swing_depth = self.bath_liv_openings.swing_depth

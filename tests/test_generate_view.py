@@ -18,6 +18,7 @@ from vastu_all_in_one import (
     WALL_LEFT,
     WALL_TOP,
     WALL_BOTTOM,
+    opposite_wall,
     CELL_M,
 )
 from ui.overlays import ColumnGridOverlay
@@ -161,6 +162,8 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
     gv.liv_openings.door_wall = WALL_BOTTOM
     gv.liv_openings.door_center = 1.0
     gv.liv_openings.door_width = 0.9
+
+    gv._apply_openings_from_ui = lambda: True
 
     gv._solve_and_draw()
 
@@ -465,6 +468,8 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
     gv.liv_openings.door_center = 1.0
     gv.liv_openings.door_width = 0.9
 
+    gv._apply_openings_from_ui = lambda: True
+
     gv._solve_and_draw()
 
     assert isinstance(gv.bed_plan, GridPlan)
@@ -531,6 +536,8 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
     gv.liv_openings.door_center = 1.0
     gv.liv_openings.door_width = 0.9
 
+    gv._apply_openings_from_ui = lambda: True
+
     gv._solve_and_draw()
 
     bx1, by1, bw1, bh1 = gv.bath_openings.door_rect_cells()
@@ -543,7 +550,7 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
             assert gv.bath_plan.occ[j][i] == 'DOOR'
 
     shared_op = Openings(gv.liv_plan)
-    shared_op.door_wall = WALL_TOP
+    shared_op.door_wall = opposite_wall(gv.bath_liv_openings.door_wall)
     shared_op.door_center = gv.bath_liv_openings.door_center
     shared_op.door_width = gv.bath_liv_openings.door_width
     shared_op.swing_depth = gv.bath_liv_openings.swing_depth
@@ -556,6 +563,7 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
         owner == 'LIVING_DOOR' and kind == 'DOOR_CLEAR'
         for *_, kind, owner in gv.liv_plan.clearzones
     )
+    assert shared_op.door_wall == WALL_TOP
 
 
 def test_init_schedules_solver(monkeypatch):
