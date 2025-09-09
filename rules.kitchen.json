@@ -1,0 +1,1702 @@
+{
+  "meta": {
+    "name": "VASTU Kitchen Rules",
+    "version": "1.2.0",
+    "updated_at": "2025-08-15T11:59:17Z",
+    "notes": "Kitchen standards expressed as metric constants + simple formulas. Removed dining-room furniture, clearances, and scores mistakenly inserted. Unified file merged from v0.2.0 (core), v0.3.0 (appliance dims + kitchen layouts), v0.4.0 (cabinets + laundry), and v0.5.0 (laundry clearances/layouts). Units in meters unless otherwise noted."
+  },
+  "units": {
+    "CELL_M": 0.25,
+    "ROUND_MM": 5
+  },
+  "ui": {
+    "SHOW_RULER_DEFAULT": true,
+    "thumbs_reset_on_generate": true,
+    "scroll_sidebar": true,
+    "stroke": {
+      "wall_px": 3,
+      "door_px": 3,
+      "window_px": 3,
+      "furniture_px": 2,
+      "clearance_px": 1
+    },
+    "grid": {
+      "show": true,
+      "major_every_cells": 4
+    },
+    "selection": {
+      "outline_dash": [
+        3,
+        2
+      ],
+      "outline_px": 2
+    }
+  },
+  "learning": {
+    "LEARNING_RATE": 0.06,
+    "mlp": {
+      "hidden": [
+        48,
+        32
+      ],
+      "activation": "relu"
+    },
+    "transformer": {
+      "d_model": 64,
+      "n_head": 4,
+      "n_layer": 2,
+      "ff_mult": 2
+    }
+  },
+  "solver": {
+    "PATH_WIDTH_CELLS": 2,
+    "beam_width": 18,
+    "max_iters": 8000,
+    "random_seed": 42,
+    "hard_constraints": {
+      "no_overlap": true,
+      "stay_inside_walls": true,
+      "respect_openings": true
+    },
+    "score_weights": {
+      "reachability": 1.0,
+      "clearance_satisfied": 1.0,
+      "overlap_penalty": -3.0,
+      "path_block_penalty": -2.0,
+      "door_swing_penalty": -1.5,
+      "window_block_penalty": -1.2,
+      "adjacent_kitchen_aisle_violation_penalty": -0.6,
+      "appliance_rear_vent_gap_violation_penalty": -0.5,
+      "floor_to_ceiling_pantry_bonus": 0.2,
+      "under_counter_ro_concealed_bonus": 0.2,
+      "same_size_jars_org_bonus": 0.1,
+      "glass_jar_lid_system_bonus": 0.1,
+      "backsplash_missing_penalty": -0.3,
+      "aisle_under_42in_penalty": -0.6,
+      "two_person_aisle_under_48in_penalty": -0.8,
+      "open_kitchen_interface_bonus": 0.2,
+      "appliance_outlet_inaccessible_penalty": -0.4,
+      "prep_sink_near_cooktop_bonus": 0.2,
+      "flush_sink_edge_bonus": 0.2,
+      "vented_veg_storage_bonus": 0.2,
+      "pantry_wire_shelves_penalty": -0.2,
+      "tandem_drawers_mix_bonus": 0.2,
+      "backsplash_grooved_penalty": -0.2,
+      "backsplash_plain_surface_bonus": 0.2,
+      "future_appliance_space_bonus": 0.2,
+      "over_lighting_penalty": -0.1,
+      "clean_front_near_hob_bonus": 0.2,
+      "avoid_gola_at_hob_penalty": -0.2,
+      "integrated_fridge_seamless_bonus": 0.3,
+      "freestanding_fridge_visual_penalty": -0.2,
+      "pantry_door_straightener_bonus": 0.1,
+      "overhead_slider_shutter_bonus": 0.1,
+      "skirting_light_ambience_bonus": 0.1,
+      "hob_landing_area_shortfall_penalty": -0.5,
+      "sink_landing_area_shortfall_penalty": -0.5,
+      "island_spacing_ideal_bonus": 0.2,
+      "island_spacing_under_0_9_penalty": -0.6,
+      "fridge_opening_clearance_violation_penalty": -0.5,
+      "tall_cab_breaks_counter_penalty": -0.3,
+      "drawers_over_doors_bonus": 0.2,
+      "bad_corner_access_penalty": -0.2,
+      "optimized_corner_solution_bonus": 0.2,
+      "bins_planned_bonus": 0.2,
+      "independent_lighting_control_bonus": 0.2,
+      "dimmer_control_bonus": 0.1,
+      "vented_route_efficiency_bonus": 0.2,
+      "recirc_filter_missing_penalty": -0.2,
+      "slab_joint_planning_bonus": 0.1,
+      "unsupported_overhang_rule_bonus": 0.1,
+      "experienced_fitter_bonus": 0.1,
+      "symmetry_equal_modules_bonus": 0.2,
+      "crockery_zone_near_dining_bonus": 0.2,
+      "fluted_glass_doors_bonus": 0.1,
+      "mixer_grinder_bay_bonus": 0.1,
+      "handleless_shallow_drawers_symmetry_bonus": 0.1,
+      "utensil_rail_near_cook_bonus": 0.1,
+      "ro_service_hatch_bonus": 0.1,
+      "ro_cable_routing_neat_bonus": 0.1,
+      "ro_waste_collection_space_bonus": 0.1,
+      "hardware_unified_finish_bonus": 0.1,
+      "large_format_glossy_backsplash_bonus": 0.2,
+      "full_body_tile_countertop_bonus": 0.2,
+      "microwave_side_vent_space_bonus": 0.2,
+      "ro_bottle_pullout_nearby_bonus": 0.1,
+      "upper_ro_conceal_bonus": 0.1,
+      "under_sink_storage_penalty": -0.2,
+      "corner_165deg_hinge_bonus": 0.1,
+      "gas_pump_liftup_value_bonus": 0.1,
+      "chimney_duct_false_ceiling_conceal_bonus": 0.2,
+      "continuous_profile_lighting_bonus": 0.1,
+      "black_contrast_theme_bonus": 0.1,
+      "cylinder_vent_grille_bonus": 0.2,
+      "three_hinge_heavy_door_bonus": 0.1,
+      "near_sink_plate_cup_drawer_bonus": 0.2,
+      "detergent_pullout_small_gap_bonus": 0.1,
+      "mop_unit_near_service_bonus": 0.1,
+      "ro_overhead_routing_bonus": 0.1,
+      "chimney_smoke_sense_feature_bonus": 0.1,
+      "duct_cover_liftup_service_bonus": 0.1,
+      "profile_task_light_bonus": 0.2,
+      "pvc_wall_protector_bonus": 0.1,
+      "open_shelves_keep_light_bonus": 0.1,
+      "island_seating_under_48in_penalty": -0.4,
+      "opposing_runs_under_36in_penalty": -0.8,
+      "opposing_runs_42in_pref_bonus": 0.1,
+      "opposing_runs_48in_best_bonus": 0.2,
+      "pendant_height_outside_range_penalty": -0.2,
+      "pendant_eyeline_ok_bonus": 0.1,
+      "work_triangle_good_bonus": 0.3,
+      "fridge_in_triangle_center_penalty": -0.4,
+      "walkway_opposing_openings_under_4ft_penalty": -0.6,
+      "backsplash_storage_rail_bonus": 0.1,
+      "door_back_storage_heavy_penalty": -0.1,
+      "serving_cart_chopping_top_bonus": 0.1,
+      "eye_level_oven_heavy_baking_bonus": 0.1,
+      "hood_clearance_followed_bonus": 0.1,
+      "built_in_fridge_bonus": 0.2,
+      "undermount_sink_bonus": 0.2,
+      "oversized_sink_small_kitchen_penalty": -0.2,
+      "task_light_under_cabinet_bonus": 0.3,
+      "display_lighting_strategy_bonus": 0.1,
+      "work_triangle_bonus": 0.8,
+      "counter_front_free_bonus": 0.7,
+      "appliance_front_free_bonus": 0.9,
+      "tall_unit_against_wall_bonus": 0.4
+    }
+  },
+  "openings": {
+    "DOOR": {
+      "default": {
+        "w": 0.9,
+        "swing_clear": 0.9
+      },
+      "min": {
+        "w": 0.76,
+        "swing_clear": 0.76
+      }
+    },
+    "WIN": {
+      "default": {
+        "w": 1.5,
+        "sill_h": 0.9
+      },
+      "min": {
+        "w": 0.9,
+        "sill_h": 0.76
+      }
+    },
+    "SERVE": {
+      "default": {
+        "w": 1.0,
+        "h": 0.45,
+        "sill_h": 1.10
+      }
+    }
+  },
+  "palette": {
+    "CLEAR": "#6fb6ff",
+    "DOOR": "#d2b48c",
+    "WIN": "#95c8ff",
+    "GRID": "#e7e7e7",
+    "HIGHLIGHT": "#55ffff"
+  },
+  "colors": {
+    "WALL": "#f7a8a8",
+    "WIN": "#95c8ff",
+    "HUMAN1": "#ff6262",
+    "HUMAN2": "#ffdd55"
+  },
+  "furniture": {
+    "CLEAR": {
+      "side_rec": 1.016,
+      "side_min": 0.6096,
+      "front_rec": 0.9652,
+      "front_min": 0.508,
+      "unit_gap_m": 0.0,
+      "unit_gap_cells": 0
+    },
+    "PANTRY": {
+      "name": "Pantry (Tall)",
+      "rotations_allowed": [
+        0,
+        90
+      ],
+      "variants": {
+        "PANTRY_60x60": {
+          "w": 0.6,
+          "d": 0.6,
+          "h": 2.1
+        },
+        "PANTRY_90x60": {
+          "w": 0.9,
+          "d": 0.6,
+          "h": 2.1
+        }
+      },
+      "clearance": {
+        "front_rec": 1.0,
+        "front_min": 0.8
+      },
+      "preferences": {
+        "floor_to_ceiling": true
+      },
+      "features": {
+        "rice_atta_bins_possible": true,
+        "dry_fruits_shelf": true,
+        "kids_snacks_shelf": true,
+        "rarely_used_top_storage": true,
+        "onion_potato_bin_possible": true,
+        "containers_for_leftovers_storage": true,
+        "avoid_wire_pullouts_preferred": true,
+        "tandem_drawers_mix_preferred": true,
+        "pull_out_larder_possible": true
+      }
+    },
+    "UTENSIL_RAIL": {
+      "name": "Hook Rail for Heavy Utensils",
+      "rotations_allowed": [
+        0,
+        90
+      ],
+      "variants": {
+        "RAIL_60": {
+          "w": 0.6,
+          "d": 0.05,
+          "h": 0.1
+        },
+        "RAIL_90": {
+          "w": 0.9,
+          "d": 0.05,
+          "h": 0.1
+        },
+        "RAIL_120": {
+          "w": 1.2,
+          "d": 0.05,
+          "h": 0.1
+        }
+      },
+      "preferences": {
+        "near_cook_zone": true
+      },
+      "features": {
+        "max_hooks": 12
+      }
+    },
+    "TALL_UNIT": {
+      "name": "Tall Utility Unit",
+      "rotations_allowed": [
+        0,
+        90
+      ],
+      "variants": {
+        "TALL_UNIT_STD": {
+          "w": 0.6,
+          "d": 0.6,
+          "h": 2.1
+        }
+      },
+      "clearance": {
+        "front_rec": 1.0,
+        "front_min": 0.8
+      },
+      "preferences": {
+        "near_kitchen_or_servery": true
+      },
+      "features": {
+        "microwave_niche_possible": true,
+        "wicker_onion_potato_basket_possible": true,
+        "openable_small_appliance_storage": true
+      }
+    },
+    "LOFT": {
+      "name": "Overhead Loft Storage",
+      "rotations_allowed": [
+        0,
+        90
+      ],
+      "variants": {
+        "LOFT_RUN": {
+          "w": 1.2,
+          "d": 0.6,
+          "h": 0.45
+        }
+      },
+      "preferences": {
+        "align_above_cabinets": true
+      }
+    },
+    "MOP_UNIT": {
+      "name": "Mop/Broom Unit",
+      "rotations_allowed": [
+        0,
+        90
+      ],
+      "variants": {
+        "MOP_UNIT_STD": {
+          "w": 0.4,
+          "d": 0.6,
+          "h": 2.1
+        }
+      },
+      "features": {
+        "hanging_hooks": true
+      },
+      "preferences": {
+        "near_sink_or_service": true
+      }
+    }
+  },
+  "defaults": {
+    "room_min": {
+      "w": 3.0,
+      "d": 3.6
+    }
+  },
+  "dining_kitchen_interface": {
+    "counter_height_m_range": [
+      0.8128,
+      0.8636
+    ],
+    "counter_height_m_default": 0.8382,
+    "counter_depth_m": 0.6096,
+    "countertop_to_upper_gap_m_range": [
+      0.5588,
+      0.6096
+    ],
+    "upper_cabinet_depth_m_range": [
+      0.3048,
+      0.381
+    ],
+    "upper_over_fridge_depth_m": 0.6096,
+    "chimney_over_hob_height_m_range": [
+      0.7112,
+      0.762
+    ],
+    "panel_width_m_range": [
+      0.4318,
+      0.6096
+    ],
+    "min_work_aisle_m": 1.2192,
+    "sink_drainer_space_min_m": 0.9144,
+    "appliance_rear_vent_gap_min_m": 0.0508,
+    "appliance_mounting_heights": {
+      "oven_bottom_h_m": 0.4318,
+      "microwave_bottom_h_m": 1.016,
+      "oven_below_microwave_preferred": true
+    },
+    "ro_under_counter_possible": true,
+    "ro_drinking_tap_at_sink_possible": true,
+    "geyser_hot_water_concealed_possible": true,
+    "fan_optional_in_service_zone": true,
+    "cctv_optional": true,
+    "reference_kitchen_sizes_m": {
+      "standard_10x8_ft": {
+        "w": 3.048,
+        "d": 2.4384
+      },
+      "minimum_8x6_ft": {
+        "w": 2.4384,
+        "d": 1.8288
+      },
+      "example_9x6_ft": {
+        "w": 2.7432,
+        "d": 1.8288
+      },
+      "advisory_runs_ft": [
+        13,
+        16
+      ]
+    },
+    "l_shape_long_run_m": 2.4384,
+    "l_shape_short_run_m": 1.3716,
+    "counter_depth_m_range": [
+      0.6096,
+      0.6858
+    ],
+    "counter_height_by_user_height": {
+      "user_5ft2_or_less_recommend_m": 0.8128,
+      "user_around_5ft8_recommend_m": 0.9144
+    },
+    "countertop_thickness_m_range": [
+      0.0381,
+      0.0762
+    ],
+    "sink_module_width_m_range": [
+      0.6096,
+      0.762
+    ],
+    "galley_clear_min_single_person_m": 1.0668,
+    "galley_clear_min_two_person_m": 1.2192,
+    "backsplash": {
+      "required_zones": [
+        "behind_hob",
+        "behind_sink"
+      ],
+      "material_preference": "tile"
+    },
+    "vastu_kitchen_location_rank": [
+      "SE_best",
+      "NW_good",
+      "SW_okay",
+      "NE_poor"
+    ],
+    "open_kitchen_interface_preferred": true,
+    "hob_rear_clearance_guidance": {
+      "rear_clearance_based_on_largest_vessel": true,
+      "prefer_three_burner_if_depth_constrained": true
+    },
+    "appliance_outlets": {
+      "accessible_preferred": true,
+      "avoid_behind_fridge": true,
+      "avoid_behind_microwave": true
+    },
+    "future_appliances": {
+      "placeholder_space_allowed": true,
+      "double_check_measurements_required": true,
+      "installation_margins_required": true
+    },
+    "prep_sink": {
+      "near_cooktop_possible": true,
+      "for_veggies_and_handwash": true,
+      "avoid_raised_edges": true,
+      "flush_or_semi_flush_edges_preferred": true
+    },
+    "vegetable_storage": {
+      "perforated_bins_preferred": true,
+      "door_vents_required_if_concealed": true
+    },
+    "under_sink": {
+      "vent_grill_recommended": true,
+      "storage_discouraged_due_to_drips": true
+    },
+    "servery_cook_zone": {
+      "hob_with_slanted_chimney_possible": true,
+      "glass_side_cabinets_possible": true,
+      "upper_cabinet_height_standard_m": 0.6096,
+      "upper_cabinet_height_increase_allowed": true,
+      "aluminium_glass_shutter_opening_height_m_range": [
+        0.4572,
+        0.6096
+      ],
+      "hidden_false_front_over_drawers_possible": true,
+      "prefer_clean_flat_front_near_hob": true,
+      "avoid_exposed_gola_at_hob_zone": true,
+      "narrow_sauce_pullout_w_m": 0.15,
+      "tandem_drawers_near_cook_zone": true,
+      "handleless_gola_ok_away_from_hob": true
+    },
+    "sinks": {
+      "small_prep_sink_in_cook_zone_possible": true,
+      "heavy_utensil_sink_material_preferred": "stainless_steel",
+      "sink_side_detergent_pullout_possible": true
+    },
+    "lighting": {
+      "profile_lights_in_cabinets_possible": true,
+      "under_cabinet_linear_light_possible": true,
+      "skirting_linear_light_possible": true,
+      "overhead_slider_door_possible": true,
+      "independent_circuit_control_required": true,
+      "dimmers_preferred": true,
+      "continuous_profile_run_preferred": true,
+      "fall_ceiling_strip_lights_preferred": true,
+      "profile_task_light_17x7mm_preferred": true,
+      "island_pendant": {
+        "height_default_m": 0.762,
+        "height_range_m": [
+          0.7112,
+          0.8128
+        ],
+        "clear_glass_allow_lower": true,
+        "eyeline_check_required": true
+      },
+      "under_cabinet_task_required": true,
+      "avoid_center_only_lighting": true,
+      "display_strategies": {
+        "front_light_when_items_tidy_preferred": true,
+        "backlight_silhouette_when_items_messy_preferred": true
+      }
+    },
+    "tall_units": {
+      "full_height_pantry_pullout_possible": true,
+      "door_straightener_recommended": true,
+      "push_to_open_overheads_possible": true,
+      "overhead_rotating_tray_possible": true
+    },
+    "layout_scalability": {
+      "recommended_length_m_range": [
+        3.0,
+        5.2
+      ],
+      "module_reduction_guidance": "remove_extra_tandem/pantry/hidden_columns to fit smaller runs"
+    },
+    "landing_areas": {
+      "hob_min_each_side_m": 0.3,
+      "sink_min_one_side_m": 0.6,
+      "sink_min_other_side_m": 0.3
+    },
+    "island_spacing_m": {
+      "ideal_range": [
+        1.0,
+        1.2
+      ],
+      "two_person_prefer_upper_end": true,
+      "absolute_min_pinch": 0.9
+    },
+    "tall_cabinet_placement": {
+      "prefer_at_run_ends": true,
+      "avoid_breaking_countertop_flow": true
+    },
+    "corner_strategies": {
+      "optimize_with_mechanisms_possible": true,
+      "block_off_corner_option": true,
+      "evaluate_necessity_required": true
+    },
+    "hood": {
+      "vented_route_short_and_straight_preferred": true,
+      "vented_bends_minimize": true,
+      "recirc_filters_replace_months_range": [
+        6,
+        12
+      ],
+      "follow_manufacturer_clearance_required": true
+    },
+    "counter_height_tuning": {
+      "adjust_via_plinth_and_top_thickness": true
+    },
+    "small_appliance_bay": {
+      "mixer_grinder_bay_possible": true,
+      "jar_shelf_above_possible": true,
+      "near_pantry_or_bar_preferred": true
+    },
+    "ro_details": {
+      "service_hatch_in_door_possible": true,
+      "cable_clip_routing_preferred": true,
+      "waste_water_collection_space_possible": true,
+      "keep_countertop_clutter_free_preferred": true,
+      "upper_cab_above_sink_install_possible": true,
+      "concealed_in_upper_cab_preferred": true,
+      "bottle_pullout_near_ro_preferred": true,
+      "overhead_cabinet_install_possible": true,
+      "outlet_routed_to_dispenser_possible": true
+    },
+    "chimney_duct_concealment": {
+      "via_false_ceiling_drop_m": 0.6096,
+      "keep_above_cabinet_tops_for_shutter_clearance": true,
+      "align_with_cabinet_tops_for_cohesive_look": true,
+      "prefer_over_costly_cabinet_boxing": true
+    },
+    "gas_cylinder": {
+      "allowed_in_corner_cabinet": true,
+      "ventilation_grille_required": true,
+      "leak_smell_escape_preferred": true,
+      "sliding_tray_possible": true,
+      "aluminium_finish_preferred": true
+    },
+    "sink": {
+      "common_size_24x18_in_allowed": true,
+      "large_single_ok_if_space": true,
+      "double_bowl_ok": true,
+      "avoid_oversizing_in_small_kitchen": true,
+      "undermount_preferred": true,
+      "choose_by_space_and_use": true
+    },
+    "openings_theme": {
+      "black_powder_coated_aluminium_ok": true
+    },
+    "upper_and_shelf_heights": {
+      "alternate_countertop_to_upper_gap_m_min": 0.4572,
+      "light_rail_under_upper_additional_clearance_required": true,
+      "open_shelf_above_counter_gap_m_min": 0.4699
+    },
+    "island_seating": {
+      "rear_clearance_m_min": 1.2192,
+      "measured_example_m": 1.3208,
+      "fridge_behind_seating_extra_clearance_preferred": true
+    },
+    "opposing_runs_clearance_m": {
+      "absolute_min": 0.9144,
+      "preferred": 1.0668,
+      "better": 1.2192
+    },
+    "work_triangle": {
+      "nodes": [
+        "refrigerator",
+        "sink",
+        "hob"
+      ],
+      "avoid_obstruction_in_center": true,
+      "refrigerator_not_in_center": true
+    },
+    "walkway_for_opposing_openings_m": {
+      "recommended": 1.2192
+    },
+    "space_optimisation": {
+      "merge_island_and_dining_allowed": true,
+      "attach_small_dining_to_cabinet_allowed": true
+    },
+    "corner_accessories": {
+      "optimize_dead_corners_preferred": true,
+      "accessory_solutions_supported": true
+    },
+    "temporary_prep_extensions": {
+      "hob_cover_board_possible": true,
+      "sink_over_board_possible": true
+    },
+    "backsplash_storage": {
+      "rails_and_small_caddies_possible": true
+    },
+    "upper_mechanisms": {
+      "bi_fold_lift_up_possible": true,
+      "pull_down_basket_for_heavy_items_preferred": true
+    }
+  },
+  "storage_and_org": {
+    "floor_to_ceiling_pantry_preferred": true,
+    "same_size_jars_preferred": true,
+    "glass_jars_with_steel_lids_preferred": true,
+    "low_plastic_preferred": true,
+    "legacy_plastic_allowed": true,
+    "oils_sauces_pullout_near_cook_zone_preferred": true,
+    "granite_countertop_low_maintenance_preferred": true,
+    "backsplash_tile_ok": true,
+    "tandem_drawers_preferred": true,
+    "drawer_mix_sizes_preferred": true,
+    "plate_rack_thali_fit_check_required": true,
+    "avoid_wire_shelves_in_pantry": true,
+    "tandem_drawer_capacity_kg_options": [
+      35,
+      65
+    ],
+    "hidden_inner_drawers_possible": true,
+    "pvc_cutlery_trays_preferred": true,
+    "box_organizers_preferred": true,
+    "pullout_drawers_with_organizers_possible": true,
+    "soft_close_hinges_required": true,
+    "hinge_opening_angle_165deg_possible": true,
+    "drawers_preferred_over_doors": true,
+    "bins_planned_early_required": true,
+    "bins_integrated_or_freestanding_allowed": true,
+    "equal_width_modules_preferred": true,
+    "top_shallow_drawers_handleless_allowed": true,
+    "handleless_via_reveal_or_buffer_preferred": true,
+    "drawer_zoning": {
+      "cooking_zone_top": [
+        "cutlery",
+        "ladles",
+        "small_tools"
+      ],
+      "cooking_zone_middle": [
+        "spices",
+        "small_bowls"
+      ],
+      "cooking_zone_bottom": [
+        "oils",
+        "roti_dabba",
+        "sieve_large_items"
+      ]
+    },
+    "zones": {
+      "prep_storage_left_or_right_possible": true,
+      "small_box_shutter_near_prep_possible": true
+    },
+    "tall_unit_drawers": {
+      "cleaning_cloths_and_belan_drawer": true,
+      "large_kadhai_deep_drawer": true,
+      "shelf_above_if_no_oven": true
+    },
+    "waste": {
+      "two_bin_pullout_removable_allowed": true,
+      "under_sink_pullout_waste_possible": true
+    },
+    "wire_basket_drawers": {
+      "plate_rack_near_sink_preferred": true,
+      "cup_saucer_drawer_near_sink_preferred": true,
+      "heavy_duty_bottom_running_channels_preferred": true,
+      "soft_close_channels_required": true
+    },
+    "pullouts": {
+      "detergent_pullout_min_w_m": 0.2032
+    },
+    "dish_drainers": {
+      "drainer_tray_removable_preferred": true
+    },
+    "door_back_storage": {
+      "allowed_light_items_only": true,
+      "avoid_heavy_items_to_prevent_misalignment": true
+    },
+    "organizers": {
+      "plate_bowl_organizers_preferred": true,
+      "pot_pan_organizers_preferred": true,
+      "cutlery_organizers_preferred": true,
+      "utensil_organizers_split_cooking_vs_dining": true,
+      "utensils_dining_outer_kitchen_preferred": true,
+      "utensils_cooking_near_hob_preferred": true,
+      "utensil_drawer_side_by_hand_dominance_rule": true
+    }
+  },
+  "materials": {
+    "cabinetry": {
+      "white_finishes_ok": true,
+      "stain_resistant_laminates_preferred": [
+        "acrylic_laminate",
+        "lacquered_glass"
+      ],
+      "avoid_flimsy_laminates": true,
+      "core_material_recommended": [
+        "BWP_plywood"
+      ],
+      "acrylic_fronts_require_SDHMR_substrate": true,
+      "super_matte_anti_fingerprint_fronts_preferred": true,
+      "base_run_handleless_gola_possible": true,
+      "substrates": {
+        "marine_or_BWP_in_wet_zones_preferred": true,
+        "commercial_ply_ok_outside_kitchen": true,
+        "HDHMR_base_boxes_allowed": true
+      },
+      "hardware": {
+        "unified_finish_preferred": true,
+        "finish_options": [
+          "brushed_gold",
+          "matte_black",
+          "stainless"
+        ],
+        "corner_165deg_hinges_preferred": true,
+        "gas_pump_lift_up_preferred": true,
+        "min_hinges_tall_heavy_doors": 3
+      },
+      "glass_doors": {
+        "types_supported": [
+          "clear",
+          "fluted"
+        ]
+      },
+      "fronts": {
+        "acrylic_1p5mm_allowed": true
+      },
+      "gola": {
+        "color_black_preferred": true
+      },
+      "aluminium_glass_frames": {
+        "black_tinted_glass_allowed": true
+      },
+      "drawer_systems": {
+        "innotech_soft_close_allowed": true
+      },
+      "handles": {
+        "profile_J_handle_allowed": true
+      },
+      "layout": {
+        "full_height_uppers_align_doors_for_symmetry": true
+      },
+      "open_shelves": {
+        "preferred_near_window_to_keep_light": true
+      },
+      "edgebanding_all_sides_required": true
+    },
+    "backsplash": {
+      "plain_surface_preferred": true,
+      "avoid_grooved_or_textured": true,
+      "match_countertop_possible": true,
+      "large_format_tiles_preferred": true,
+      "glossy_finish_preferred": true,
+      "few_joints_easier_clean_reason": true
+    },
+    "countertop": {
+      "quartz_preferred": true,
+      "slab_length_m_nominal": 3.0,
+      "joint_planning_required_if_exceeds_slab": true,
+      "templating": {
+        "client_presence_preferred": true,
+        "decisions_include": [
+          "drainer_grooves",
+          "front_overhang_depth",
+          "upstand_height"
+        ]
+      },
+      "unsupported_overhang_rules": {
+        "12mm_thickness_max_overhang_m": 0.2,
+        "20mm_thickness_max_overhang_m": 0.25,
+        "30mm_thickness_max_overhang_m": 0.3,
+        "manufacturer_verification_required": true
+      },
+      "full_body_tiles_allowed": true,
+      "installer_skill_critical": true,
+      "cut_details_quality_required": [
+        "sink_cutout",
+        "nosing",
+        "polish"
+      ]
+    },
+    "appliance_theme": {
+      "dark_contrast_ok": true,
+      "black_contrast_preferred": true
+    },
+    "palette": {
+      "two_tone_lower_grey_upper_white_preferred": true,
+      "example_two_tone_names": {
+        "lowers": "Pearl Black (Marino HG)",
+        "uppers": "Frosty White"
+      }
+    },
+    "wall_protection": {
+      "pvc_wood_protector_sheet_allowed": true,
+      "use_on_damp_prone_walls_preferred": true
+    }
+  },
+  "appliances": {
+    "refrigeration": {
+      "integrated_fridge_freezer_column_preferred": true,
+      "panel_ready_fronts_preferred": true,
+      "top_fridge_bottom_freezer_drawers_possible": true,
+      "freestanding_fridge_visual_penalty_reason": "bulky_look_and_side_clearance",
+      "door_opening_min_deg": 100,
+      "avoid_against_wall_or_close_run": true,
+      "handle_extra_clearance_required": true,
+      "over_fridge_hydraulic_storage_possible": true,
+      "built_in_fridge_general_preferred": true
+    },
+    "ovens": {
+      "stack_height_check_required": true,
+      "combi_above_single_can_be_too_high_note": true,
+      "eye_level_recommended_for_heavy_baking": true,
+      "under_counter_oven_space_saving_ok": true
+    },
+    "hinging": {
+      "left_hinged_common": [
+        "microwave",
+        "washing_machine"
+      ],
+      "avoid_right_end_of_run_for_left_hinged": true
+    },
+    "microwave": {
+      "countertop_in_tall_unit_allowed": true,
+      "side_open_space_required": true,
+      "avoid_full_boxing_for_heat": true
+    },
+    "chimney": {
+      "brand_model_examples": [
+        "Faber Signus 90cm"
+      ],
+      "remote_control_allowed": true,
+      "gesture_control_allowed": true,
+      "smoke_detection_auto_speed_allowed": true,
+      "duct_cover_liftup_serviceable_preferred": true
+    },
+    "SINK": {
+      "name": "Sink (Base)",
+      "rotations_allowed": [0, 90],
+      "mount": "counter_drop_in",
+      "variants": {
+        "single_600": { "w": 0.60, "d": 0.60 },
+        "double_800": { "w": 0.80, "d": 0.60 }
+      },
+      "clearance": { "front_mode": "stand_only" },
+      "ergonomics": { "bottom_of_sink_h_m": 0.8255 },
+      "adjacency": {
+        "window_sill_max_h_view_child_m": 0.889,
+        "window_sill_max_h_view_adult_m": 1.1938
+      }
+    },
+    "COOK": {
+      "name": "Cooktop / Range",
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "cooktop_600": { "w": 0.60, "d": 0.60 },
+        "cooktop_750": { "w": 0.75, "d": 0.60 },
+        "range_900":  { "w": 0.90, "d": 0.70 }
+      },
+      "clearance": { "front_mode": "stand_only", "side_noncombustible_min_m": null }
+    },
+    "REF": {
+      "name": "Refrigerator",
+      "rotations_allowed": [0, 90],
+      "handle_side": ["L", "R"],
+      "variants": {
+        "std_762":  { "w": 0.762, "d": 0.76, "h": 1.78 },
+        "wide_914": { "w": 0.914, "d": 0.76, "h": 1.78 }
+      },
+      "door_swing_arc_m": 0.80,
+      "clearance": { "front_mode": "door_open" }
+    },
+    "DW": {
+      "name": "Dishwasher",
+      "rotations_allowed": [0, 90],
+      "variants": { "dw_600": { "w": 0.60, "d": 0.60, "h": 0.85 } },
+      "clearance": { "front_mode": "door_open" },
+      "adjacency": { "near_sink_max_m": 1.2, "door_conflict_forbid": true, "at_sink_center_preferred": true }
+    },
+    "OVEN": {
+      "name": "Wall Oven",
+      "rotations_allowed": [0, 90],
+      "variants": { "single": { "w": 0.60, "d": 0.60, "h": 0.60 } },
+      "mount": "tallcab",
+      "clearance": { "front_mode": "door_open" },
+      "install_hints": { "shelf_or_tray_height_range_m": [0.8128, 0.8636] }
+    },
+    "MICRO": {
+      "name": "Microwave",
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "countertop":    { "w": 0.55, "d": 0.45, "h": 0.35 },
+        "ov_the_range":  { "w": 0.76, "d": 0.40, "h": 0.42 }
+      },
+      "clearance": { "front_mode": "door_open" }
+    }
+  },
+  "execution": {
+    "experienced_fitter_priority": true,
+    "receipts_and_warranties_required": true
+  },
+  "electrical": {
+    "sockets": {
+      "power_track_sockets_allowed": true,
+      "pop_up_sockets_allowed": true,
+      "pop_up_keep_away_from_sink_required": true
+    }
+  },
+  "safety": {},
+  "anthro": {
+    "normal_horizontal_span_m": 1.2192,
+    "worker_footprint_w_m": 0.6858,
+    "worker_footprint_d_m": 0.762,
+    "highest_shelf_fully_visible_h_m": 1.5494,
+    "max_vertical_reach_no_obstruction_h_m": 1.8288,
+    "note": "From reach/visibility and comfortable heights; use for reach checks + UI hints."
+  },
+  "kitchen_clearances": {
+    "walkway_passage_min_m": 0.9652,
+    "work_aisle_min_m": 1.0668,
+    "work_aisle_two_cook_min_m": 1.2192,
+    "counter_depth_range_m": [0.4064, 0.6096],
+    "counter_depth_std_m": 0.60,
+    "wall_cab_depth_range_m": [0.254, 0.381],
+    "toe_kick_h_m": 0.10,
+    "toe_kick_d_m": 0.075,
+    "counter_thickness_m": 0.025,
+    "appliance_front_clear_modes": {
+      "stand_only":   { "front_min_m": 0.762 },
+      "passage_shared": { "front_min_m": 0.9652 },
+      "door_open":    { "front_min_m": 0.9652 }
+    },
+    "drawer_open_projection_m": 0.4572,
+    "drawer_clear_to_opposite_min_m": 0.9652,
+    "backsplash_min_h_m": 0.1143,
+    "wall_cab_bottom_above_counter_range_m": [0.381, 0.610],
+    "corner_rules": {
+      "blind_corner_min_offset_m": null,
+      "dw_to_corner_min_offset_m": null,
+      "ovendoor_to_corner_min_offset_m": null
+    }
+  },
+  "work_triangle": {
+    "nodes": ["SINK", "COOK", "REF"],
+    "leg_min_m": null,
+    "leg_max_m": null,
+    "sum_min_m": null,
+    "sum_max_m": null,
+    "no_cross_island": true,
+    "flow_order_hint": ["REF", "SINK", "COOK", "MIX", "SERVE"],
+    "center_weights": { "SINK": 0.46, "COOK": 0.16, "MIX": 0.125, "REF": 0.075, "SERVE": 0.05, "DINING": 0.06 }
+  },
+  "modules": {
+    "BASECAB": {
+      "name": "Base Cabinet",
+      "rotations_allowed": [0, 90],
+      "depth_m": 0.60,
+      "heights_m": {
+        "counter_h": 0.9144,
+        "cab_body_h": 0.72,
+        "plinth_h": 0.10,
+        "counter_thk": 0.025,
+        "mix_counter_h": 0.8128
+      },
+      "width_steps_m": [0.30, 0.45, 0.60, 0.75, 0.90]
+    },
+    "WALLCAB": {
+      "name": "Wall Cabinet",
+      "rotations_allowed": [0, 90],
+      "depth_m": 0.30,
+      "mount_h_range_m": { "bottom_min": 1.35, "bottom_max": 1.50 },
+      "width_steps_m": [0.30, 0.45, 0.60, 0.75, 0.90],
+      "height_variants_m": [0.60, 0.75, 0.90]
+    },
+    "TALLCAB": {
+      "name": "Tall Cabinet / Pantry",
+      "rotations_allowed": [0, 90],
+      "depth_m": 0.60,
+      "width_steps_m": [0.60, 0.75, 0.90],
+      "height_m": 2.10
+    }
+  },
+  "counter_zones": {
+    "prep": { "min_run_m": 0.7112, "adjacent_to": ["SINK"], "front_clear_mode": "stand_only" },
+    "landing": {
+      "by_appliance": {
+        "REF":   { "min_each_side_m": 0.4064 },
+        "COOK":  { "min_each_side_m": 0.5334 },
+        "OVEN":  { "min_adjacent_m": 0.381 },
+        "MICRO": { "min_adjacent_m": 0.381 }
+      }
+    },
+    "serve": { "min_run_m": 0.9144 },
+    "adjacent_to_sink_min_side_run_m": 0.4572,
+    "seating": { "knee_space_h_m": 0.65, "overhang_m": null, "stool_clear_behind_m": null }
+  },
+  "layout_typologies": {
+    "one_wall": {},
+    "galley": { "parallel_min_clear_m": 1.0668 },
+    "L_shape": {},
+    "U_shape": { "island_allowed": true },
+    "with_island": { "island_gap_min_m": 1.0668, "two_cook_gap_min_m": 1.2192 }
+  },
+
+  "storage_shelving": {
+    "spacing_by_depth_in": { "4-6": 0.127, "6-10": 0.1524, "10-15": 0.1778, "15-24": 0.254 }
+  },
+
+  "ventilation": { "exhaust_air_changes_per_hour_min": 15 },
+
+  "layout_patterns": {
+    "broken_U": {
+      "description": "U-shaped interrupted by an opening or passage (Fig.9).",
+      "sequence_hint": ["REF","MIX","SINK","MIX","RANGE","SERVE"],
+      "dw_at_sink_center": true,
+      "source_img": "IMG_0200 2.jpg"
+    },
+    "L_shape": {
+      "description": "L-shaped with clear flow and landing zones (Fig.10).",
+      "sequence_hint": ["REF","MIX","SINK","SERVE","RANGE","SERVE"],
+      "dw_at_sink_center": true,
+      "source_img": "IMG_0200 2.jpg"
+    },
+    "wall_oven_plans": {
+      "description": "Plans demonstrating wall ovens within L or corridor kitchens (Fig.11).",
+      "notes": "Dining proximity shown; keep landing near ovens.",
+      "source_img": "IMG_0201 2.jpg"
+    }
+  },
+
+  "fixtures_and_sinks": {
+    "cabinet_sink_standard": {
+      "counter_h_m": 0.9144,
+      "backsplash_h_range_m": [0.0762, 0.1016],
+      "notes": "All cabinet sinks 36 in high; backsplash varies 3–4 in.",
+      "source_img": "IMG_0204 2.jpg"
+    },
+    "top_sink_with_drainboard_widths_in": {
+      "single_bowl": [54, 60, 66, 72, 84, 96],
+      "double_bowl": [60, 66, 72, 84, 96],
+      "source_img": "IMG_0204 2.jpg"
+    },
+    "ledge_and_flat_rim_bowls": {
+      "rim_note": "Flat-rim bowls typically have 1–1.5 in rim on all sides.",
+      "triple_compartment_ledgetype_sizes_in": [
+        [12, 9, 7.5], [12, 12, 7.5], [12, 14, 7.5], [12, 16, 7.5],
+        [16, 12, 7.5], [16, 14, 7.5], [16, 16, 7.5], [16, 18, 7.5]
+      ],
+      "double_compartment_flatrim_sizes_in": [
+        [12, 21, 14], [16, 21, 16], [18, 21, 18]
+      ],
+      "single_compartment_flatrim_depths_in": [9, 12, 16, 18],
+      "round_bowls_inside_diam_in": [11, 14],
+      "round_bowls_height_in": [4, 5.5],
+      "source_imgs": ["IMG_0202 2.jpg","IMG_0203 2.jpg"]
+    }
+  },
+
+  "dishwashers": {
+    "combo_dishwasher_sink": {
+      "depth_m": 0.635, "width_m": 1.2192, "height_m": 0.9144, "depth_doors_open_m": 1.2192,
+      "source_img": "IMG_0205 2.jpg"
+    },
+    "freestanding": {
+      "depth_m": 0.6604, "width_m": 0.6096, "height_m": 0.9144,
+      "depth_doors_open_options_m": [1.0668, 1.1684],
+      "notes": "Fits standard base cabinets; front or top loading variants.",
+      "source_img": "IMG_0205 2.jpg"
+    },
+    "under_counter": {
+      "depth_m": 0.6096, "width_options_m": [0.6096, 0.762], "height_m": 0.8636,
+      "depth_doors_open_m": 1.143, "source_img": "IMG_0205 2.jpg"
+    }
+  },
+
+  "cooktops_and_ovens": {
+    "surface_cooking_units_electric": {
+      "notes": "Built-in installations; allow extra space if controls are remote.",
+      "rows_in": [
+        { "elements": 1, "depth": 22, "width": 22, "height": 5, "controls": "Front" },
+        { "elements": 2, "depth": 22, "width": 24, "height": 7, "controls": "Front" },
+        { "elements": 2, "depth": 24, "width": 28, "height": 7, "controls": "Remote" },
+        { "elements": 2, "depth": 22, "width": 17, "height": 6, "controls": "Remote" }
+      ],
+      "source_img": "IMG_0205 2.jpg"
+    },
+    "gas_surface_burners": {
+      "rows_in": [
+        { "burners": 2, "depth": 20, "width": 21, "height": 5, "controls": "Front" },
+        { "burners": 2, "depth": 21, "width": 25, "height": 8, "controls": "Front" },
+        { "burners": 4, "depth": 21, "width": 28, "height": 8, "controls": "Front" }
+      ],
+      "source_img": "IMG_0206 2.jpg"
+    },
+    "wall_ovens": {
+      "sizes_in": [
+        { "depth": 22, "width": 22, "height": 30 },
+        { "depth": 24, "width": 22, "height": 32 },
+        { "depth": 24, "width": 26, "height": 36 },
+        { "depth": 24, "width": 26, "height": 48 }
+      ],
+      "text_note": "Microwaves available in same sizes or as combos with regular ovens; some horizontal or vertical doors; some with viewing panels.",
+      "source_img": "IMG_0206 2.jpg"
+    },
+    "ranges_gas": {
+      "widths_in": [20, 24, 26, 30, 36, 40],
+      "height_in": [45, 46, 47, 48, 49],
+      "note": "40-in ranges generally have two ovens; 20- and 30-in ranges one oven.",
+      "source_img": "IMG_0206 2.jpg"
+    },
+    "ranges_electric": {
+      "rows_in": [
+        { "elements": 2, "depth": 24, "width": 20, "height": 45 },
+        { "elements": 3, "depth": 24, "width": 26, "height": 48 },
+        { "elements": 4, "depth": 25, "width": 30, "height": 45 }
+      ],
+      "source_img": "IMG_0206 2.jpg"
+    }
+  },
+
+  "refrigeration": {
+    "built_in_under_counter": {
+      "capacity_cuft": [6, 8, 12],
+      "dims_in": [
+        { "cuft": 6, "depth": 24, "width": 36, "height": 32 },
+        { "cuft": 8, "depth": 24, "width": 32, "height": 35 },
+        { "cuft": 12, "depth": 24, "width": 35, "height": 56 }
+      ],
+      "note": "Allowance required at top/sides for air grille.",
+      "source_img": "IMG_0206 2.jpg"
+    },
+    "freestanding_refrigerator": {
+      "rows_in": [
+        { "cuft": 4,  "depth": 27, "width": 24, "height": 34, "door_clear_C": 50 },
+        { "cuft": 6,  "depth": 28, "width": 24, "height": 56, "door_clear_C": 49 },
+        { "cuft": 8,  "depth": 28, "width": 24, "height": 58, "door_clear_C": 48 },
+        { "cuft": 9,  "depth": 30, "width": 24, "height": 59, "door_clear_C": 50 },
+        { "cuft": 10, "depth": 31, "width": 28, "height": 59, "door_clear_C": 56 },
+        { "cuft": 11, "depth": 31, "width": 28, "height": 60, "door_clear_C": 53 },
+        { "cuft": 12, "depth": 30, "width": 30, "height": 60, "door_clear_C": 53 },
+        { "cuft": 12, "depth": 31, "width": 30, "height": 64, "door_clear_C": 56 },
+        { "cuft": 13, "depth": 28, "width": 32, "height": 64, "door_clear_C": 57 }
+      ],
+      "source_img": "IMG_0207 2.jpg"
+    },
+    "upright_freezer": {
+      "rows_in": [
+        { "cuft": 7,  "depth": 25, "width": 26, "height": 35, "door_clear_C": 52 },
+        { "cuft": 10, "depth": 29, "width": 28, "height": 50 },
+        { "cuft": 12, "depth": 33, "width": 31, "height": 59 },
+        { "cuft": 14, "depth": 28, "width": 32, "height": 70, "door_clear_C": 57 },
+        { "cuft": 16, "depth": 30, "width": 32, "height": 65, "door_clear_C": 57 },
+        { "cuft": 18, "depth": 34, "width": 30, "height": 71, "door_clear_C": 63 },
+        { "cuft": 20, "depth": 35, "width": 34, "height": 65 }
+      ],
+      "source_img": "IMG_0207 2.jpg"
+    },
+    "chest_freezer": {
+      "rows_in": [
+        { "cuft": 4,  "depth": 24, "width": 33, "height": 36, "door_clear_C": 62 },
+        { "cuft": 8,  "depth": 33, "width": 42, "height": 37, "door_clear_C": 59 },
+        { "cuft": 12, "depth": 33, "width": 54, "height": 36, "door_clear_C": 62 },
+        { "cuft": 15, "depth": 33, "width": 55, "height": 38, "door_clear_C": 59 },
+        { "cuft": 17, "depth": 33, "width": 60, "height": 37, "door_clear_C": 63 },
+        { "cuft": 19, "depth": 33, "width": 60, "height": 37, "door_clear_C": 62 },
+        { "cuft": 21, "depth": 32, "width": 71, "height": 38, "door_clear_C": 63 },
+        { "cuft": 26, "depth": 33, "width": 84, "height": 37 }
+      ],
+      "source_img": "IMG_0207 2.jpg"
+    },
+    "built_in_freezer": {
+      "rows_in": [ { "cuft": 6, "depth": 24, "width": 36, "height": 42 } ],
+      "note": "May be under counter, stacked with refrigerator, or wall-hung.",
+      "source_img": "IMG_0208 2.jpg"
+    },
+    "built_in_refrigerator_freezer": {
+      "note": "Example model: 24 in deep, 36 in wide, 74 in high (≈13 cu ft).",
+      "dims_in": [ { "depth": 24, "width": 36, "height": 74, "cuft": 13 } ],
+      "source_img": "IMG_0208 2.jpg"
+    },
+    "wall_hung_or_built_in_rf": {
+      "rows_in": [
+        { "cuft": 11, "depth": 18, "width": 64, "height": 40, "doors": 3 },
+        { "cuft": 13, "depth": 24, "width": 60, "height": 38, "doors": 2 }
+      ],
+      "source_img": "IMG_0208 2.jpg"
+    }
+  },
+
+  "combo_units": {
+    "combination_unit": {
+      "rows_in": [
+        { "depth": 25, "width": 24, "height": 36, "features": "2-burner range, refrigerator, single sink" },
+        { "depth": 25, "width": 24, "height": 36, "features": "4-burner range, refrigerator, single sink" },
+        { "depth": 25, "width": 39, "height": 36, "features": "Single sink, refrigerator" },
+        { "depth": 25, "width": 48, "height": 36, "features": "Single sink, refrigerator" },
+        { "depth": 25, "width": 48, "height": 36, "features": "4-burner range, oven, broiler, refrigerator, single sink" },
+        { "depth": 28, "width": 28, "height": 36, "features": "3-burner range, refrigerator" },
+        { "depth": 28, "width": 28, "height": 36, "features": "3-burner range, refrigerator, single sink" },
+        { "depth": 28, "width": 42, "height": 36, "features": "3-burner range, oven, broiler, refrigerator, double sink" }
+      ],
+      "source_img": "IMG_0209 2.jpg"
+    },
+    "executive_type_unit": {
+      "rows_in": [
+        { "depth": 28, "width": 29, "height": 39, "features": "3-burner range, single sink, refrigerator" },
+        { "depth": 28, "width": 48, "height": 39, "features": "3-burner range, single sink, refrigerator, storage space" },
+        { "depth": 28, "width": 39, "height": 39, "features": "3-burner range, single sink, refrigerator" }
+      ],
+      "source_img": "IMG_0209 2.jpg"
+    },
+    "special_utility_package": {
+      "lengths_in": [84, 108],
+      "depth_in": 25,
+      "heights_in": [36, 54],
+      "features": ["surface units","oven","sink","appliance center","dishwasher","washer-dryer","garbage disposer","storage units"],
+      "freestanding_or_built_in": true,
+      "source_img": "IMG_0209 2.jpg"
+    },
+    "pullman_type_unit": {
+      "depth_in": 25,
+      "widths_in": [39, 48, 60, 69, 72],
+      "heights_in": [81, 87],
+      "height_h_in": 39,
+      "features": [
+        "2-burner range, refrigerator, single sink",
+        "2-burner range, oven, broiler, refrigerator, single sink",
+        "3-burner range, oven, broiler, refrigerator, single sink",
+        "up to 4-burner range, oven, broiler, refrigerator, single sink",
+        "4-burner range, oven, broiler, refrigerator, single sink",
+        "3-burner range, oven, refrigerator, single sink"
+      ],
+      "source_img": "IMG_0209 2.jpg"
+    },
+    "automatic_appliance_center": {
+      "rows_in": [
+        { "depth": 3,   "width": 14, "height": 10 },
+        { "depth": 4,   "width": 12, "height": 12 },
+        { "depth": 6,   "width": 12, "height": 12 },
+        { "depth": 9.5, "width": 12, "height": 12 }
+      ],
+      "notes": "Wall/cabinet built-in; some with receptacles, retractable cords, breakers, clocks, timers.",
+      "source_img": "IMG_0209 2.jpg"
+    }
+  },
+
+  "cabinets": {
+    "shared_standards": {
+      "base_h_no_top_m": 0.8763,
+      "base_h_with_top_m": 0.9144,
+      "base_depth_m": 0.6096,
+      "counter_total_depth_m": 0.635,
+      "wall_depth_m": 0.3302,
+      "doors_handed": ["L", "R"],
+      "finish_panels_fillers_available": true,
+      "notes": "Manufacturers vary; confirm exact SKU sizes."
+    },
+    "wood": { "source_img": "IMG_0210 2.jpg" },
+    "metal": {
+      "source_img": "IMG_0211 2.jpg",
+      "color_options": "stock + special order; some with wood doors",
+      "with_or_without_tops": true
+    },
+    "catalog": {
+      "wall_cabinet_matrix_A": {
+        "type": "WALL", "heights_in": [24, 30, 33, 45], "widths_in": [12, 15, 18, 21, 24],
+        "source_img": "IMG_0210 2.jpg"
+      },
+      "wall_cabinet_matrix_B": {
+        "type": "WALL", "heights_in": [16, 18, 22, 24, 30, 33, 45], "widths_in": [42, 45, 48],
+        "source_img": "IMG_0210 2.jpg"
+      },
+      "wall_cabinet_matrix_C": {
+        "type": "WALL", "heights_in": [15, 16, 18, 22, 24, 30, 33, 45], "widths_in": [24, 27, 30, 33, 36, 39, 42, 48],
+        "source_img": "IMG_0210 2.jpg"
+      },
+      "wall_cabinet_corner_single_door": {
+        "type": "WALL_CORNER_SINGLE_DOOR", "heights_in": [24, 32, 33, 45], "widths_in": [24, 27],
+        "source_img": "IMG_0210 2.jpg"
+      },
+      "base_cabinet_small": {
+        "type": "BASE", "widths_in": [12, 15, 18, 21, 24], "source_img": "IMG_0210 2.jpg"
+      },
+      "base_cabinet_large": {
+        "type": "BASE", "widths_in": [24, 27, 30, 33, 36, 39, 42, 48], "source_img": "IMG_0210 2.jpg"
+      },
+      "base_cabinet_drawers_grouped": {
+        "type": "BASE_DRAWERS",
+        "drawers_by_width_in": { "2": [15, 18, 21, 24], "3": [27, 30, 33, 36, 39], "4": [42, 45, 48] },
+        "source_img": "IMG_0211 2.jpg"
+      },
+      "base_cabinet_drawers_alt": {
+        "type": "BASE_DRAWERS",
+        "widths_in": [15, 18, 21, 27],
+        "drawer_count_options": { "15": [3, 4], "18": [3, 4], "21": [4], "27": [4] },
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "oven_tall_cabinet": {
+        "type": "TALL_OVEN", "widths_in": [24, 27, 33, 48], "nominal_h_in": 83.75, "source_img": "IMG_0211 2.jpg"
+      },
+      "utility_storage_tall": {
+        "type": "TALL_STORAGE",
+        "widths_in": [15, 18, 21, 24, 36],
+        "depth_options_in": [13, 24],
+        "height_options_in": [80, 84],
+        "source_imgs": ["IMG_0211 2.jpg","IMG_0213 2.jpg"]
+      },
+      "wall_cabinet_by_width_doors": {
+        "type": "WALL",
+        "door_count_by_width": { "12": 1, "15": 1, "18": "1-2", "21": 2, "24": 2, "27": 2, "30": 2, "36": 2, "42": 2, "48": 2, "54": 4 },
+        "source_img": "IMG_0211 2.jpg"
+      },
+      "range_ventilator_cabinet": {
+        "type": "HOOD_WALL",
+        "widths_in": [24, 30, 36, 42],
+        "door_count_by_width": { "24": 2, "30": 2, "36": 2, "42": "2-4" },
+        "projection_note": "Some models have no projecting hood",
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "base_cabinet_singledoor_small": {
+        "type": "BASE",
+        "door_count_by_width": { "9": 1, "12": 1, "24": 2 },
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "wall_cabinet_island": {
+        "type": "WALL_ISLAND",
+        "opens_two_sides": true,
+        "heights_in": [18, 24, 30],
+        "widths_in": [15, 18, 21, 24, 27, 30, 36],
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "wall_cabinet_open_display": {
+        "type": "WALL_OPEN_SHELVES",
+        "height_in": 30,
+        "shelf_depth_options_in": [10.5, 11.5, 12.75],
+        "shelf_spacing_in": [6.5, 7.5],
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "wall_cabinet_corner_single_door_type2": {
+        "type": "WALL_CORNER_SINGLE_DOOR",
+        "widths_in": [21, 25, 26, 27],
+        "heights_in": [18, 30],
+        "revolving_shelf_option": true,
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "over_sink_cabinet": {
+        "type": "WALL_OVER_SINK",
+        "widths_in": [54, 60],
+        "door_count": 4,
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "wall_cabinet_sliding_bypass": {
+        "type": "WALL_SLIDING",
+        "widths_in": [21, 24, 30, 36, 48],
+        "depth_options_in": [10.5, 11.5, 12.75],
+        "height_options_in": [6.5, 7],
+        "source_img": "IMG_0212 2.jpg"
+      },
+      "base_cabinet_corner_single_door": {
+        "type": "BASE_CORNER_SINGLE_DOOR",
+        "widths_in": [31, 32, 33],
+        "revolving_shelves_common": true,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "base_cabinet_island": {
+        "type": "BASE_ISLAND",
+        "widths_in": [12, 15, 18, 21, 24, 27, 30, 36, 45],
+        "two_side_accessible": true,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "base_cabinet_under_sink": {
+        "type": "BASE_UNDER_SINK",
+        "widths_in": [24, 30, 36, 42, 48, 54, 60, 66, 72],
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "base_cabinet_half_round_open": {
+        "type": "BASE_HALF_ROUND_OPEN",
+        "depth_in": [24, 25],
+        "height_in": 36,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "base_cabinet_blind_corner": {
+        "type": "BASE_BLIND_CORNER",
+        "widths_in": [42, 44],
+        "handed": ["L", "R"],
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "base_cabinet_quarter_round_open": {
+        "type": "BASE_QUARTER_ROUND_OPEN",
+        "widths_in": [18, 24],
+        "height_in": 36,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "range_base_cabinet_drop_in": {
+        "type": "BASE_RANGE_DROPIN",
+        "widths_in": [18, 24, 30, 36],
+        "height_in": 36,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "sink_front_cabinet": {
+        "type": "BASE_SINK_FRONT",
+        "widths_in": [21, 24, 30, 36, 42],
+        "height_in": 34.5,
+        "source_img": "IMG_0213 2.jpg"
+      },
+      "oven_cabinet_builtin_wall_oven": {
+        "type": "TALL_OVEN_VARIANT",
+        "widths_in": [24, 27],
+        "height_segments_in": { "H1": [18, 22, 28], "H2": [26, 34, 36, 40, 42], "H3": [18, 24] },
+        "source_img": "IMG_0213 2.jpg"
+      }
+    }
+  },
+
+  "laundry": {
+    "planning_text_notes": {
+      "source_img": "IMG_0214 2.jpg",
+      "traffic_lanes_min_m": 1.2192,
+      "location_pref": "Near kitchen/bath/utility; dry, heated, well-lighted; ventilate for moisture/odors.",
+      "accessibility": "Provide electrical outlets; arrange for flow of work; provide storage and ironing needs.",
+      "flow_of_work_order": [
+        "clothes chute/hamper",
+        "sorting & pre-treating table/counter",
+        "washing machine",
+        "laundry tray (if provided)",
+        "dryer",
+        "ironing board or ironer (and standing/hanging area)",
+        "storage closet/cabinet for supplies"
+      ]
+    },
+    "equipment_dims": {
+      "matched_washer_and_dryer_table": {
+        "units": "in",
+        "columns": ["depth", "width_W1", "width_W2", "height"],
+        "rows": [
+          [24, 25, 25, 36],
+          [25, 25, 25, 36],
+          [26, 27, 27, 36],
+          [27, 30, 30, 36],
+          [28, 31, 31, 37]
+        ],
+        "notes": "Freestanding or built-in; height may be 34.5 in when recessed; some sloped fronts; some stackable.",
+        "source_img": "IMG_0215 2.jpg"
+      },
+      "combo_washer_dryer_table": {
+        "units": "in",
+        "columns": ["depth", "width", "height"],
+        "rows": [
+          [25, 30, 34.5],
+          [26, 34, 45],
+          [28, 31, 36],
+          [28, 32, 37]
+        ],
+        "notes": "Some models suitable for undercounter installation.",
+        "source_img": "IMG_0215 2.jpg"
+      },
+      "front_clearance_for_door_opening_in": [40, 44],
+      "source_img": "IMG_0215 2.jpg"
+    },
+    "ironing_board_space": {
+      "board_length_in": 54,
+      "clearance_all_sides_in": 18,
+      "overall_envelope_len_in": 72,
+      "worker_clearance_zone": "elliptical/rounded as diagrammed",
+      "scale_note": "Scale 1/8 in = 1 ft",
+      "source_img": "IMG_0215 2.jpg"
+    },
+    "ironer_station_space": {
+      "components_in": {
+        "ironer": [16, 36],
+        "lapboard": [6, 27],
+        "space_for_seated_worker": [27, 38],
+        "hanging_bar": [24, 36],
+        "table": [24, 48]
+      },
+      "overall_room_width_in": 86,
+      "source_img": "IMG_0215 2.jpg"
+    },
+    "space_requirements_templates": {
+      "washer_top_opening": {
+        "machine_depth_m": 0.6604,
+        "front_clearance_m": 0.6858,
+        "wall_to_clearance_edge_m": 1.4224,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.4 (top-opening)"
+      },
+      "washer_front_opening": {
+        "machine_depth_m": 0.6604,
+        "front_clearance_m": 0.889,
+        "wall_to_clearance_edge_m": 1.5494,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.4 (front-opening)"
+      },
+      "dryer_front_hinged": {
+        "machine_depth_m": 0.6604,
+        "front_clearance_m": 0.9144,
+        "wall_to_clearance_edge_m": 1.5748,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.5 (front-opening, hinged-door)"
+      },
+      "dryer_slant_drop": {
+        "machine_depth_m": 0.6604,
+        "front_clearance_m": 0.8382,
+        "wall_to_clearance_edge_m": 1.4986,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.5 (slant-front, drop-door)"
+      },
+      "combo_stacked": {
+        "stacked": true,
+        "wall_to_clearance_edge_m": 1.6002,
+        "front_clearance_upper_m": 0.9398,
+        "front_clearance_lower_m": 0.6604,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.6 (stacked arrangement)"
+      },
+      "combo_straight_line": {
+        "stacked": false,
+        "wall_to_clearance_edge_m": 1.5748,
+        "front_clearance_dryer_m": 0.9144,
+        "front_clearance_washer_m": 0.6604,
+        "worker_clearance_can_overlap_side": true,
+        "source_img": "IMG_0216 2.jpg",
+        "figure": "Fig.6 (straight-line arrangement)"
+      }
+    },
+    "component_key": {
+      "1": "storage_closet",
+      "2": "laundry_chute_ventilated",
+      "3": "sorting_shelf_with_ventilated_bins_below",
+      "4": "laundry_tray_with_mixing_faucet_and_cover",
+      "5": "washer",
+      "6": "dryer_vented",
+      "7": "ironer",
+      "8": "ironing_board",
+      "9": "electric_plate_hotplate",
+      "10": "home_freezer_substitute_for_ironer"
+    },
+    "layout_patterns": {
+      "kitchen_laundry": {
+        "variants": ["minimum", "adequate", "desirable"],
+        "sequence_hint": ["storage_closet","laundry_chute_ventilated","sorting_shelf_with_ventilated_bins_below","laundry_tray_with_mixing_faucet_and_cover","washer","dryer_vented","ironer","ironing_board"],
+        "dwelling_note": "Laundry placed adjacent to kitchen; keep dryer vented.",
+        "source_img": "IMG_0217 2.jpg",
+        "figure": "Fig.7"
+      },
+      "separate_laundry_rooms_A": {
+        "notes": "Four corridor/U/L examples with vents at dryers; home freezer may substitute for ironer.",
+        "required_components": ["storage_closet","sorting_shelf_with_ventilated_bins_below","laundry_tray_with_mixing_faucet_and_cover","washer","dryer_vented","ironing_board"],
+        "optional_components": ["laundry_chute_ventilated","ironer","electric_plate_hotplate","home_freezer_substitute_for_ironer"],
+        "source_img": "IMG_0218 2.jpg",
+        "figure": "Fig.8"
+      },
+      "separate_laundry_rooms_B": {
+        "notes": "U- and L-shaped rooms; cabinets/shelves above; chute empties onto counter when bottom is released.",
+        "required_components": ["storage_closet","sorting_shelf_with_ventilated_bins_below","laundry_tray_with_mixing_faucet_and_cover","washer","dryer_vented","ironing_board"],
+        "aux_labels": ["cabinets_above","storage_above","shelves"],
+        "source_img": "IMG_0219 2.jpg",
+        "figure": "Fig.9"
+      },
+      "combination_rooms": {
+        "subtypes": {
+          "laundry_sewing_with_storage": {
+            "adjacencies": [["sewing_machine","shelf_table"],["laundry_tray_with_mixing_faucet_and_cover","washer","dryer_vented"]],
+            "extra_notes": ["laundry_carts_under_counter","cabinets_above","cutting_table"],
+            "source_img": "IMG_0220 2.jpg",
+            "figure": "Fig.10"
+          },
+          "laundry_sewing_room": {
+            "adjacencies": [["sewing_machine","cutting_table"],["washer","dryer_vented"],["ironing_board","store_in_closet"]],
+            "note": "Home freezer may substitute for ironer.",
+            "source_img": "IMG_0220 2.jpg",
+            "figure": "Fig.11"
+          },
+          "laundry_breakfast_room": {
+            "adjacencies": [["breakfast_corner","cabinets_above"],["sink","laundry_tray_with_mixing_faucet_and_cover"]],
+            "source_img": "IMG_0220 2.jpg",
+            "figure": "Fig.12"
+          },
+          "laundry_playroom": {
+            "adjacencies": [["toy_shelves","play_space"],["laundry_chute_ventilated","counter_below_with_release_bottom"]],
+            "barrier": "folding_gate between laundry and play space",
+            "source_img": "IMG_0220 2.jpg",
+            "figure": "Fig.13"
+          }
+        }
+      }
+    }
+  },
+
+  "provenance": [
+    { "img": "IMG_0193 2.jpg", "fig": "Fig.4", "rule_path": "kitchen_clearances.work_aisle_min_m", "raw_text": "Minimum clearance between opposite counters with appliances: 42\"" },
+    { "img": "IMG_0193 2.jpg", "fig": "Fig.4", "rule_path": "kitchen_clearances.work_aisle_two_cook_min_m", "raw_text": "Minimum clearance when two people work at same time: 48\"" },
+    { "img": "IMG_0193 2.jpg", "fig": "Fig.4", "rule_path": "kitchen_clearances.walkway_passage_min_m", "raw_text": "Minimum width of passage (no work): 38\"" },
+    { "img": "IMG_0193 2.jpg", "fig": "Fig.4", "rule_path": "anthro.worker_footprint_w_m", "raw_text": "Space for one worker: 27\" width x 30\" depth" },
+    { "img": "IMG_0193 2.jpg", "fig": "Fig.4", "rule_path": "kitchen_clearances.drawer_clear_to_opposite_min_m", "raw_text": "Space in front of drawer to opposite: 38\"; drawer projects ~18\"" },
+    { "img": "IMG_0191 2.jpg", "fig": "Fig.2", "rule_path": "counter_zones.landing.by_appliance.COOK.min_each_side_m", "raw_text": "Range clear counter each side 21\"" },
+    { "img": "IMG_0191 2.jpg", "fig": "Fig.2", "rule_path": "counter_zones.landing.by_appliance.REF.min_each_side_m", "raw_text": "Refrigerator landing area 16\" (latch side)" },
+    { "img": "IMG_0191 2.jpg", "fig": "Fig.2", "rule_path": "counter_zones.prep.min_run_m", "raw_text": "Mix center 28\" if adjacent to another counter" },
+    { "img": "IMG_0191 2.jpg", "fig": "Fig.2", "rule_path": "counter_zones.serve.min_run_m", "raw_text": "Serve center 36\" counter" },
+    { "img": "IMG_0191 2.jpg", "fig": "Fig.2", "rule_path": "counter_zones.adjacent_to_sink_min_side_run_m", "raw_text": "Adjacent counter to sink 18\" min" },
+    { "img": "IMG_0190 2.jpg", "fig": "Fig.1/3", "rule_path": "anthro.normal_horizontal_span_m", "raw_text": "Normal working area (horizontal) 48\"" },
+    { "img": "IMG_0192 2.jpg", "fig": "Fig.3", "rule_path": "anthro.highest_shelf_fully_visible_h_m", "raw_text": "Highest shelf fully visible 61\"" },
+    { "img": "IMG_0192 2.jpg", "fig": "Fig.3", "rule_path": "anthro.max_vertical_reach_no_obstruction_h_m", "raw_text": "Without obstruction 72\"" },
+    { "img": "IMG_0192 2.jpg", "fig": "Fig.3", "rule_path": "modules.BASECAB.heights_m.mix_counter_h", "raw_text": "Mix-center counter height 32\"" },
+    { "img": "IMG_0192 2.jpg", "fig": "Fig.3", "rule_path": "appliances.SINK.ergonomics.bottom_of_sink_h_m", "raw_text": "Bottom of sink 32 1/2\"" },
+    { "img": "IMG_0192 2.jpg", "fig": "Fig.3", "rule_path": "appliances.OVEN.install_hints.shelf_or_tray_height_range_m", "raw_text": "Comfortable working height at wall oven 32\"–34\"" },
+    { "img": "IMG_0197 2.jpg", "fig": "Text right", "rule_path": "storage_shelving.spacing_by_depth_in", "raw_text": "Spacing of shelving by shelf depth (4–6in→5in, 6–10→6, 10–15→7, 15–24→10)" },
+    { "img": "IMG_0197 2.jpg", "fig": "Text right", "rule_path": "ventilation.exhaust_air_changes_per_hour_min", "raw_text": "Exhaust fan: minimum capacity 15 air changes per hour" },
+    { "img": "IMG_0197 2.jpg", "fig": "Fig.6", "rule_path": "work_triangle.center_weights", "raw_text": "Percentage distribution of trips: Sink 43–48%, Range 14–18%, Mix 12–13%, Refrigerator 7–8%, Dining 6–7%, Serve 3–6%" },
+    { "img": "IMG_0199 2.jpg", "fig": "Caption", "rule_path": "appliances.DW.adjacency.at_sink_center_preferred", "raw_text": "If a dishwasher is desired, it should be located at the sink center." },
+    { "img": "IMG_0200 2.jpg", "fig": "Fig.9 & 10", "rule_path": "layout_patterns.broken_U", "raw_text": "Broken-U plans; dashed work flow; DW at sink center." },
+    { "img": "IMG_0200 2.jpg", "fig": "Fig.10", "rule_path": "layout_patterns.L_shape", "raw_text": "L-shaped plans; DW at sink center." },
+    { "img": "IMG_0201 2.jpg", "fig": "Fig.11", "rule_path": "layout_patterns.wall_oven_plans", "raw_text": "Kitchen plans with wall oven; DW at sink center." },
+    { "img": "IMG_0204 2.jpg", "fig": "—", "rule_path": "fixtures_and_sinks.cabinet_sink_standard", "raw_text": "All sinks 36 in high; backsplash varies 3–4 in." },
+    { "img": "IMG_0204 2.jpg", "fig": "—", "rule_path": "fixtures_and_sinks.top_sink_with_drainboard_widths_in", "raw_text": "Single-bowl widths 54–96; double-bowl widths 60–96." },
+    { "img": "IMG_0202 2.jpg", "fig": "—", "rule_path": "fixtures_and_sinks.ledge_and_flat_rim_bowls", "raw_text": "Rim 1–1½ in; bowl size tables for triple/double/single and round bowls." },
+    { "img": "IMG_0205 2.jpg", "fig": "—", "rule_path": "dishwashers.*", "raw_text": "Dims for combo, freestanding, under-counter; open-door depths." },
+    { "img": "IMG_0205 2.jpg", "fig": "—", "rule_path": "cooktops_and_ovens.surface_cooking_units_electric", "raw_text": "Electric surface burner module sizes and control positions." },
+    { "img": "IMG_0206 2.jpg", "fig": "—", "rule_path": "cooktops_and_ovens.wall_ovens", "raw_text": "Wall oven sizes; microwave combinations available." },
+    { "img": "IMG_0206 2.jpg", "fig": "—", "rule_path": "cooktops_and_ovens.ranges_*", "raw_text": "Gas/electric range widths/heights; 40\" ranges generally two ovens." },
+    { "img": "IMG_0206 2.jpg", "fig": "—", "rule_path": "refrigeration.built_in_under_counter", "raw_text": "Under-counter built-in refrigerator sizes by capacity." },
+    { "img": "IMG_0207 2.jpg", "fig": "—", "rule_path": "refrigeration.freestanding_refrigerator", "raw_text": "Capacity vs dimensions vs door-clearance." },
+    { "img": "IMG_0207 2.jpg", "fig": "—", "rule_path": "refrigeration.upright_freezer", "raw_text": "Capacity vs dimensions; door-clearance where given." },
+    { "img": "IMG_0207 2.jpg", "fig": "—", "rule_path": "refrigeration.chest_freezer", "raw_text": "Capacity vs dimensions; door-clearance where given." },
+    { "img": "IMG_0208 2.jpg", "fig": "—", "rule_path": "refrigeration.built_in_freezer", "raw_text": "Built-in freezer example 6 cu ft 24D x 36W x 42H." },
+    { "img": "IMG_0208 2.jpg", "fig": "—", "rule_path": "refrigeration.built_in_refrigerator_freezer", "raw_text": "Example built-in RF 24D x 36W x 74H ≈13 cu ft." },
+    { "img": "IMG_0208 2.jpg", "fig": "—", "rule_path": "refrigeration.wall_hung_or_built_in_rf", "raw_text": "Wall-hung/built-in RF: 11 cu ft 18D x 64W x 40H (3 doors); 13 cu ft 24D x 60W x 38H (2 doors)." },
+    { "img": "IMG_0209 2.jpg", "fig": "—", "rule_path": "combo_units.*", "raw_text": "Combination/executive/special utility/pullman/auto appliance center sizes and features." },
+    { "img": "IMG_0210 2.jpg", "fig": "page 36", "rule_path": "cabinets.shared_standards", "raw_text": "Wood cabinets: base 34½\" high (no top), 36\" with top, 24\" deep; wall 13\" deep." },
+    { "img": "IMG_0210 2.jpg", "fig": "page 36", "rule_path": "cabinets.catalog.*", "raw_text": "Wall/base cabinet matrices; single-door corner; drawers; widths/heights as dot tables." },
+    { "img": "IMG_0211 2.jpg", "fig": "page 37", "rule_path": "cabinets.metal", "raw_text": "Metal cabinets: same base height/depth; total counter depth 25\"; wall 13\" deep; right/left doors; options." },
+    { "img": "IMG_0211 2.jpg", "fig": "page 37", "rule_path": "cabinets.catalog.base_cabinet_drawers_grouped", "raw_text": "No. of drawers vs widths: 2→15–24; 3→27–39; 4→42–48." },
+    { "img": "IMG_0212 2.jpg", "fig": "page 38", "rule_path": "cabinets.catalog.range_ventilator_cabinet", "raw_text": "Hood widths 24/30/36/42; door counts 2 or 2–4; some with no projecting hood." },
+    { "img": "IMG_0213 2.jpg", "fig": "page 39", "rule_path": "cabinets.catalog.*", "raw_text": "Corner/half-round/quarter-round/island/under-sink/blind-corner; widths listed; sink-front heights 34½\"." },
+    { "img": "IMG_0214 2.jpg", "fig": "Laundry text", "rule_path": "laundry.planning_text_notes.flow_of_work_order", "raw_text": "Order: hamper→sort/pre-treat→washer→tray→dryer→ironing/hanging→storage." },
+    { "img": "IMG_0215 2.jpg", "fig": "Tables & Figs", "rule_path": "laundry.equipment_dims", "raw_text": "Washer/dryer tables; door-opening clearance 40–44\"; ironing board 54\" board in 6' envelope; ironer station sizes, overall 7'-2\"." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.4", "rule_path": "laundry.space_requirements_templates.washer_top_opening", "raw_text": "Top-opening washer: 26\" deep, 27\" front clearance; worker's clearance width ~4'-8\"." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.4", "rule_path": "laundry.space_requirements_templates.washer_front_opening", "raw_text": "Front-opening washer: 26\" deep, 35\" front clearance; worker's clearance width ~5'-1\"." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.5", "rule_path": "laundry.space_requirements_templates.dryer_front_hinged", "raw_text": "Hinged-door dryer: 26\" deep, 36\" front clearance; worker's clearance width ~5'-2\"." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.5", "rule_path": "laundry.space_requirements_templates.dryer_slant_drop", "raw_text": "Slant-front drop-door dryer: 26\" deep, 33\" front clearance; worker's clearance width ~4'-11\"." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.6", "rule_path": "laundry.space_requirements_templates.combo_stacked", "raw_text": "Stacked washer/dryer: worker's clearance width ~5'-3\"; clearances 37\" at upper, 26\" at lower." },
+    { "img": "IMG_0216 2.jpg", "fig": "Fig.6", "rule_path": "laundry.space_requirements_templates.combo_straight_line", "raw_text": "Straight-line washer + dryer: worker's clearance width ~5'-2\"; 36\" at dryer, 26\" at washer." },
+    { "img": "IMG_0217 2.jpg", "fig": "Fig.7", "rule_path": "laundry.component_key", "raw_text": "Key for laundry plans." },
+    { "img": "IMG_0218 2.jpg", "fig": "Fig.8", "rule_path": "laundry.layout_patterns.separate_laundry_rooms_A", "raw_text": "Separate laundry rooms; vents noted; freezer may substitute for ironer." },
+    { "img": "IMG_0219 2.jpg", "fig": "Fig.9", "rule_path": "laundry.layout_patterns.separate_laundry_rooms_B", "raw_text": "U/L rooms; cabinets/storage above; chute empties to counter." },
+    { "img": "IMG_0220 2.jpg", "fig": "Fig.10–13", "rule_path": "laundry.layout_patterns.combination_rooms", "raw_text": "Laundry with sewing/breakfast/play; folding gate shown." }
+  ]
