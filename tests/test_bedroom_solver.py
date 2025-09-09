@@ -41,6 +41,16 @@ def test_solver_custom_set_fallback():
     assert counts['BED'] == 1
 
 
+def test_solver_respects_min_adjacency_threshold():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    solver = BedroomSolver(plan, openings, bed_key=None, rng=random.Random(0), weights={})
+    result, meta = solver.run(iters=80, time_budget_ms=200, max_attempts=2, min_adjacency=10.0)
+    assert result is None
+    assert meta.get('status') == 'adjacency_below_threshold'
+    assert meta.get('features', {}).get('adjacency', 0.0) < 10.0
+
+
 def test_mark_clear_removes_entire_bed():
     plan = GridPlan(3.0, 3.0)
     plan.place(0, 0, 2, 1, 'BED:1')

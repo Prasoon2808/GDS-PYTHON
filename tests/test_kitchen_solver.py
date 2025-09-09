@@ -66,6 +66,16 @@ def test_solver_score_uses_dot_product_only():
     assert math.isclose(meta.get('score'), expected)
 
 
+def test_solver_respects_min_adjacency_threshold():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
+    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')], min_adjacency=10.0, iters=20, time_budget_ms=200)
+    assert result is None
+    assert meta.get('status') == 'adjacency_below_threshold'
+    assert meta.get('features', {}).get('adjacency', 0.0) < 10.0
+
+
 def test_custom_book_clear_override():
     plan = GridPlan(2.0, 2.0)
     openings = Openings(plan)
