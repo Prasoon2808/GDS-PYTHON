@@ -23,7 +23,7 @@ from vastu_all_in_one import (
     DOOR_FILL,
     WINDOW_FILL,
 )
-from ui.overlays import ColumnGridOverlay, LegendPopover
+from ui.overlays import ColumnGridOverlay
 
 
 class DummyStatus:
@@ -683,7 +683,7 @@ def test_door_rectangle_present(monkeypatch):
     assert all(i.get('outline') == 'black' for i in door_items)
 
 
-def test_opening_popover_shows_details(monkeypatch):
+def test_opening_click_opens_dialog(monkeypatch):
     import vastu_all_in_one
 
     class DummyBedroomSolver:
@@ -704,6 +704,14 @@ def test_opening_popover_shows_details(monkeypatch):
     monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
     monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
+
+    calls = []
+
+    class DummyDialog:
+        def __init__(self, root, info, apply_func):
+            calls.append(info)
+
+    monkeypatch.setattr(vastu_all_in_one, 'OpeningDialog', DummyDialog)
 
     class TagCanvas(BoundingCanvas):
         def __init__(self, width=200, height=200):
@@ -766,7 +774,6 @@ def test_opening_popover_shows_details(monkeypatch):
     gv.sim_poly = gv.sim2_poly = []
     gv.sim_path = gv.sim2_path = []
     gv.sim_index = gv.sim2_index = 0
-    gv.popover = LegendPopover(gv.canvas)
     gv._apply_openings_from_ui = lambda: True
     gv._solve_and_draw()
 
@@ -788,14 +795,13 @@ def test_opening_popover_shows_details(monkeypatch):
 
     gv.canvas.addtag_withtag('current', door_id)
     gv._on_canvas_click(event)
-    texts = [gv.canvas.itemcget(i, 'text') for i in gv.canvas.find_withtag('legend-popover') if gv.canvas.type(i) == 'text']
-    assert any('Door' in t for t in texts)
-
     gv.canvas.dtag(door_id, 'current')
+
     gv.canvas.addtag_withtag('current', window_id)
     gv._on_canvas_click(event)
-    texts = [gv.canvas.itemcget(i, 'text') for i in gv.canvas.find_withtag('legend-popover') if gv.canvas.type(i) == 'text']
-    assert any('Window' in t for t in texts)
+
+    assert len(calls) == 2
+    assert [info['type'] for info in calls] == ['door', 'window']
 
 
 def test_bath_living_door_drawn_and_mirrored(monkeypatch):
