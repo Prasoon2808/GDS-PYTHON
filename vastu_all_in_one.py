@@ -45,6 +45,7 @@ What’s new in this build
   • Q-learning for rapid policy nudges (state from sim metrics → actions adjust solver weights).
 - Furniture size restrictions vs room area.
 - Batch sensitivities applied before Generate.
+ - Window controls: first window defaults to the top wall in both bedroom and bathroom.
 - Strategic data capture in feedback/simulation JSONL log.
 
 Files (in working dir)
@@ -2868,8 +2869,8 @@ class GenerateView:
         for i in range(3): f.grid_columnconfigure(i, weight=1)
 
         wbox=ttk.Frame(self.sidebar); wbox.pack(fill=tk.X, pady=(6,2))
-        ttk.Label(wbox, text='Window 1').grid(row=0,column=0,sticky='w')
-        self.bed_w1_wall=tk.StringVar(value='Bottom'); self.bed_w1_len=tk.DoubleVar(value=1.2); self.bed_w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
+        ttk.Label(wbox, text='Window 1 (default: top wall)').grid(row=0,column=0,sticky='w')
+        self.bed_w1_wall=tk.StringVar(value='Top'); self.bed_w1_len=tk.DoubleVar(value=1.2); self.bed_w1_c=tk.DoubleVar(value=self.bed_Hm*0.40)
         ttk.Combobox(
             wbox,
             textvariable=self.bed_w1_wall,
@@ -2921,8 +2922,8 @@ class GenerateView:
                 for i in range(3): bf2.grid_columnconfigure(i, weight=1)
 
             bw1 = ttk.Frame(self.sidebar); bw1.pack(fill=tk.X, pady=(6,2))
-            ttk.Label(bw1, text='Window 1').grid(row=0, column=0, sticky='w')
-            self.bath_w1_wall = tk.StringVar(value='None'); self.bath_w1_len = tk.DoubleVar(value=0.0); self.bath_w1_c = tk.DoubleVar(value=0.0)
+            ttk.Label(bw1, text='Window 1 (default: top wall)').grid(row=0, column=0, sticky='w')
+            self.bath_w1_wall = tk.StringVar(value='Top'); self.bath_w1_len = tk.DoubleVar(value=1.2); self.bath_w1_c = tk.DoubleVar(value=bh*0.40)
             ttk.Combobox(bw1, textvariable=self.bath_w1_wall, values=['Bottom','Right','Top','None'], state='readonly', width=8).grid(row=1, column=0, sticky='w')
             ttk.Label(bw1, text='Width').grid(row=0, column=1, sticky='w')
             ttk.Scale(bw1, variable=self.bath_w1_len, from_=0.0, to=2.0, orient='horizontal').grid(row=1, column=1, sticky='we', padx=4)

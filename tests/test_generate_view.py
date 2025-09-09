@@ -992,7 +992,7 @@ def test_opening_control_limits(monkeypatch):
     GenerateView._build_sidebar(gv)
 
     assert comboboxes[0].kwargs['values'] == ['Right']
-    assert gv.bed_w1_wall.get() == 'Bottom'
+    assert gv.bed_w1_wall.get() == 'Top'
     assert 'Right' not in comboboxes[1].kwargs['values']
     assert 'Right' not in comboboxes[2].kwargs['values']
 
