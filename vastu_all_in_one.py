@@ -4333,12 +4333,16 @@ class GenerateView:
             self.liv_plan.x_offset = 0
             self.liv_plan.y_offset = top_gh
 
-        total_wm = max(
-            self.bed_Wm + (self.bath_Wm if has_bath else 0),
-            self.liv_Wm if has_liv else 0,
-        )
-        total_hm = max(self.bed_Hm, self.bath_Hm if has_bath else 0)
-        total_hm += self.liv_Hm if has_liv else 0
+        # ``GridPlan`` derives its internal grid dimensions from the supplied
+        # physical size (``Wm``/``Hm``).  When the per-room plans use widths or
+        # heights that are not exact multiples of ``CELL_M`` this can lead to
+        # rounding differences: the summed metres may produce a grid that is
+        # smaller than the total number of columns/rows we intend to index.
+        # Derive the combined physical dimensions directly from the desired
+        # grid dimensions so that ``combined.occ`` is guaranteed to be large
+        # enough for all offsets.
+        total_wm = total_gw * CELL_M
+        total_hm = total_gh * CELL_M
 
         combined = GridPlan(total_wm, total_hm, column_grid=col_grid)
         for p in plans:
