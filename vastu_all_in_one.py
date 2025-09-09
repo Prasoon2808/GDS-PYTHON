@@ -4065,8 +4065,12 @@ class GenerateView:
             room_name,
         )
         cv.tag_lower('clear')
-        cv.tag_raise('furn', 'clear')
-        cv.tag_raise('room', 'furn')
+        has_furn = bool(getattr(cv, 'find_withtag', lambda _tag: [])('furn'))
+        if has_furn:
+            cv.tag_raise('furn', 'clear')
+            cv.tag_raise('room', 'furn')
+        else:
+            cv.tag_raise('room')
         cv.tag_raise('opening', 'room')
 
     def _draw_clearances(self, cv, plan, openings, ox, oy, scale):
