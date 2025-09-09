@@ -3128,10 +3128,11 @@ class GenerateView:
 
         if self.bath_dims and self.liv_dims:
             if not self.bath_liv_openings:
-                self.status.set('Bathroom must expose door to living room.')
-                return False
+                base = self.bath_plan or GridPlan(*self.bath_dims)
+                self.bath_liv_openings = Openings(base)
+                self.bath_liv_openings.swing_depth = CELL_M
             # Determine which wall the bathroom shares with the living room
-            # using the offsets established by ``_combine_plans``.  The door
+            # using the offsets established by ``_combine_plans``. The door
             # must be placed on this wall so that the bathroom and living room
             # openings remain aligned even if the relative orientation changes.
             def _shared_wall(b: GridPlan, l: GridPlan) -> int:
@@ -3155,6 +3156,18 @@ class GenerateView:
             self.bath_liv_openings.door_width = float(self.bath_liv_door_w.get())
             self.bath_liv_openings.door_center = float(self.bath_liv_door_c.get())
             self.bath_liv_openings.windows = []
+            if not getattr(self, 'liv_bath_openings', None):
+                base = self.liv_plan or GridPlan(*self.liv_dims)
+                self.liv_bath_openings = Openings(base)
+                self.liv_bath_openings.swing_depth = CELL_M
+            self.liv_bath_openings.door_wall = opposite_wall(
+                self.bath_liv_openings.door_wall
+            )
+            self.liv_bath_openings.door_center = self.bath_liv_openings.door_center
+            self.liv_bath_openings.door_width = self.bath_liv_openings.door_width
+            self.liv_bath_openings.swing_depth = self.bath_liv_openings.swing_depth
+        else:
+            self.liv_bath_openings = None
 
         # Living room
         if self.liv_dims and self.liv_openings:
@@ -3417,19 +3430,15 @@ class GenerateView:
                 for j in range(dy, dy + dh):
                     for i in range(dx, dx + dw):
                         liv_plan.occ[j][i] = 'DOOR'
-                if self.bath_liv_openings:
-                    shared_op = Openings(liv_plan)
-                    shared_op.door_wall = opposite_wall(
-                        self.bath_liv_openings.door_wall
-                    )
-                    shared_op.door_center = self.bath_liv_openings.door_center
-                    shared_op.door_width = self.bath_liv_openings.door_width
-                    shared_op.swing_depth = self.bath_liv_openings.swing_depth
-                    dx2, dy2, dw2, dh2 = shared_op.door_rect_cells()
+                if getattr(self, 'liv_bath_openings', None):
+                    self.liv_bath_openings.p = liv_plan
+                    dx2, dy2, dw2, dh2 = self.liv_bath_openings.door_rect_cells()
                     for j in range(dy2, dy2 + dh2):
                         for i in range(dx2, dx2 + dw2):
                             liv_plan.occ[j][i] = 'DOOR'
-                    self._add_door_clearance(liv_plan, 'LIVING_DOOR', shared_op)
+                    self._add_door_clearance(
+                        liv_plan, 'LIVING_DOOR', self.liv_bath_openings
+                    )
                 liv_sticky = getattr(self, '_sticky_liv_items', [])
                 for (code, x, y, w, h, _wall) in liv_sticky:
                     liv_plan.clear(x, y, w, h)
@@ -3569,19 +3578,15 @@ class GenerateView:
         for j in range(dy, dy + dh):
             for i in range(dx, dx + dw):
                 self.liv_plan.occ[j][i] = 'DOOR'
-        if self.bath_liv_openings:
-            shared_op = Openings(self.liv_plan)
-            shared_op.door_wall = opposite_wall(
-                self.bath_liv_openings.door_wall
-            )
-            shared_op.door_center = self.bath_liv_openings.door_center
-            shared_op.door_width = self.bath_liv_openings.door_width
-            shared_op.swing_depth = self.bath_liv_openings.swing_depth
-            dx2, dy2, dw2, dh2 = shared_op.door_rect_cells()
+        if getattr(self, 'liv_bath_openings', None):
+            self.liv_bath_openings.p = self.liv_plan
+            dx2, dy2, dw2, dh2 = self.liv_bath_openings.door_rect_cells()
             for j in range(dy2, dy2 + dh2):
                 for i in range(dx2, dx2 + dw2):
                     self.liv_plan.occ[j][i] = 'DOOR'
-            self._add_door_clearance(self.liv_plan, 'LIVING_DOOR', shared_op)
+            self._add_door_clearance(
+                self.liv_plan, 'LIVING_DOOR', self.liv_bath_openings
+            )
         liv_sticky = getattr(self, '_sticky_liv_items', [])
         for (code, x, y, w, h, _wall) in liv_sticky:
             self.liv_plan.clear(x, y, w, h)
@@ -3714,14 +3719,29 @@ class GenerateView:
                 cv, openings, ox, oy, scale, wall_width, open_width, draw_door
             )
 
-        bed_draw_door = not (
-            self.bath_plan and self.bed_openings.door_wall == WALL_RIGHT
-        )
-        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, bed_draw_door)
+        draw_room(self.bed_plan, self.bed_openings, bed_ox, bed_oy, True)
         if self.bath_plan:
             draw_room(self.bath_plan, self.bath_openings, bath_ox, bath_oy, True)
+            if getattr(self, 'bath_liv_openings', None):
+                self.bath_liv_openings.p = self.bath_plan
+                draw_room(
+                    self.bath_plan,
+                    self.bath_liv_openings,
+                    bath_ox,
+                    bath_oy,
+                    True,
+                )
         if getattr(self, 'liv_plan', None):
             draw_room(self.liv_plan, self.liv_openings, liv_ox, liv_oy, True)
+            if getattr(self, 'liv_bath_openings', None):
+                self.liv_bath_openings.p = self.liv_plan
+                draw_room(
+                    self.liv_plan,
+                    self.liv_bath_openings,
+                    liv_ox,
+                    liv_oy,
+                    True,
+                )
 
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
@@ -4516,15 +4536,11 @@ class GenerateView:
                 openings=self.liv_openings,
             )
             add_door_clearance(self.liv_plan, self.liv_openings, 'DOOR')
-            if self.bath_liv_openings:
-                shared_op = Openings(self.liv_plan)
-                shared_op.door_wall = opposite_wall(
-                    self.bath_liv_openings.door_wall
+            if getattr(self, 'liv_bath_openings', None):
+                self.liv_bath_openings.p = self.liv_plan
+                add_door_clearance(
+                    self.liv_plan, self.liv_bath_openings, 'LIVING_DOOR'
                 )
-                shared_op.door_center = self.bath_liv_openings.door_center
-                shared_op.door_width = self.bath_liv_openings.door_width
-                shared_op.swing_depth = self.bath_liv_openings.swing_depth
-                add_door_clearance(self.liv_plan, shared_op, 'LIVING_DOOR')
         if self.bath_dims or getattr(self, 'liv_dims', None):
             self._combine_plans()
         meta = {
