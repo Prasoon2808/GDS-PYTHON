@@ -2637,6 +2637,42 @@ def overlaps(a, b) -> bool:
     bx, by, bw, bh = b.x_offset, b.y_offset, b.gw, b.gh
     return not (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay)
 
+def _shared_wall(plan_a: "GridPlan", plan_b: "GridPlan") -> Optional[int]:
+    """Return the wall index of ``plan_a`` that touches ``plan_b``.
+
+    The result is one of ``WALL_BOTTOM``, ``WALL_RIGHT``, ``WALL_TOP`` or
+    ``WALL_LEFT``.  ``None`` is returned if the plans do not share a boundary.
+    """
+    ax0, ay0 = plan_a.x_offset, plan_a.y_offset
+    ax1, ay1 = ax0 + plan_a.gw, ay0 + plan_a.gh
+    bx0, by0 = plan_b.x_offset, plan_b.y_offset
+    bx1, by1 = bx0 + plan_b.gw, by0 + plan_b.gh
+
+    if ax1 == bx0 and max(ay0, by0) < min(ay1, by1):
+        return WALL_RIGHT
+    if bx1 == ax0 and max(ay0, by0) < min(ay1, by1):
+        return WALL_LEFT
+    if ay1 == by0 and max(ax0, bx0) < min(ax1, bx1):
+        return WALL_BOTTOM
+    if by1 == ay0 and max(ax0, bx0) < min(ax1, bx1):
+        return WALL_TOP
+    return None
+
+def _has_door(plan: "GridPlan", wall: int) -> bool:
+    """Return True if ``plan`` has a ``'DOOR'`` cell along ``wall``."""
+    if not plan:
+        return False
+    gw, gh = plan.gw, plan.gh
+    if wall == WALL_BOTTOM:
+        return any(plan.occ[0][i] == 'DOOR' for i in range(gw))
+    if wall == WALL_TOP:
+        return any(plan.occ[gh - 1][i] == 'DOOR' for i in range(gw))
+    if wall == WALL_LEFT:
+        return any(plan.occ[j][0] == 'DOOR' for j in range(gh))
+    if wall == WALL_RIGHT:
+        return any(plan.occ[j][gw - 1] == 'DOOR' for j in range(gh))
+    return False
+
 def add_door_clearance(p: GridPlan, op: Openings, owner: str):
     """Mark clearance for a door defined by ``op`` onto ``p`` and return the
     mirrored rectangle on the opposite side of the doorway.
@@ -3343,21 +3379,8 @@ class GenerateView:
                 base = self.bath_plan or GridPlan(*self.bath_dims)
                 self.bath_liv_openings = Openings(base)
                 self.bath_liv_openings.swing_depth = CELL_M
-            def _shared_wall(b: GridPlan, l: GridPlan) -> int:
-                bx0, by0 = b.x_offset, b.y_offset
-                bx1, by1 = bx0 + b.gw, by0 + b.gh
-                lx0, ly0 = l.x_offset, l.y_offset
-                lx1, ly1 = lx0 + l.gw, ly0 + l.gh
-                if bx1 == lx0 and max(by0, ly0) < min(by1, ly1):
-                    return WALL_RIGHT
-                if lx1 == bx0 and max(by0, ly0) < min(by1, ly1):
-                    return WALL_LEFT
-                if by1 == ly0 and max(bx0, lx0) < min(bx1, lx1):
-                    return WALL_BOTTOM
-                if ly1 == by0 and max(bx0, lx0) < min(bx1, lx1):
-                    return WALL_TOP
-                return WALL_BOTTOM
-            self.bath_liv_openings.door_wall = _shared_wall(self.bath_plan, self.liv_plan)
+            wall = _shared_wall(self.bath_plan, self.liv_plan)
+            self.bath_liv_openings.door_wall = wall if wall is not None else WALL_BOTTOM
             if not getattr(self, 'liv_bath_openings', None):
                 base = self.liv_plan or GridPlan(*self.liv_dims)
                 self.liv_bath_openings = Openings(base)
