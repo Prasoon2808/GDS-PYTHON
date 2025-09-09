@@ -3686,6 +3686,69 @@ class GenerateView:
             kitch_plan.x_offset = left_gw
             kitch_plan.y_offset = top_gh
 
+        if bath_plan and liv_plan and shares_edge(bath_plan, liv_plan):
+            if not (getattr(self, 'bath_liv_openings', None) and getattr(self, 'liv_bath_openings', None)):
+                if not getattr(self, 'bath_liv_openings', None):
+                    self.bath_liv_openings = Openings(bath_plan)
+                    self.bath_liv_openings.swing_depth = CELL_M
+                if not getattr(self, 'liv_bath_openings', None):
+                    self.liv_bath_openings = Openings(liv_plan)
+                    self.liv_bath_openings.swing_depth = CELL_M
+
+                bx0, by0 = bath_plan.x_offset, bath_plan.y_offset
+                bx1, by1 = bx0 + bath_plan.gw, by0 + bath_plan.gh
+                lx0, ly0 = liv_plan.x_offset, liv_plan.y_offset
+                lx1, ly1 = lx0 + liv_plan.gw, ly0 + liv_plan.gh
+
+                if by1 == ly0:  # bath above living
+                    shared_start = max(bx0, lx0)
+                    shared_len = min(bx1, lx1) - shared_start
+                    bath_wall, liv_wall = WALL_BOTTOM, WALL_TOP
+                    start_b = shared_start - bx0
+                    start_l = shared_start - lx0
+                elif ly1 == by0:  # living above bath
+                    shared_start = max(bx0, lx0)
+                    shared_len = min(bx1, lx1) - shared_start
+                    bath_wall, liv_wall = WALL_TOP, WALL_BOTTOM
+                    start_b = shared_start - bx0
+                    start_l = shared_start - lx0
+                elif bx1 == lx0:  # bath to right of living
+                    shared_start = max(by0, ly0)
+                    shared_len = min(by1, ly1) - shared_start
+                    bath_wall, liv_wall = WALL_LEFT, WALL_RIGHT
+                    start_b = shared_start - by0
+                    start_l = shared_start - ly0
+                else:  # bath to left of living
+                    shared_start = max(by0, ly0)
+                    shared_len = min(by1, ly1) - shared_start
+                    bath_wall, liv_wall = WALL_RIGHT, WALL_LEFT
+                    start_b = shared_start - by0
+                    start_l = shared_start - ly0
+
+                width_cells = max(1, min(int(round(0.90 / CELL_M)), shared_len))
+                center_b = (start_b + shared_len / 2) * CELL_M
+                center_l = (start_l + shared_len / 2) * CELL_M
+                width_m = width_cells * CELL_M
+
+                self.bath_liv_openings.p = bath_plan
+                self.liv_bath_openings.p = liv_plan
+                self.bath_liv_openings.door_wall = bath_wall
+                self.liv_bath_openings.door_wall = liv_wall
+                self.bath_liv_openings.door_center = center_b
+                self.liv_bath_openings.door_center = center_l
+                self.bath_liv_openings.door_width = width_m
+                self.liv_bath_openings.door_width = width_m
+
+                for plan, op in ((bath_plan, self.bath_liv_openings), (liv_plan, self.liv_bath_openings)):
+                    dx, dy, dw, dh = op.door_rect_cells()
+                    for j in range(dy, dy + dh):
+                        for i in range(dx, dx + dw):
+                            plan.occ[j][i] = 'DOOR'
+                self._add_door_clearance(bath_plan, 'LIVING_DOOR', self.bath_liv_openings)
+                self._add_door_clearance(liv_plan, 'LIVING_DOOR', self.liv_bath_openings)
+                liv_plan = None
+                failure_msg = 'Bathroom must expose door to living room.'
+
         if os.environ.get("DEBUG_LAYOUT") == "1":
             for name, p in (
                 ("bed", bed_plan),
