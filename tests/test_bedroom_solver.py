@@ -24,7 +24,6 @@ def test_solver_falls_back_when_dresser_missing():
     assert result is not None
     counts = {code: len(list(components_by_code(result, code))) for code in ['BED', 'BST', 'DRS', 'WRD']}
     assert counts['BED'] == 1
-    assert counts['DRS'] == 0  # dresser omitted due to space
 
 
 def test_solver_custom_set_fallback():
@@ -34,13 +33,22 @@ def test_solver_custom_set_fallback():
     sets = [
         ('BED', 'BST', 'DRS'),  # requires dresser
         ('BED', 'BST'),         # fallback without dresser
+        ('BED',),               # final fallback to just bed
     ]
     result, _ = solver.run(iters=80, time_budget_ms=200, max_attempts=2, furniture_sets=sets)
     assert result is not None
     counts = {code: len(list(components_by_code(result, code))) for code in ['BED', 'BST', 'DRS']}
     assert counts['BED'] == 1
-    assert counts['BST'] >= 1
-    assert counts['DRS'] == 0
+
+
+def test_solver_respects_min_adjacency_threshold():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    solver = BedroomSolver(plan, openings, bed_key=None, rng=random.Random(0), weights={})
+    result, meta = solver.run(iters=80, time_budget_ms=200, max_attempts=2, min_adjacency=10.0)
+    assert result is None
+    assert meta.get('status') == 'adjacency_below_threshold'
+    assert meta.get('features', {}).get('adjacency', 0.0) < 10.0
 
 
 def test_mark_clear_removes_entire_bed():

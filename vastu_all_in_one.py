@@ -1928,15 +1928,16 @@ class BedroomSolver:
             iters: int = 900,
             time_budget_ms: int = 520,
             max_attempts: int = 3,
-            furniture_sets: Optional[List[Tuple[str, ...]]] = None
+            furniture_sets: Optional[List[Tuple[str, ...]]] = None,
+            min_adjacency: float = 0.0
             ) -> Tuple[Optional[GridPlan], Dict]:
         sets = furniture_sets or default_furniture_sets()
+        best_overall = None; meta_overall = None
         # search from most demanding combination to least
         for req in reversed(sets):
             needed = Counter(req)
             for _ in range(max_attempts):
                 t0 = time.time()
-                best = None; best_meta = {}; best_score = -1e9
                 seeds = seed_templates(self.p, self.bed_key)
                 beam = []
                 tries = 0
@@ -1947,7 +1948,9 @@ class BedroomSolver:
                     if not res:
                         continue
                     base_score = dot_score(self.weights, feats)
-                    adj = self._adjacency_score(res)
+                    adj, ok = self._adjacency_score(res)
+                    if not ok:
+                        continue
                     feats['adjacency'] = adj
                     base_score += self.weights.get('adjacency', 0.6) * adj
                     if self.mlp:
@@ -1959,14 +1962,24 @@ class BedroomSolver:
                             base_score += 0.40 * self.ensemble.score(feats)
                         except Exception:
                             pass
-                    beam.append((base_score, res, {**meta, 'features': feats, 'score': base_score}))
+                    cand_meta = {**meta, 'features': feats, 'score': base_score, 'adjacency': adj}
+                    beam.append((base_score, res, cand_meta))
                     beam.sort(key=lambda x: -x[0])
                     beam = beam[:6]
+                    if adj >= 1.0 and all(len(list(components_by_code(res, code))) >= count
+                                         for code, count in needed.items()):
+                        if adj >= min_adjacency:
+                            return res, cand_meta
                 if beam:
                     best_score, best, best_meta = beam[0]
-                if best and all(len(list(components_by_code(best, code))) >= count
-                                 for code, count in needed.items()):
-                    return best, best_meta
+                    if best_meta['features'].get('adjacency', 0.0) >= min_adjacency and \
+                       all(len(list(components_by_code(best, code))) >= count for code, count in needed.items()):
+                        return best, best_meta
+                    if meta_overall is None or \
+                       best_meta['features'].get('adjacency', 0.0) > meta_overall['features'].get('adjacency', 0.0):
+                        best_overall, meta_overall = best, best_meta
+        if meta_overall:
+            return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
         return None, {'status': 'no_bed'}
 
     def _attempt(self, seed:Dict):
@@ -2442,42 +2455,76 @@ class BedroomSolver:
         ok = (coverage>0.60 and reach_windows)
         return ok, coverage, reach_windows
 
-    def _adjacency_score(self, plan:GridPlan) -> float:
-        """
-        Coarse adjacency score using simple matrix; higher is better.
+    def _adjacency_score(self, plan:GridPlan) -> Tuple[float, bool]:
+        """Return adjacency score and validity flag.
+
+        Each required adjacency has an explicit distance threshold measured in
+        grid cells.  If any pair exceeds its threshold the layout is flagged as
+        invalid and a score of ``0.0`` is returned.
         """
         A = {
-            'BED': {'BST': +2.0, 'WRD': +0.8, 'DRS': +0.6, 'DESK': +0.4},
-            'DESK': {'WIN': +1.5},  # desk near windows
+            'BED': {
+                'BST': (+2.0, 1),   # side-table must be adjacent
+                'WRD': (+0.8, 2),   # wardrobe within two cells
+                'DRS': (+0.6, 3),   # dresser reasonably close
+                'DESK': (+0.4, 2),  # desk near bed
+            },
+            'DESK': {
+                'WIN': (+1.5, 1),   # desk near window
+            },
         }
+
         def boxes(code):
             comps = components_by_code(plan, code)
             if comps:
-                x,y,w,h,_ = comps[0]
-                return (x,y,x+w-1,y+h-1)
+                x, y, w, h, _ = comps[0]
+                return (x, y, x + w - 1, y + h - 1)
             return None
+
         score = 0.0
         bbed = boxes('BED')
         if bbed:
             bx0, by0, bx1, by1 = bbed
-            for other, wt in A['BED'].items():
+            for other, (wt, thresh) in A['BED'].items():
                 b = boxes(other)
-                if not b: continue
+                if not b:
+                    continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - bx1, bx0 - ox1))
                 dy = max(0, max(oy0 - by1, by0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
+
         # desk near window
         bdesk = boxes('DESK')
         if bdesk:
             dx0, dy0, dx1, dy1 = bdesk
+            best_dist = None
+            gw, gh = plan.gw, plan.gh
             for wall, s, L in self.op.window_spans_cells():
-                if wall in (0,2):
-                    a0, a1 = dx0, dx1
-                    b0, b1 = s, s+L
-                    if not (a1<b0 or b1<a0):
-                        score += A['DESK']['WIN']; break
-        return score
+                if wall in (0, 2):
+                    wx0, wx1 = s, s + L - 1
+                    wx_dist = max(0, max(wx0 - dx1, dx0 - wx1))
+                    wy = 0 if wall == 0 else gh - 1
+                    wy_dist = max(0, max(wy - dy1, dy0 - wy))
+                    dist = wx_dist + wy_dist
+                else:
+                    wy0, wy1 = s, s + L - 1
+                    wy_dist = max(0, max(wy0 - dy1, dy0 - wy1))
+                    wx = 0 if wall == 3 else gw - 1
+                    wx_dist = max(0, max(wx - dx1, dx0 - wx))
+                    dist = wx_dist + wy_dist
+                if best_dist is None or dist < best_dist:
+                    best_dist = dist
+            if best_dist is not None:
+                wt, thresh = A['DESK']['WIN']
+                if best_dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + best_dist))
+
+        return score, True
 
 
 class KitchenSolver:
@@ -2501,30 +2548,53 @@ class KitchenSolver:
             appliance_sets: Optional[List[Tuple[str, ...]]] = None,
             iters: int = 200,
             time_budget_ms: int = 520,
-            max_attempts: int = 3) -> Tuple[Optional[GridPlan], Dict]:
+            max_attempts: int = 3,
+            min_adjacency: float = 0.0) -> Tuple[Optional[GridPlan], Dict]:
         sets = appliance_sets or default_kitchen_sets()
+        best_overall = None; meta_overall = None
         for req in reversed(sets):
             needed = Counter(req)
-            plan = deepcopy(self.p)
-            success = True
-            for code, cnt in needed.items():
-                existing = list(components_by_code(plan, code))
-                missing = cnt - len(existing)
-                for _ in range(missing):
-                    spot = self._find_placement(plan, code)
-                    if spot is None:
-                        success = False
+            for _ in range(max_attempts):
+                t0 = time.time()
+                tries = 0
+                best = None; best_meta = None; best_adj = -1.0
+                while (time.time() - t0) * 1000 < time_budget_ms and tries < iters:
+                    tries += 1
+                    plan = deepcopy(self.p)
+                    success = True
+                    for code, cnt in needed.items():
+                        existing = list(components_by_code(plan, code))
+                        missing = cnt - len(existing)
+                        for _ in range(missing):
+                            spot = self._find_placement(plan, code)
+                            if spot is None:
+                                success = False
+                                break
+                            x, y, w, h = spot
+                            plan.place(x, y, w, h, code)
+                        if not success:
+                            break
+                    if not success:
+                        continue
+                    feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
+                    adj, ok = self._adjacency_score(plan)
+                    if not ok:
+                        continue
+                    feats['adjacency'] = adj
+                    score = dot_score(self.weights, feats)
+                    cand_meta = {'features': feats, 'score': score, 'adjacency': adj}
+                    if adj > best_adj or (adj == best_adj and score > (best_meta or {}).get('score', -1e9)):
+                        best_adj = adj
+                        best = plan
+                        best_meta = cand_meta
+                    if adj >= 1.0:
                         break
-                    x, y, w, h = spot
-                    plan.place(x, y, w, h, code)
-                if not success:
-                    break
-            if success:
-                feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
-                adj = self._adjacency_score(plan)
-                feats['adjacency'] = adj
-                score = dot_score(self.weights, feats)
-                return plan, {'features': feats, 'score': score}
+                if best and best_meta['features'].get('adjacency', 0.0) >= min_adjacency:
+                    return best, best_meta
+                if best and (meta_overall is None or best_meta['features']['adjacency'] > meta_overall['features']['adjacency']):
+                    best_overall, meta_overall = best, best_meta
+        if meta_overall:
+            return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
         return None, {'status': 'missing_appliance'}
 
     def _find_placement(self, plan: GridPlan, code: str) -> Optional[Tuple[int, int, int, int]]:
@@ -2576,10 +2646,11 @@ class KitchenSolver:
         perimeter = d1 + d2 + d3
         return 1.0 if 4.0 <= perimeter <= 7.0 else 0.0
 
-    def _adjacency_score(self, plan: GridPlan) -> float:
+    def _adjacency_score(self, plan: GridPlan) -> Tuple[float, bool]:
+        """Return adjacency score and validity flag for kitchen layouts."""
         A = {
-            'SINK': {'REF': +1.0, 'COOK': +1.0},
-            'COOK': {'REF': +0.5},
+            'SINK': {'REF': (+1.0, 5), 'COOK': (+1.0, 4)},
+            'COOK': {'REF': (+0.5, 5)},
         }
 
         def boxes(code):
@@ -2593,28 +2664,34 @@ class KitchenSolver:
         bsink = boxes('SINK')
         if bsink:
             sx0, sy0, sx1, sy1 = bsink
-            for other, wt in A['SINK'].items():
+            for other, (wt, thresh) in A['SINK'].items():
                 b = boxes(other)
                 if not b:
                     continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - sx1, sx0 - ox1))
                 dy = max(0, max(oy0 - sy1, sy0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
 
         bcook = boxes('COOK')
         if bcook:
             cx0, cy0, cx1, cy1 = bcook
-            for other, wt in A.get('COOK', {}).items():
+            for other, (wt, thresh) in A.get('COOK', {}).items():
                 b = boxes(other)
                 if not b:
                     continue
                 ox0, oy0, ox1, oy1 = b
                 dx = max(0, max(ox0 - cx1, cx0 - ox1))
                 dy = max(0, max(oy0 - cy1, cy0 - oy1))
-                score += wt * (1.0 / (1.0 + dx + dy))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
 
-        return score
+        return score, True
 
 # -----------------------
 # Clearance merging
@@ -3632,248 +3709,279 @@ class GenerateView:
             'Bedroom',
         )
 
-        bath_plan = None
+        # Room layout generation with adjacency retries
+        retry_limit = 5
+        adjacency_ok = False
+        regen_bath = regen_liv = regen_kitch = True
+        bath_plan = liv_plan = kitch_plan = None
         failure_msg = None
-        if self.bath_dims and bath_ok:
-            bath_plan = arrange_bathroom(
-                self.bath_dims[0], self.bath_dims[1], BATH_RULES,
-                openings=self.bath_openings,
-                secondary_openings=self.bath_liv_openings,
-            )
-            if isinstance(bath_plan, GridPlan):
-                dx, dy, dw, dh = self.bath_openings.door_rect_cells()
-                for j in range(dy, dy + dh):
-                    for i in range(dx, dx + dw):
-                        bath_plan.occ[j][i] = 'DOOR'
-                if self.bath_liv_openings:
-                    dx2, dy2, dw2, dh2 = self.bath_liv_openings.door_rect_cells()
-                    for j in range(dy2, dy2 + dh2):
-                        for i in range(dx2, dx2 + dw2):
-                            bath_plan.occ[j][i] = 'DOOR'
-                bath_sticky = getattr(self, '_sticky_bath_items', [])
-                if bath_sticky:
-                    fx = BATH_RULES.get('fixtures', {})
-                    clear = {
-                        'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
-                        'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
-                        'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
-                        'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
-                    }
-                    FRONT_BATH_DEFAULT = {
-                        'WC': clear['wc_front'],
-                        'LAV': clear['lav_front'],
-                        'TUB': clear['tub_front'],
-                        'SHR': clear['shr_front'],
-                    }
-                    for (code, x, y, w, h, wall) in bath_sticky:
-                        bath_plan.clear(x, y, w, h)
-                        bath_plan.place(x, y, w, h, code)
-                        fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
-                        if fc_m > 0.0:
-                            fc = bath_plan.meters_to_cells(fc_m)
-                            if wall == 0:
-                                bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
-                            elif wall == 2:
-                                bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
-                bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
-            else:
+
+        for attempt in range(retry_limit):
+            if attempt > 0 and (regen_bath or regen_liv):
+                self.bath_liv_openings = None
+                self.liv_bath_openings = None
+
+            if regen_bath:
                 bath_plan = None
-                bath_ok = False
-                failure_msg = 'Bathroom generation failed; bedroom only.'
-
-        # Living room generation
-        liv_plan = None
-        if self.liv_dims:
-            liv_plan = arrange_livingroom(
-                self.liv_dims[0], self.liv_dims[1], LIV_RULES,
-                openings=self.liv_openings,
-            )
-            if isinstance(liv_plan, GridPlan):
-                dx, dy, dw, dh = self.liv_openings.door_rect_cells()
-                for j in range(dy, dy + dh):
-                    for i in range(dx, dx + dw):
-                        liv_plan.occ[j][i] = 'DOOR'
-                if getattr(self, 'liv_bath_openings', None):
-                    self.liv_bath_openings.p = liv_plan
-                    dx2, dy2, dw2, dh2 = self.liv_bath_openings.door_rect_cells()
-                    for j in range(dy2, dy2 + dh2):
-                        for i in range(dx2, dx2 + dw2):
-                            liv_plan.occ[j][i] = 'DOOR'
-                    self._add_door_clearance(
-                        liv_plan, 'LIVING_DOOR', self.liv_bath_openings
+                if self.bath_dims and bath_ok:
+                    bath_plan = arrange_bathroom(
+                        self.bath_dims[0], self.bath_dims[1], BATH_RULES,
+                        openings=self.bath_openings,
+                        secondary_openings=self.bath_liv_openings,
                     )
-                liv_sticky = getattr(self, '_sticky_liv_items', [])
-                for (code, x, y, w, h, _wall) in liv_sticky:
-                    liv_plan.clear(x, y, w, h)
-                    liv_plan.place(x, y, w, h, code)
-                liv_plan.clearzones = merge_clearances(liv_plan.clearzones)
-                self._add_door_clearance(liv_plan, 'DOOR', self.liv_openings)
-            else:
+                    if isinstance(bath_plan, GridPlan):
+                        dx, dy, dw, dh = self.bath_openings.door_rect_cells()
+                        for j in range(dy, dy + dh):
+                            for i in range(dx, dx + dw):
+                                bath_plan.occ[j][i] = 'DOOR'
+                        if self.bath_liv_openings:
+                            dx2, dy2, dw2, dh2 = self.bath_liv_openings.door_rect_cells()
+                            for j in range(dy2, dy2 + dh2):
+                                for i in range(dx2, dx2 + dw2):
+                                    bath_plan.occ[j][i] = 'DOOR'
+                        bath_sticky = getattr(self, '_sticky_bath_items', [])
+                        if bath_sticky:
+                            fx = BATH_RULES.get('fixtures', {})
+                            clear = {
+                                'lav_front': fx.get('lavatory', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                                'wc_front': fx.get('water_closet', {}).get('front_clear_to_opposite_m', {}).get('min', 0.610),
+                                'tub_front': fx.get('bathtub', {}).get('front_clear_to_opposite_wall_m', {}).get('min', 0.762),
+                                'shr_front': fx.get('bathtub', {}).get('entry_front_clear_m', 0.762),
+                            }
+                            FRONT_BATH_DEFAULT = {
+                                'WC': clear['wc_front'],
+                                'LAV': clear['lav_front'],
+                                'TUB': clear['tub_front'],
+                                'SHR': clear['shr_front'],
+                            }
+                            for (code, x, y, w, h, wall) in bath_sticky:
+                                bath_plan.clear(x, y, w, h)
+                                bath_plan.place(x, y, w, h, code)
+                                fc_m = FRONT_BATH_DEFAULT.get(code, 0.0)
+                                if fc_m > 0.0:
+                                    fc = bath_plan.meters_to_cells(fc_m)
+                                    if wall == 0:
+                                        bath_plan.mark_clear(x, y + h, w, fc, 'FRONT', code)
+                                    elif wall == 2:
+                                        bath_plan.mark_clear(x, y - fc, w, fc, 'FRONT', code)
+                        bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
+                    else:
+                        bath_plan = None
+                        bath_ok = False
+                        failure_msg = 'Bathroom generation failed; bedroom only.'
+
+            if regen_liv:
                 liv_plan = None
-        # Kitchen generation
-        kitch_plan = None
-        if getattr(self, 'kitch_dims', None):
-            kitch_plan = GridPlan(self.kitch_dims[0], self.kitch_dims[1])
-            if self.kitch_openings:
-                self.kitch_openings.p = kitch_plan
-            ksolver = KitchenSolver(
-                kitch_plan,
-                self.kitch_openings,
-                random.Random(),
-                getattr(self, 'weights', {}),
-            )
-            kbest, _ = ksolver.run()
-            if isinstance(kbest, GridPlan):
-                if self.kitch_openings:
-                    dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
-                    for j in range(dy, dy + dh):
-                        for i in range(dx, dx + dw):
-                            kbest.occ[j][i] = 'DOOR'
-                kitch_sticky = getattr(self, '_sticky_kitch_items', [])
-                for (code, x, y, w, h, _wall) in kitch_sticky:
-                    kbest.clear(x, y, w, h)
-                    kbest.place(x, y, w, h, code)
-                kbest.clearzones = merge_clearances(kbest.clearzones)
-                self._ensure_required(
-                    kbest,
-                    self.REQUIRED_FURNITURE['kitch_plan'],
-                    'Kitchen',
-                )
-                kitch_plan = kbest
-            else:
+                if self.liv_dims:
+                    liv_plan = arrange_livingroom(
+                        self.liv_dims[0], self.liv_dims[1], LIV_RULES,
+                        openings=self.liv_openings,
+                    )
+                    if isinstance(liv_plan, GridPlan):
+                        dx, dy, dw, dh = self.liv_openings.door_rect_cells()
+                        for j in range(dy, dy + dh):
+                            for i in range(dx, dx + dw):
+                                liv_plan.occ[j][i] = 'DOOR'
+                        if getattr(self, 'liv_bath_openings', None):
+                            self.liv_bath_openings.p = liv_plan
+                            dx2, dy2, dw2, dh2 = self.liv_bath_openings.door_rect_cells()
+                            for j in range(dy2, dy2 + dh2):
+                                for i in range(dx2, dx2 + dw2):
+                                    liv_plan.occ[j][i] = 'DOOR'
+                            self._add_door_clearance(
+                                liv_plan, 'LIVING_DOOR', self.liv_bath_openings
+                            )
+                        liv_sticky = getattr(self, '_sticky_liv_items', [])
+                        for (code, x, y, w, h, _wall) in liv_sticky:
+                            liv_plan.clear(x, y, w, h)
+                            liv_plan.place(x, y, w, h, code)
+                        liv_plan.clearzones = merge_clearances(liv_plan.clearzones)
+                        self._add_door_clearance(liv_plan, 'DOOR', self.liv_openings)
+                    else:
+                        liv_plan = None
+
+            if regen_kitch:
                 kitch_plan = None
-
-        left_gw = max(bed_plan.gw, liv_plan.gw if liv_plan else 0)
-        right_gw = max(
-            bath_plan.gw if bath_plan else 0,
-            kitch_plan.gw if kitch_plan else 0,
-        )
-        top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
-        bottom_gh = max(
-            liv_plan.gh if liv_plan else 0,
-            kitch_plan.gh if kitch_plan else 0,
-        )
-        total_gw = left_gw + right_gw
-        total_gh = top_gh + bottom_gh
-        col_grid = ColumnGrid(total_gw, total_gh)
-        bed_plan.column_grid = col_grid
-        bed_plan.x_offset = 0
-        bed_plan.y_offset = 0
-        if bath_plan:
-            bath_plan.column_grid = col_grid
-            bath_plan.x_offset = left_gw
-            bath_plan.y_offset = 0
-        if liv_plan:
-            liv_plan.column_grid = col_grid
-            liv_plan.x_offset = 0
-            liv_plan.y_offset = top_gh
-        if kitch_plan:
-            kitch_plan.column_grid = col_grid
-            kitch_plan.x_offset = left_gw
-            kitch_plan.y_offset = top_gh
-
-        if bath_plan and liv_plan and shares_edge(bath_plan, liv_plan):
-            if not (getattr(self, 'bath_liv_openings', None) and getattr(self, 'liv_bath_openings', None)):
-                if not getattr(self, 'bath_liv_openings', None):
-                    self.bath_liv_openings = Openings(bath_plan)
-                    self.bath_liv_openings.swing_depth = CELL_M
-                if not getattr(self, 'liv_bath_openings', None):
-                    self.liv_bath_openings = Openings(liv_plan)
-                    self.liv_bath_openings.swing_depth = CELL_M
-
-                bx0, by0 = bath_plan.x_offset, bath_plan.y_offset
-                bx1, by1 = bx0 + bath_plan.gw, by0 + bath_plan.gh
-                lx0, ly0 = liv_plan.x_offset, liv_plan.y_offset
-                lx1, ly1 = lx0 + liv_plan.gw, ly0 + liv_plan.gh
-
-                if by1 == ly0:  # bath above living
-                    shared_start = max(bx0, lx0)
-                    shared_len = min(bx1, lx1) - shared_start
-                    bath_wall, liv_wall = WALL_BOTTOM, WALL_TOP
-                    start_b = shared_start - bx0
-                    start_l = shared_start - lx0
-                elif ly1 == by0:  # living above bath
-                    shared_start = max(bx0, lx0)
-                    shared_len = min(bx1, lx1) - shared_start
-                    bath_wall, liv_wall = WALL_TOP, WALL_BOTTOM
-                    start_b = shared_start - bx0
-                    start_l = shared_start - lx0
-                elif bx1 == lx0:  # bath to right of living
-                    shared_start = max(by0, ly0)
-                    shared_len = min(by1, ly1) - shared_start
-                    bath_wall, liv_wall = WALL_LEFT, WALL_RIGHT
-                    start_b = shared_start - by0
-                    start_l = shared_start - ly0
-                else:  # bath to left of living
-                    shared_start = max(by0, ly0)
-                    shared_len = min(by1, ly1) - shared_start
-                    bath_wall, liv_wall = WALL_RIGHT, WALL_LEFT
-                    start_b = shared_start - by0
-                    start_l = shared_start - ly0
-
-                width_cells = max(1, min(int(round(0.90 / CELL_M)), shared_len))
-                center_b = (start_b + shared_len / 2) * CELL_M
-                center_l = (start_l + shared_len / 2) * CELL_M
-                width_m = width_cells * CELL_M
-
-                self.bath_liv_openings.p = bath_plan
-                self.liv_bath_openings.p = liv_plan
-                self.bath_liv_openings.door_wall = bath_wall
-                self.liv_bath_openings.door_wall = liv_wall
-                self.bath_liv_openings.door_center = center_b
-                self.liv_bath_openings.door_center = center_l
-                self.bath_liv_openings.door_width = width_m
-                self.liv_bath_openings.door_width = width_m
-
-                for plan, op in ((bath_plan, self.bath_liv_openings), (liv_plan, self.liv_bath_openings)):
-                    dx, dy, dw, dh = op.door_rect_cells()
-                    for j in range(dy, dy + dh):
-                        for i in range(dx, dx + dw):
-                            plan.occ[j][i] = 'DOOR'
-                self._add_door_clearance(bath_plan, 'LIVING_DOOR', self.bath_liv_openings)
-                self._add_door_clearance(liv_plan, 'LIVING_DOOR', self.liv_bath_openings)
-                liv_plan = None
-                failure_msg = 'Bathroom must expose door to living room.'
-
-        if os.environ.get("DEBUG_LAYOUT") == "1":
-            for name, p in (
-                ("bed", bed_plan),
-                ("bath", bath_plan),
-                ("living", liv_plan),
-                ("kitch", kitch_plan),
-            ):
-                if p:
-                    print(
-                        f"[DEBUG_LAYOUT] {name}: "
-                        f"{(p.x_offset, p.y_offset, p.gw, p.gh)}"
+                if getattr(self, 'kitch_dims', None):
+                    kitch_plan = GridPlan(self.kitch_dims[0], self.kitch_dims[1])
+                    if self.kitch_openings:
+                        self.kitch_openings.p = kitch_plan
+                    ksolver = KitchenSolver(
+                        kitch_plan,
+                        self.kitch_openings,
+                        random.Random(),
+                        getattr(self, 'weights', {}),
                     )
+                    kbest, _ = ksolver.run()
+                    if isinstance(kbest, GridPlan):
+                        if self.kitch_openings:
+                            dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
+                            for j in range(dy, dy + dh):
+                                for i in range(dx, dx + dw):
+                                    kbest.occ[j][i] = 'DOOR'
+                        kitch_sticky = getattr(self, '_sticky_kitch_items', [])
+                        for (code, x, y, w, h, _wall) in kitch_sticky:
+                            kbest.clear(x, y, w, h)
+                            kbest.place(x, y, w, h, code)
+                        kbest.clearzones = merge_clearances(kbest.clearzones)
+                        self._ensure_required(
+                            kbest,
+                            self.REQUIRED_FURNITURE['kitch_plan'],
+                            'Kitchen',
+                        )
+                        kitch_plan = kbest
+                    else:
+                        kitch_plan = None
 
-        room_plans = [
-            (bed_plan, "Bedroom"),
-            (bath_plan, "Bathroom"),
-            (liv_plan, "Living"),
-            (kitch_plan, "Kitchen"),
-        ]
-        for (plan_a, name_a), (plan_b, name_b) in itertools.combinations(
-            [rp for rp in room_plans if rp[0]], 2
-        ):
-            if overlaps(plan_a, plan_b):
-                self.status.set(f"Rooms {name_a} and {name_b} overlap")
-                if prev_plan is not None:
-                    self.plan = prev_plan
-                return
+            regen_bath = regen_liv = regen_kitch = False
 
-        # Validate adjacency: kitchen must share boundaries with both bathroom
-        # (above) and living room (left).
-        if kitch_plan and bath_plan and liv_plan:
-            if not (shares_edge(kitch_plan, bath_plan) and shares_edge(kitch_plan, liv_plan)):
-                # Inform user of invalid adjacency and revert without drawing
-                self.status.set(
-                    "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
-                )
-                if prev_plan is not None:
-                    self.plan = prev_plan
-                return
+            if failure_msg:
+                break
+
+            left_gw = max(bed_plan.gw, liv_plan.gw if liv_plan else 0)
+            right_gw = max(
+                bath_plan.gw if bath_plan else 0,
+                kitch_plan.gw if kitch_plan else 0,
+            )
+            top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
+            bottom_gh = max(
+                liv_plan.gh if liv_plan else 0,
+                kitch_plan.gh if kitch_plan else 0,
+            )
+            total_gw = left_gw + right_gw
+            total_gh = top_gh + bottom_gh
+            col_grid = ColumnGrid(total_gw, total_gh)
+            bed_plan.column_grid = col_grid
+            bed_plan.x_offset = 0
+            bed_plan.y_offset = 0
+            if bath_plan:
+                bath_plan.column_grid = col_grid
+                bath_plan.x_offset = left_gw
+                bath_plan.y_offset = 0
+            if liv_plan:
+                liv_plan.column_grid = col_grid
+                liv_plan.x_offset = 0
+                liv_plan.y_offset = top_gh
+            if kitch_plan:
+                kitch_plan.column_grid = col_grid
+                kitch_plan.x_offset = left_gw
+                kitch_plan.y_offset = top_gh
+
+            if bath_plan and liv_plan and shares_edge(bath_plan, liv_plan):
+                if not (getattr(self, 'bath_liv_openings', None) and getattr(self, 'liv_bath_openings', None)):
+                    if not getattr(self, 'bath_liv_openings', None):
+                        self.bath_liv_openings = Openings(bath_plan)
+                        self.bath_liv_openings.swing_depth = CELL_M
+                    if not getattr(self, 'liv_bath_openings', None):
+                        self.liv_bath_openings = Openings(liv_plan)
+                        self.liv_bath_openings.swing_depth = CELL_M
+
+                    bx0, by0 = bath_plan.x_offset, bath_plan.y_offset
+                    bx1, by1 = bx0 + bath_plan.gw, by0 + bath_plan.gh
+                    lx0, ly0 = liv_plan.x_offset, liv_plan.y_offset
+                    lx1, ly1 = lx0 + liv_plan.gw, ly0 + liv_plan.gh
+
+                    if by1 == ly0:  # bath above living
+                        shared_start = max(bx0, lx0)
+                        shared_len = min(bx1, lx1) - shared_start
+                        bath_wall, liv_wall = WALL_BOTTOM, WALL_TOP
+                        start_b = shared_start - bx0
+                        start_l = shared_start - lx0
+                    elif ly1 == by0:  # living above bath
+                        shared_start = max(bx0, lx0)
+                        shared_len = min(bx1, lx1) - shared_start
+                        bath_wall, liv_wall = WALL_TOP, WALL_BOTTOM
+                        start_b = shared_start - bx0
+                        start_l = shared_start - lx0
+                    elif bx1 == lx0:  # bath to right of living
+                        shared_start = max(by0, ly0)
+                        shared_len = min(by1, ly1) - shared_start
+                        bath_wall, liv_wall = WALL_LEFT, WALL_RIGHT
+                        start_b = shared_start - by0
+                        start_l = shared_start - ly0
+                    else:  # bath to left of living
+                        shared_start = max(by0, ly0)
+                        shared_len = min(by1, ly1) - shared_start
+                        bath_wall, liv_wall = WALL_RIGHT, WALL_LEFT
+                        start_b = shared_start - by0
+                        start_l = shared_start - ly0
+
+                    width_cells = max(1, min(int(round(0.90 / CELL_M)), shared_len))
+                    center_b = (start_b + shared_len / 2) * CELL_M
+                    center_l = (start_l + shared_len / 2) * CELL_M
+                    width_m = width_cells * CELL_M
+
+                    self.bath_liv_openings.p = bath_plan
+                    self.liv_bath_openings.p = liv_plan
+                    self.bath_liv_openings.door_wall = bath_wall
+                    self.liv_bath_openings.door_wall = liv_wall
+                    self.bath_liv_openings.door_center = center_b
+                    self.liv_bath_openings.door_center = center_l
+                    self.bath_liv_openings.door_width = width_m
+                    self.liv_bath_openings.door_width = width_m
+
+                    for plan, op in ((bath_plan, self.bath_liv_openings), (liv_plan, self.liv_bath_openings)):
+                        dx, dy, dw, dh = op.door_rect_cells()
+                        for j in range(dy, dy + dh):
+                            for i in range(dx, dx + dw):
+                                plan.occ[j][i] = 'DOOR'
+                    self._add_door_clearance(bath_plan, 'LIVING_DOOR', self.bath_liv_openings)
+                    self._add_door_clearance(liv_plan, 'LIVING_DOOR', self.liv_bath_openings)
+                    liv_plan = None
+                    failure_msg = 'Bathroom must expose door to living room.'
+
+            if os.environ.get("DEBUG_LAYOUT") == "1":
+                for name, p in (
+                    ("bed", bed_plan),
+                    ("bath", bath_plan),
+                    ("living", liv_plan),
+                    ("kitch", kitch_plan),
+                ):
+                    if p:
+                        print(
+                            f"[DEBUG_LAYOUT] {name}: "
+                            f"{(p.x_offset, p.y_offset, p.gw, p.gh)}"
+                        )
+
+            room_plans = [
+                (bed_plan, "Bedroom"),
+                (bath_plan, "Bathroom"),
+                (liv_plan, "Living"),
+                (kitch_plan, "Kitchen"),
+            ]
+            for (plan_a, name_a), (plan_b, name_b) in itertools.combinations(
+                [rp for rp in room_plans if rp[0]], 2
+            ):
+                if overlaps(plan_a, plan_b):
+                    self.status.set(f"Rooms {name_a} and {name_b} overlap")
+                    if prev_plan is not None:
+                        self.plan = prev_plan
+                    return
+
+            if kitch_plan and bath_plan and liv_plan:
+                share_bath = shares_edge(kitch_plan, bath_plan)
+                share_liv = shares_edge(kitch_plan, liv_plan)
+                if share_bath and share_liv:
+                    adjacency_ok = True
+                    break
+                if not share_bath:
+                    regen_bath = True
+                    regen_kitch = True
+                if not share_liv:
+                    regen_liv = True
+                    regen_kitch = True
+                continue
+            else:
+                adjacency_ok = True
+                break
+
+        if not adjacency_ok and not failure_msg:
+            self.status.set(
+                "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
+            )
+            if prev_plan is not None:
+                self.plan = prev_plan
+            return
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext

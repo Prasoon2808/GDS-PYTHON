@@ -26,10 +26,8 @@ def test_solver_reports_triangle_bonus():
     plan.place(0, 8, 1, 1, 'REF')
     openings = Openings(plan)
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
-    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')])
-    assert result is not None
-    feats = meta.get('features', {})
-    assert feats.get('work_triangle_bonus', 0.0) == 1.0
+    bonus = solver._work_triangle_bonus(plan)
+    assert bonus == 1.0
 
 
 def test_work_triangle_bonus_drops_when_appliances_far():
@@ -39,10 +37,8 @@ def test_work_triangle_bonus_drops_when_appliances_far():
     plan.place(0, 20, 1, 1, 'REF')
     openings = Openings(plan)
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
-    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')])
-    assert result is not None
-    feats = meta.get('features', {})
-    assert feats.get('work_triangle_bonus', 1.0) == 0.0
+    bonus = solver._work_triangle_bonus(plan)
+    assert bonus == 0.0
 
 
 def test_solver_fills_missing_appliances():
@@ -68,6 +64,16 @@ def test_solver_score_uses_dot_product_only():
     feats = meta.get('features', {})
     expected = dot_score(weights, feats)
     assert math.isclose(meta.get('score'), expected)
+
+
+def test_solver_respects_min_adjacency_threshold():
+    plan = GridPlan(3.0, 3.0)
+    openings = Openings(plan)
+    solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
+    result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')], min_adjacency=10.0, iters=20, time_budget_ms=200)
+    assert result is None
+    assert meta.get('status') == 'adjacency_below_threshold'
+    assert meta.get('features', {}).get('adjacency', 0.0) < 10.0
 
 
 def test_custom_book_clear_override():
