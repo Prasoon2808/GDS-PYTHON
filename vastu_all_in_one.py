@@ -6,6 +6,7 @@ from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
 import warnings
+from copy import deepcopy
 from ui.overlays import ColumnGridOverlay, LegendPopover
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
@@ -2494,15 +2495,45 @@ class KitchenSolver:
         sets = appliance_sets or default_kitchen_sets()
         for req in reversed(sets):
             needed = Counter(req)
-            if all(len(list(components_by_code(self.p, code))) >= cnt
-                   for code, cnt in needed.items()):
-                feats = {'work_triangle_bonus': self._work_triangle_bonus(self.p)}
-                adj = self._adjacency_score(self.p)
+            plan = deepcopy(self.p)
+            success = True
+            for code, cnt in needed.items():
+                existing = list(components_by_code(plan, code))
+                missing = cnt - len(existing)
+                for _ in range(missing):
+                    spot = self._find_placement(plan, code)
+                    if spot is None:
+                        success = False
+                        break
+                    x, y, w, h = spot
+                    plan.place(x, y, w, h, code)
+                if not success:
+                    break
+            if success:
+                feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
+                adj = self._adjacency_score(plan)
                 feats['adjacency'] = adj
                 score = dot_score(self.weights, feats)
                 score += self.weights.get('adjacency', 0.6) * adj
-                return self.p, {'features': feats, 'score': score}
+                return plan, {'features': feats, 'score': score}
         return None, {'status': 'missing_appliance'}
+
+    def _find_placement(self, plan: GridPlan, code: str) -> Optional[Tuple[int, int, int, int]]:
+        """Return a valid (x,y,w,h) placement for ``code`` or ``None``."""
+        variants = self.book.get(code, {})
+        if not variants:
+            defaults = {'SINK': (0.6, 0.6), 'COOK': (0.6, 0.6), 'REF': (0.9, 0.76)}
+            w_m, d_m = defaults.get(code, (0.6, 0.6))
+            variants = {'_': {'w': w_m, 'd': d_m}}
+        for dims in variants.values():
+            w = plan.meters_to_cells(dims.get('w', 0.6))
+            h = plan.meters_to_cells(dims.get('d', 0.6))
+            for w0, h0 in ((w, h), (h, w)):
+                for y in range(plan.gh - h0 + 1):
+                    for x in range(plan.gw - w0 + 1):
+                        if plan.fits(x, y, w0, h0):
+                            return x, y, w0, h0
+        return None
 
     def _work_triangle_bonus(self, plan: GridPlan) -> float:
         nodes = ['SINK', 'COOK', 'REF']
