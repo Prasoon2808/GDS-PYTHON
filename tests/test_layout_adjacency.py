@@ -39,13 +39,10 @@ def layout_and_check(gv):
             gv.status.set(f"Rooms {name_a} and {name_b} overlap")
             return False
 
-    if gv.kitch_plan and gv.bath_plan and gv.liv_plan:
-        if not (
-            shares_edge(gv.kitch_plan, gv.bath_plan)
-            and shares_edge(gv.kitch_plan, gv.liv_plan)
-        ):
+    if gv.kitch_plan and gv.bath_plan:
+        if not shares_edge(gv.kitch_plan, gv.bath_plan):
             gv.status.set(
-                "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
+                "Kitchen must share a wall with the Bathroom. Currently it does not."
             )
             return False
 
@@ -126,8 +123,29 @@ def test_kitchen_shift_breaks_adjacency():
     assert not layout_and_check(gv)
     assert (
         gv.status.msg
-        == "Kitchen must share an edge with BOTH Living and Bathroom. Currently it does not."
+        == "Kitchen must share a wall with the Bathroom. Currently it does not."
     )
+
+
+def test_kitchen_bath_wall_living_indirect():
+    cell = CELL_M
+    gv = make_generate_view((cell, cell), living_dims=(cell, cell))
+    gv.bed_plan = GridPlan(cell, cell)
+    gv.bath_plan = GridPlan(cell, cell)
+    gv.liv_plan = GridPlan(cell, cell)
+    gv.kitch_plan = GridPlan(cell, cell)
+
+    gv.bed_plan.x_offset = 0
+    gv.bed_plan.y_offset = 0
+    gv.bath_plan.x_offset = 1
+    gv.bath_plan.y_offset = 0
+    gv.kitch_plan.x_offset = 1
+    gv.kitch_plan.y_offset = 1
+    gv.liv_plan.x_offset = 0
+    gv.liv_plan.y_offset = 2  # separated by a hall space
+
+    assert layout_and_check(gv)
+    assert gv.status.msg == ""
 
 
 def test_living_room_overlap_raises_error():
