@@ -909,6 +909,18 @@
       },
       "clearance": { "front_mode": "stand_only", "side_noncombustible_min_m": null }
     },
+    "SLAB": {
+      "name": "Counter Slab",
+      "rotations_allowed": [0, 90],
+      "variants": {
+        "slab_600":   { "w": 0.60, "d": 0.60 },
+        "slab_900":   { "w": 0.90, "d": 0.60 },
+        "corner_600": { "w": 0.60, "d": 0.60 },
+        "corner_900": { "w": 0.90, "d": 0.90 }
+      },
+      "clearance": { "front_mode": "stand_only" },
+      "adjacency": { "preferred_against_wall": true }
+    },
     "REF": {
       "name": "Refrigerator",
       "rotations_allowed": [0, 90],
@@ -1699,4 +1711,6 @@
     { "img": "IMG_0218 2.jpg", "fig": "Fig.8", "rule_path": "laundry.layout_patterns.separate_laundry_rooms_A", "raw_text": "Separate laundry rooms; vents noted; freezer may substitute for ironer." },
     { "img": "IMG_0219 2.jpg", "fig": "Fig.9", "rule_path": "laundry.layout_patterns.separate_laundry_rooms_B", "raw_text": "U/L rooms; cabinets/storage above; chute empties to counter." },
     { "img": "IMG_0220 2.jpg", "fig": "Fig.10–13", "rule_path": "laundry.layout_patterns.combination_rooms", "raw_text": "Laundry with sewing/breakfast/play; folding gate shown." }
-  ]
+  ],
+  "mandatory_appliances": ["SINK","COOK","SLAB","REF","DW"]
+}
