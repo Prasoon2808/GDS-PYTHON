@@ -3062,6 +3062,15 @@ class GenerateView:
     BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
     LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
+    KITCH_CODES = {
+        'SINK', 'COOK', 'REF', 'DW', 'ISLN',
+        'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'
+    }
+    ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
+    REQUIRED_FURNITURE = {
+        'bed_plan': {'BED'},
+        'kitch_plan': {'SINK'},
+    }
 
     def __init__(
         self,
@@ -4432,13 +4441,15 @@ class GenerateView:
 
 
         comp = self._hit_component(e.x, e.y)
-        if comp and comp[4] in (self.BED_CODES | self.BATH_CODES | self.LIV_CODES):
+        if comp and comp[4] in self.ALL_FURN_CODES:
             x, y, w, h = comp[:4]
             code = comp[4]
             if code in self.BATH_CODES:
                 room = 'bath'
             elif code in self.LIV_CODES:
                 room = 'living'
+            elif code in self.KITCH_CODES:
+                room = 'kitchen'
             else:
                 room = 'bed'
             self.selected = {'rect': [x, y, w, h], 'code': code}
