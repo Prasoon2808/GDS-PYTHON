@@ -4683,33 +4683,25 @@ class GenerateView:
         plans = [self.bed_plan]
         has_bath = bool(self.bath_plan)
         has_liv = bool(getattr(self, 'liv_plan', None))
+        has_kitch = bool(getattr(self, 'kitch_plan', None))
         if has_bath:
             plans.append(self.bath_plan)
         if has_liv:
             plans.append(self.liv_plan)
+        if has_kitch:
+            plans.append(self.kitch_plan)
         if len(plans) == 1:
             self.plan = self.bed_plan
             return
 
-        top_gw = self.bed_plan.gw + (self.bath_plan.gw if has_bath else 0)
-        top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
-        liv_gw = self.liv_plan.gw if has_liv else 0
-        liv_gh = self.liv_plan.gh if has_liv else 0
-        total_gw = max(top_gw, liv_gw)
-        total_gh = top_gh + liv_gh
-        col_grid = ColumnGrid(total_gw, total_gh)
+        if all(getattr(p, 'x_offset', 0) == 0 and getattr(p, 'y_offset', 0) == 0 for p in plans):
+            self._layout_rooms()
 
-        self.bed_plan.column_grid = col_grid
-        self.bed_plan.x_offset = 0
-        self.bed_plan.y_offset = 0
-        if has_bath:
-            self.bath_plan.column_grid = col_grid
-            self.bath_plan.x_offset = self.bed_plan.gw
-            self.bath_plan.y_offset = 0
-        if has_liv:
-            self.liv_plan.column_grid = col_grid
-            self.liv_plan.x_offset = 0
-            self.liv_plan.y_offset = top_gh
+        total_gw = max(p.x_offset + p.gw for p in plans)
+        total_gh = max(p.y_offset + p.gh for p in plans)
+        col_grid = ColumnGrid(total_gw, total_gh)
+        for p in plans:
+            p.column_grid = col_grid
 
         # ``GridPlan`` derives its internal grid dimensions from the supplied
         # physical size (``Wm``/``Hm``).  When the per-room plans use widths or
