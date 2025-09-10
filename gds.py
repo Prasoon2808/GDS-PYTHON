@@ -20,76 +20,26 @@ def checkpoint(label: str, **context: Any) -> None:
     else:
         logger.debug(label)
 
-def _iter_segments(plan):
-    """Yield rectangular segments for ``plan``.
-
-    ``GridPlan`` instances represent a single rectangle.  A plan may expose a
-    ``segments`` attribute to behave as a collection of rectangles that together
-    form a single room.  This helper normalises both representations so the
-    geometric helpers can operate on either form."""
-
-    return getattr(plan, "segments", [plan])
-
-
 def overlaps(a, b) -> bool:
-    """Return ``True`` if axis-aligned plans ``a`` and ``b`` overlap.
-
-    ``a`` or ``b`` may themselves be composed of multiple rectangular segments.
-    The function returns ``True`` when any pair of segments overlap."""
-
-    for sa in _iter_segments(a):
-        ax0, ay0 = sa.x_offset, sa.y_offset
-        ax1, ay1 = ax0 + sa.gw, ay0 + sa.gh
-        for sb in _iter_segments(b):
-            bx0, by0 = sb.x_offset, sb.y_offset
-            bx1, by1 = bx0 + sb.gw, by0 + sb.gh
-            if not (ax1 <= bx0 or bx1 <= ax0 or ay1 <= by0 or by1 <= ay0):
-                return True
-    return False
+    """Return ``True`` if axis-aligned plans ``a`` and ``b`` overlap."""
+    ax0, ay0 = a.x_offset, a.y_offset
+    ax1, ay1 = ax0 + a.gw, ay0 + a.gh
+    bx0, by0 = b.x_offset, b.y_offset
+    bx1, by1 = bx0 + b.gw, by0 + b.gh
+    return not (ax1 <= bx0 or bx1 <= ax0 or ay1 <= by0 or by1 <= ay0)
 
 def shares_edge(a, b) -> bool:
-    """Return ``True`` when plans ``a`` and ``b`` share a boundary edge.
-
-    Works with simple ``GridPlan`` instances as well as compound plans exposing
-    a ``segments`` attribute."""
-
-    for sa in _iter_segments(a):
-        ax0, ay0 = sa.x_offset, sa.y_offset
-        ax1, ay1 = ax0 + sa.gw, ay0 + sa.gh
-        for sb in _iter_segments(b):
-            bx0, by0 = sb.x_offset, sb.y_offset
-            bx1, by1 = bx0 + sb.gw, by0 + sb.gh
-            if (
-                (ax1 == bx0 and max(ay0, by0) < min(ay1, by1))
-                or (bx1 == ax0 and max(ay0, by0) < min(ay1, by1))
-                or (ay1 == by0 and max(ax0, bx0) < min(ax1, bx1))
-                or (by1 == ay0 and max(ax0, bx0) < min(ax1, bx1))
-            ):
-                return True
-    return False
-
-
-def shared_wall(a, b) -> int:
-    """Return the wall of ``a`` that touches ``b`` or ``-1`` if none.
-
-    The function iterates over all segments of ``a`` and ``b`` and returns the
-    first wall of ``a`` that directly abuts ``b``."""
-
-    for sa in _iter_segments(a):
-        ax0, ay0 = sa.x_offset, sa.y_offset
-        ax1, ay1 = ax0 + sa.gw, ay0 + sa.gh
-        for sb in _iter_segments(b):
-            bx0, by0 = sb.x_offset, sb.y_offset
-            bx1, by1 = bx0 + sb.gw, by0 + sb.gh
-            if ax1 == bx0 and max(ay0, by0) < min(ay1, by1):
-                return WALL_RIGHT
-            if bx1 == ax0 and max(ay0, by0) < min(ay1, by1):
-                return WALL_LEFT
-            if ay1 == by0 and max(ax0, bx0) < min(ax1, bx1):
-                return WALL_TOP
-            if by1 == ay0 and max(ax0, bx0) < min(ax1, bx1):
-                return WALL_BOTTOM
-    return -1
+    """Return ``True`` when plans ``a`` and ``b`` share a boundary edge."""
+    ax0, ay0 = a.x_offset, a.y_offset
+    ax1, ay1 = ax0 + a.gw, ay0 + a.gh
+    bx0, by0 = b.x_offset, b.y_offset
+    bx1, by1 = bx0 + b.gw, by0 + b.gh
+    return (
+        (ax1 == bx0 and max(ay0, by0) < min(ay1, by1))
+        or (bx1 == ax0 and max(ay0, by0) < min(ay1, by1))
+        or (ay1 == by0 and max(ax0, bx0) < min(ax1, bx1))
+        or (by1 == ay0 and max(ax0, bx0) < min(ax1, bx1))
+    )
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
 LIV_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.livingroom.json")
