@@ -3717,32 +3717,31 @@ class GenerateView:
                 self._add_door_clearance(liv_plan, 'DOOR', self.liv_openings)
             else:
                 liv_plan = None
-        kitch_plan = None
-        if self.kitch_dims:
-            kitch_plan = GridPlan(self.kitch_dims[0], self.kitch_dims[1])
-            if self.kitch_openings:
-                self.kitch_openings.p = kitch_plan
+        if getattr(self, 'kitch_plan', None):
             solver = KitchenSolver(
-                kitch_plan,
+                self.kitch_plan,
                 self.kitch_openings,
                 rng=random.Random(),
                 weights=load_weights(),
                 book=KITCHEN_BOOK,
             )
-            kbest, _kmeta = solver.run(
-                required=self.REQUIRED_FURNITURE['kitch_plan']
+            kbest, _ = solver.run(
+                appliance_sets=[('SINK', 'COOK', 'SLAB', 'REF', 'DW')]
             )
-            if isinstance(kbest, GridPlan):
-                kitch_plan = kbest
-                if self.kitch_openings:
-                    dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
-                    for j in range(dy, dy + dh):
-                        for i in range(dx, dx + dw):
-                            kitch_plan.occ[j][i] = 'DOOR'
-                kitch_plan.clearzones = merge_clearances(kitch_plan.clearzones)
-                self._add_door_clearance(kitch_plan, 'DOOR', self.kitch_openings)
-            else:
-                kitch_plan = None
+            self.kitch_plan = kbest if isinstance(kbest, GridPlan) else None
+        if getattr(self, 'kitch_plan', None) and getattr(self, 'kitch_openings', None):
+            self.kitch_openings.p = self.kitch_plan
+            dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
+            for j in range(dy, dy + dh):
+                for i in range(dx, dx + dw):
+                    self.kitch_plan.occ[j][i] = 'DOOR'
+            self._add_door_clearance(self.kitch_plan, 'DOOR', self.kitch_openings)
+        if getattr(self, 'kitch_plan', None):
+            for code in self.KITCH_CODES:
+                for x, y, w, h, _ in components_by_code(self.kitch_plan, code):
+                    self.kitch_plan.clearzones.append((x, y, w, h, code, code))
+            self.kitch_plan.clearzones = merge_clearances(self.kitch_plan.clearzones)
+        kitch_plan = getattr(self, 'kitch_plan', None)
         top_gw = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
         top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
         bottom_gw = (liv_plan.gw if liv_plan else 0) + (kitch_plan.gw if kitch_plan else 0)
@@ -4670,6 +4669,12 @@ class GenerateView:
             xoff = self.bed_plan.gw
             yoff = 0
             ox -= xoff; nx -= xoff
+        elif room == 'kitchen':
+            target_plan = getattr(self, 'kitch_plan', None)
+            xoff = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
+            yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            ox -= xoff; nx -= xoff
+            oy -= yoff; ny -= yoff
         else:
             target_plan = self.liv_plan
             xoff = 0
