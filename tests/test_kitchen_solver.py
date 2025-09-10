@@ -47,15 +47,15 @@ def test_solver_fills_missing_appliances():
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
     result, meta = solver.run(appliance_sets=[('SINK', 'COOK', 'REF')])
     assert result is not None, 'solver failed to place appliances'
-    for code in ('SINK', 'COOK', 'REF'):
+    for code in ('SINK', 'COOK', 'SLAB', 'REF', 'DW'):
         assert list(components_by_code(result, code)), f'{code} not placed'
 
 
 def test_solver_score_uses_dot_product_only():
     plan = GridPlan(3.0, 3.0)
     plan.place(0, 0, 1, 1, 'SINK')
-    plan.place(1, 0, 1, 1, 'COOK')
-    plan.place(2, 0, 1, 1, 'REF')
+    plan.place(6, 0, 1, 1, 'COOK')
+    plan.place(0, 6, 1, 1, 'REF')
     openings = Openings(plan)
     weights = {'adjacency': 0.5, 'work_triangle_bonus': 2.0}
     solver = KitchenSolver(plan, openings, rng=random.Random(0), weights=weights)
@@ -74,6 +74,26 @@ def test_solver_respects_min_adjacency_threshold():
     assert result is None
     assert meta.get('status') == 'adjacency_below_threshold'
     assert meta.get('features', {}).get('adjacency', 0.0) < 10.0
+
+
+def test_work_triangle_ok_rejects_invalid_layout():
+    plan = GridPlan(3.0, 3.0)
+    plan.place(0, 0, 1, 1, 'SINK')
+    plan.place(1, 0, 1, 1, 'COOK')
+    plan.place(2, 0, 1, 1, 'REF')
+    openings = Openings(plan)
+    solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
+    assert not solver.work_triangle_ok(plan)
+
+
+def test_work_triangle_ok_accepts_valid_layout():
+    plan = GridPlan(3.0, 3.0)
+    plan.place(0, 0, 1, 1, 'SINK')
+    plan.place(6, 0, 1, 1, 'COOK')
+    plan.place(0, 6, 1, 1, 'REF')
+    openings = Openings(plan)
+    solver = KitchenSolver(plan, openings, rng=random.Random(0), weights={})
+    assert solver.work_triangle_ok(plan)
 
 
 def test_custom_book_clear_override():

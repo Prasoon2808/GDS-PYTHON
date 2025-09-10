@@ -2522,9 +2522,10 @@ class KitchenSolver:
         if not appliance_sets and required:
             appliance_sets = [tuple(required)]
         sets = appliance_sets or default_kitchen_sets()
+        required_codes = {'SINK', 'COOK', 'SLAB', 'REF', 'DW'}
         best_overall = None; meta_overall = None
         for req in reversed(sets):
-            needed = Counter(req)
+            needed = Counter(required_codes | set(req))
             for _ in range(max_attempts):
                 t0 = time.time()
                 tries = 0
@@ -2547,6 +2548,11 @@ class KitchenSolver:
                             break
                     if not success:
                         continue
+                    self._add_counter_run(plan)
+                    # Ensure all required codes are present
+                    missing = [c for c in required_codes if not list(components_by_code(plan, c))]
+                    if missing or not self.work_triangle_ok(plan):
+                        continue
                     feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
                     adj, ok = self._adjacency_score(plan)
                     if not ok:
@@ -2568,6 +2574,65 @@ class KitchenSolver:
             return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
         return None, {'status': 'missing_appliance'}
 
+    def _add_counter_run(self, plan: GridPlan) -> None:
+        """Fill unused perimeter cells with ``SLAB`` to create counters."""
+        gw, gh = plan.gw, plan.gh
+        if gw >= gh + 2:
+            # Vertical galley (||) counters on left and right walls
+            for y in range(gh):
+                if plan.occ[y][0] is None:
+                    plan.place(0, y, 1, 1, 'SLAB')
+                if plan.occ[y][gw - 1] is None:
+                    plan.place(gw - 1, y, 1, 1, 'SLAB')
+        elif gh >= gw + 2:
+            # Horizontal galley counters on top and bottom walls
+            for x in range(gw):
+                if plan.occ[0][x] is None:
+                    plan.place(x, 0, 1, 1, 'SLAB')
+                if plan.occ[gh - 1][x] is None:
+                    plan.place(x, gh - 1, 1, 1, 'SLAB')
+        elif gw >= 3 and gh >= 3:
+            # U-shape: open at top
+            for x in range(gw):
+                if plan.occ[gh - 1][x] is None:
+                    plan.place(x, gh - 1, 1, 1, 'SLAB')
+            for y in range(gh - 1):
+                if plan.occ[y][0] is None:
+                    plan.place(0, y, 1, 1, 'SLAB')
+                if plan.occ[y][gw - 1] is None:
+                    plan.place(gw - 1, y, 1, 1, 'SLAB')
+        else:
+            # L-shape along left and bottom walls
+            for x in range(gw):
+                if plan.occ[gh - 1][x] is None:
+                    plan.place(x, gh - 1, 1, 1, 'SLAB')
+            for y in range(gh - 1):
+                if plan.occ[y][0] is None:
+                    plan.place(0, y, 1, 1, 'SLAB')
+
+    def work_triangle_ok(self, plan: GridPlan) -> bool:
+        """Return ``True`` if the work triangle meets distance requirements."""
+        nodes = ['SINK', 'COOK', 'REF']
+        centers = []
+        for code in nodes:
+            comps = list(components_by_code(plan, code))
+            if not comps:
+                return False
+            x, y, w, h, _ = comps[0]
+            centers.append(((x + w / 2.0) * plan.cell,
+                            (y + h / 2.0) * plan.cell))
+        d1 = sqrt((centers[0][0] - centers[1][0]) ** 2 +
+                  (centers[0][1] - centers[1][1]) ** 2)
+        d2 = sqrt((centers[1][0] - centers[2][0]) ** 2 +
+                  (centers[1][1] - centers[2][1]) ** 2)
+        d3 = sqrt((centers[2][0] - centers[0][0]) ** 2 +
+                  (centers[2][1] - centers[0][1]) ** 2)
+        if d1 < 1.5 or d2 < 1.5 or d3 < 1.5:
+            return False
+        if d1 + d2 + d3 > 7.92:
+            return False
+        return True
+
     def _find_placement(self, plan: GridPlan, code: str) -> Optional[Tuple[int, int, int, int]]:
         """Return a valid (x,y,w,h) placement for ``code`` or ``None``."""
         variants = self.book.get(code, {})
@@ -2575,6 +2640,7 @@ class KitchenSolver:
             defaults = {'SINK': (0.6, 0.6), 'COOK': (0.6, 0.6), 'REF': (0.9, 0.76)}
             w_m, d_m = defaults.get(code, (0.6, 0.6))
             variants = {'_': {'w': w_m, 'd': d_m}}
+        candidates = []
         for dims in variants.values():
             w = plan.meters_to_cells(dims.get('w', 0.6))
             h = plan.meters_to_cells(dims.get('d', 0.6))
@@ -2582,7 +2648,9 @@ class KitchenSolver:
                 for y in range(plan.gh - h0 + 1):
                     for x in range(plan.gw - w0 + 1):
                         if plan.fits(x, y, w0, h0):
-                            return x, y, w0, h0
+                            candidates.append((x, y, w0, h0))
+        if candidates:
+            return self.rng.choice(candidates)
         return None
 
     def _work_triangle_bonus(self, plan: GridPlan) -> float:
@@ -2643,9 +2711,8 @@ class KitchenSolver:
                 dx = max(0, max(ox0 - sx1, sx0 - ox1))
                 dy = max(0, max(oy0 - sy1, sy0 - oy1))
                 dist = dx + dy
-                if dist > thresh:
-                    return 0.0, False
-                score += wt * (1.0 / (1.0 + dist))
+                if dist <= thresh:
+                    score += wt * (1.0 / (1.0 + dist))
 
         bcook = boxes('COOK')
         if bcook:
@@ -2658,9 +2725,8 @@ class KitchenSolver:
                 dx = max(0, max(ox0 - cx1, cx0 - ox1))
                 dy = max(0, max(oy0 - cy1, cy0 - oy1))
                 dist = dx + dy
-                if dist > thresh:
-                    return 0.0, False
-                score += wt * (1.0 / (1.0 + dist))
+                if dist <= thresh:
+                    score += wt * (1.0 / (1.0 + dist))
 
         return score, True
 
