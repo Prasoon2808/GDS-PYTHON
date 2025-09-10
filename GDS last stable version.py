@@ -4733,39 +4733,76 @@ class GenerateView:
         """Synchronize per-room plans with current combined plan."""
         has_bath = bool(self.bath_plan)
         has_liv = bool(getattr(self, 'liv_plan', None))
-        if has_bath or has_liv:
+        has_kitch = bool(getattr(self, 'kitch_plan', None))
+        if has_bath or has_liv or has_kitch:
             bed = GridPlan(self.bed_Wm, self.bed_Hm)
             bath = GridPlan(self.bath_Wm, self.bath_Hm) if has_bath else None
             liv = GridPlan(self.liv_Wm, self.liv_Hm) if has_liv else None
-            top_gh = max(self.bed_plan.gh, self.bath_plan.gh if has_bath else 0)
+            kitch = GridPlan(self.kitch_Wm, self.kitch_Hm) if has_kitch else None
             for j in range(self.plan.gh):
                 for i in range(self.plan.gw):
                     code = self.plan.occ[j][i]
                     if not code:
                         continue
-                    if j < top_gh and i < self.bed_plan.gw:
-                        bed.occ[j][i] = code
-                    elif has_bath and j < top_gh and i >= self.bed_plan.gw:
-                        bath.occ[j][i - self.bed_plan.gw] = code
-                    elif has_liv and j >= top_gh:
-                        liv.occ[j - top_gh][i] = code
+                    if (
+                        self.bed_plan.x_offset <= i < self.bed_plan.x_offset + self.bed_plan.gw
+                        and self.bed_plan.y_offset <= j < self.bed_plan.y_offset + self.bed_plan.gh
+                    ):
+                        bed.occ[j - self.bed_plan.y_offset][i - self.bed_plan.x_offset] = code
+                    elif has_bath and (
+                        self.bath_plan.x_offset <= i < self.bath_plan.x_offset + self.bath_plan.gw
+                        and self.bath_plan.y_offset <= j < self.bath_plan.y_offset + self.bath_plan.gh
+                    ):
+                        bath.occ[j - self.bath_plan.y_offset][i - self.bath_plan.x_offset] = code
+                    elif has_liv and (
+                        self.liv_plan.x_offset <= i < self.liv_plan.x_offset + self.liv_plan.gw
+                        and self.liv_plan.y_offset <= j < self.liv_plan.y_offset + self.liv_plan.gh
+                    ):
+                        liv.occ[j - self.liv_plan.y_offset][i - self.liv_plan.x_offset] = code
+                    elif has_kitch and (
+                        self.kitch_plan.x_offset <= i < self.kitch_plan.x_offset + self.kitch_plan.gw
+                        and self.kitch_plan.y_offset <= j < self.kitch_plan.y_offset + self.kitch_plan.gh
+                    ):
+                        kitch.occ[j - self.kitch_plan.y_offset][i - self.kitch_plan.x_offset] = code
             for x, y, w, h, kind, owner in self.plan.clearzones:
-                if y + h <= top_gh and x + w <= self.bed_plan.gw:
-                    bed.clearzones.append((x, y, w, h, kind, owner))
-                elif has_bath and y + h <= top_gh and x >= self.bed_plan.gw:
-                    bath.clearzones.append((x - self.bed_plan.gw, y, w, h, kind, owner))
-                elif has_liv and y >= top_gh:
-                    liv.clearzones.append((x, y - top_gh, w, h, kind, owner))
+                bx0, by0 = self.bed_plan.x_offset, self.bed_plan.y_offset
+                bx1, by1 = bx0 + self.bed_plan.gw, by0 + self.bed_plan.gh
+                if bx0 <= x and x + w <= bx1 and by0 <= y and y + h <= by1:
+                    bed.clearzones.append((x - bx0, y - by0, w, h, kind, owner))
+                    continue
+                if has_bath:
+                    bpx0, bpy0 = self.bath_plan.x_offset, self.bath_plan.y_offset
+                    bpx1, bpy1 = bpx0 + self.bath_plan.gw, bpy0 + self.bath_plan.gh
+                    if bpx0 <= x and x + w <= bpx1 and bpy0 <= y and y + h <= bpy1:
+                        bath.clearzones.append((x - bpx0, y - bpy0, w, h, kind, owner))
+                        continue
+                if has_liv:
+                    lx0, ly0 = self.liv_plan.x_offset, self.liv_plan.y_offset
+                    lx1, ly1 = lx0 + self.liv_plan.gw, ly0 + self.liv_plan.gh
+                    if lx0 <= x and x + w <= lx1 and ly0 <= y and y + h <= ly1:
+                        liv.clearzones.append((x - lx0, y - ly0, w, h, kind, owner))
+                        continue
+                if has_kitch:
+                    kx0, ky0 = self.kitch_plan.x_offset, self.kitch_plan.y_offset
+                    kx1, ky1 = kx0 + self.kitch_plan.gw, ky0 + self.kitch_plan.gh
+                    if kx0 <= x and x + w <= kx1 and ky0 <= y and y + h <= ky1:
+                        kitch.clearzones.append((x - kx0, y - ky0, w, h, kind, owner))
             bed.clearzones = merge_clearances(bed.clearzones)
             if has_bath:
                 bath.clearzones = merge_clearances(bath.clearzones)
             if has_liv:
                 liv.clearzones = merge_clearances(liv.clearzones)
+            if has_kitch:
+                kitch.clearzones = merge_clearances(kitch.clearzones)
             self.bed_plan = bed
             self.bath_plan = bath
             self.liv_plan = liv
+            self.kitch_plan = kitch
         else:
             self.bed_plan = self.plan
+            self.bath_plan = None
+            self.liv_plan = None
+            self.kitch_plan = None
 
 
     def _solve_and_draw_preserve(self):
