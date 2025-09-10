@@ -17,7 +17,7 @@ from test_generate_view import setup_drag_view
 
 def test_kitchen_codes_and_selection():
     codes = {
-        'SINK', 'COOK', 'REF', 'DW', 'ISLN',
+        'SINK', 'COOK', 'SLAB', 'REF', 'DW', 'ISLN',
         'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'
     }
     assert GenerateView.KITCH_CODES == codes
@@ -39,14 +39,15 @@ def test_grid_code_mapping_and_snapshots_consistent():
     expected = {
         'SINK': 7,
         'COOK': 8,
-        'REF': 9,
-        'DW': 10,
-        'ISLN': 11,
-        'BASE': 12,
-        'WALL': 13,
-        'HOOD': 14,
-        'OVEN': 15,
-        'MICRO': 16,
+        'SLAB': 9,
+        'REF': 10,
+        'DW': 11,
+        'ISLN': 12,
+        'BASE': 13,
+        'WALL': 14,
+        'HOOD': 15,
+        'OVEN': 16,
+        'MICRO': 17,
     }
     # Ensure the module-level mapping contains all kitchen codes with expected values
     for code, val in expected.items():
