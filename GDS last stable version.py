@@ -3072,6 +3072,7 @@ class GenerateView:
         room_label: str = 'Bedroom',
         bath_dims: Optional[Tuple[float, float]] = None,
         liv_dims: Optional[Tuple[float, float]] = None,
+        kitch_dims: Optional[Tuple[float, float]] = None,
         pack_side=tk.LEFT,
         on_back=None,
     ):
@@ -3094,18 +3095,32 @@ class GenerateView:
             self.liv_Wm = self.liv_Hm = 0.0
         self._validate_living_dims()
 
-        # Maintain separate plans for bedroom, bathroom and living room.
+        self.kitch_dims = kitch_dims
+        if kitch_dims:
+            kw, kh = kitch_dims
+            self.kitch_Wm = kw; self.kitch_Hm = kh
+        else:
+            self.kitch_Wm = self.kitch_Hm = 0.0
+
+        # Maintain separate plans for bedroom, bathroom, living room and kitchen.
         self.bed_plan = GridPlan(self.bed_Wm, self.bed_Hm)
         self.bath_plan = GridPlan(self.bath_Wm, self.bath_Hm) if bath_dims else None
         self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm) if self.liv_dims else None
+        self.kitch_plan = GridPlan(self.kitch_Wm, self.kitch_Hm) if self.kitch_dims else None
 
         # Overall dims remain fixed for combined plan
         self.Wm = max(
             self.bed_Wm + (self.bath_Wm if bath_dims else 0),
             self.liv_Wm if self.liv_dims else 0,
+            self.kitch_Wm if self.kitch_dims else 0,
         )
-        self.Hm = max(self.bed_Hm, self.bath_Hm if bath_dims else 0) + (
+        self.Hm = max(
+            self.bed_Hm,
+            self.bath_Hm if bath_dims else 0,
+        ) + (
             self.liv_Hm if self.liv_dims else 0
+        ) + (
+            self.kitch_Hm if self.kitch_dims else 0
         )
 
         # Inform users if dimensions were auto-adjusted
