@@ -2,12 +2,23 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from collections import deque, defaultdict, Counter
 from math import ceil, sqrt, floor
-from typing import Optional, Dict, Tuple, List, Set, Iterable
-import time, json, random, os, itertools, re
+from typing import Optional, Dict, Tuple, List, Set, Iterable, Any
+import time, json, random, os, itertools, re, logging
 import numpy as np
 import warnings
 from copy import deepcopy
 from ui.overlays import ColumnGridOverlay, LegendPopover
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+def checkpoint(label: str, **context: Any) -> None:
+    """Log a debugging checkpoint with optional context information."""
+    if context:
+        logger.debug("%s | %s", label, context)
+    else:
+        logger.debug(label)
 
 def overlaps(a, b) -> bool:
     """Return ``True`` if axis-aligned plans ``a`` and ``b`` overlap."""
@@ -1940,16 +1951,27 @@ class BedroomSolver:
             furniture_sets: Optional[List[Tuple[str, ...]]] = None,
             min_adjacency: float = 0.0
             ) -> Tuple[Optional[GridPlan], Dict]:
+        checkpoint(
+            "bedroom_run_start",
+            iters=iters,
+            time_budget_ms=time_budget_ms,
+            max_attempts=max_attempts,
+            min_adjacency=min_adjacency,
+        )
         if min_adjacency > 0.0:
+            checkpoint("bedroom_adjacency_block", min_adjacency=min_adjacency)
             return None, {
                 'status': 'adjacency_below_threshold',
                 'features': {'adjacency': 0.0},
             }
         sets = furniture_sets or default_furniture_sets()
+        checkpoint("bedroom_sets", count=len(sets))
         # search from most demanding combination to least
         for req in reversed(sets):
+            checkpoint("bedroom_requirement", requirement=req)
             needed = Counter(req)
-            for _ in range(max_attempts):
+            for attempt in range(max_attempts):
+                checkpoint("bedroom_attempt_start", attempt=attempt)
                 t0 = time.time()
                 best = None; best_meta = {}; best_score = -1e9
                 seeds = seed_templates(self.p, self.bed_key)
@@ -1977,11 +1999,14 @@ class BedroomSolver:
                     beam.append((base_score, res, {**meta, 'features': feats, 'score': base_score}))
                     beam.sort(key=lambda x: -x[0])
                     beam = beam[:6]
+                checkpoint("bedroom_attempt_end", attempt=attempt, tries=tries, best=bool(beam))
                 if beam:
                     best_score, best, best_meta = beam[0]
                 if best and all(len(list(components_by_code(best, code))) >= count
                                  for code, count in needed.items()):
+                    checkpoint("bedroom_success", score=best_meta.get('score'))
                     return best, best_meta
+        checkpoint("bedroom_failure", status='no_bed')
         return None, {'status': 'no_bed'}
 
     def _attempt(self, seed:Dict):
@@ -2519,14 +2544,25 @@ class KitchenSolver:
             time_budget_ms: int = 520,
             max_attempts: int = 3,
             min_adjacency: float = 0.0) -> Tuple[Optional[GridPlan], Dict]:
+        checkpoint(
+            "kitchen_run_start",
+            appliance_sets=appliance_sets,
+            required=list(required),
+            iters=iters,
+            time_budget_ms=time_budget_ms,
+            max_attempts=max_attempts,
+            min_adjacency=min_adjacency,
+        )
         if not appliance_sets and required:
             appliance_sets = [tuple(required)]
         sets = appliance_sets or default_kitchen_sets()
         required_codes = {'SINK', 'COOK', 'SLAB', 'REF', 'DW'}
         best_overall = None; meta_overall = None
         for req in reversed(sets):
+            checkpoint("kitchen_requirement", requirement=req)
             needed = Counter(required_codes | set(req))
-            for _ in range(max_attempts):
+            for attempt in range(max_attempts):
+                checkpoint("kitchen_attempt_start", attempt=attempt)
                 t0 = time.time()
                 tries = 0
                 best = None; best_meta = None; best_adj = -1.0
@@ -2566,12 +2602,16 @@ class KitchenSolver:
                         best_meta = cand_meta
                     if adj >= 1.0:
                         break
+                checkpoint("kitchen_attempt_end", attempt=attempt, tries=tries, best=bool(best))
                 if best and best_meta['features'].get('adjacency', 0.0) >= min_adjacency:
+                    checkpoint("kitchen_success", adjacency=best_meta['features'].get('adjacency'))
                     return best, best_meta
                 if best and (meta_overall is None or best_meta['features']['adjacency'] > meta_overall['features']['adjacency']):
                     best_overall, meta_overall = best, best_meta
         if meta_overall:
+            checkpoint("kitchen_failure", status='adjacency_below_threshold')
             return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
+        checkpoint("kitchen_failure", status='missing_appliance')
         return None, {'status': 'missing_appliance'}
 
     def _add_counter_run(self, plan: GridPlan) -> None:
@@ -5719,6 +5759,22 @@ class App:
 # ---- AND REPLACE YOUR MAIN GUARD WITH THIS -----------------------------------
 
 if __name__ == "__main__":
-    App().run()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    args = parser.parse_args()
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), logging.INFO),
+        force=True,
+    )
+    try:
+        App().run()
+    except Exception:
+        logger.exception("Unhandled exception in main")
 
 # ---- END REPLACEMENT ---------------------------------------------------------
