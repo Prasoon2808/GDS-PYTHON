@@ -1917,8 +1917,14 @@ class BedroomSolver:
             iters: int = 900,
             time_budget_ms: int = 520,
             max_attempts: int = 3,
-            furniture_sets: Optional[List[Tuple[str, ...]]] = None
+            furniture_sets: Optional[List[Tuple[str, ...]]] = None,
+            min_adjacency: float = 0.0
             ) -> Tuple[Optional[GridPlan], Dict]:
+        if min_adjacency > 0.0:
+            return None, {
+                'status': 'adjacency_below_threshold',
+                'features': {'adjacency': 0.0},
+            }
         sets = furniture_sets or default_furniture_sets()
         # search from most demanding combination to least
         for req in reversed(sets):
@@ -1971,7 +1977,7 @@ class BedroomSolver:
 
     def _grid_snapshot(self, plan:'GridPlan', max_hw: int = 16):
         """Downsample occupancy to a small int grid for CNN/analytics."""
-        mapping = {'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
+        mapping = GRID_CODE_MAPPING
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
         sx = max(1, plan.gw // W); sy = max(1, plan.gh // H)
         G = np.zeros((H,W), dtype=np.int8)
@@ -1982,7 +1988,7 @@ class BedroomSolver:
                 c = plan.occ[y][x]
                 if c:
                     base = c.split(':')[0]
-                    G[jj,ii] = mapping.get(base,7)
+                    G[jj,ii] = mapping.get(base,0)
                 ii+=1
                 if ii>=W: break
             jj+=1
@@ -3007,6 +3013,7 @@ PALETTE.setdefault('LAV', '#c5e1a5')
 # Kitchen elements
 PALETTE.setdefault('SINK',  '#add8e6')
 PALETTE.setdefault('COOK',  '#ffcccb')
+PALETTE.setdefault('SLAB',  '#f0e68c')
 PALETTE.setdefault('REF',   '#b0e0e6')
 PALETTE.setdefault('DW',    '#ffe4b5')
 PALETTE.setdefault('ISLN',  '#e6e6fa')
@@ -3038,6 +3045,7 @@ ITEM_LABELS = {
     'DSIDE': 'Sideboard',
     'SINK': 'Sink',
     'COOK': 'Cooktop',
+    'SLAB': 'Countertop',
     'REF': 'Refrigerator',
     'DW': 'Dishwasher',
     'ISLN': 'Island',
@@ -3047,6 +3055,39 @@ ITEM_LABELS = {
     'OVEN': 'Oven',
     'MICRO': 'Microwave',
     'CHEST': 'Chest'
+}
+
+GRID_CODE_MAPPING = {
+    'BED': 1,
+    'BST': 2,
+    'WRD': 3,
+    'DRS': 4,
+    'DESK': 5,
+    'TVU': 6,
+    'SINK': 7,
+    'COOK': 8,
+    'SLAB': 9,
+    'REF': 10,
+    'DW': 11,
+    'ISLN': 12,
+    'BASE': 13,
+    'WALL': 14,
+    'HOOD': 15,
+    'OVEN': 16,
+    'MICRO': 17,
+    'WC': 18,
+    'SHR': 19,
+    'TUB': 20,
+    'LAV': 21,
+    'SOFA': 22,
+    'CTAB': 23,
+    'STAB': 24,
+    'RUG': 25,
+    'CHAR': 26,
+    'DTAB': 27,
+    'DCHAIR': 28,
+    'DSIDE': 29,
+    'CHEST': 30,
 }
 
 
@@ -3066,13 +3107,13 @@ class GenerateView:
     BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
     LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
     KITCH_CODES = {
-        'SINK', 'COOK', 'REF', 'DW', 'ISLN',
+        'SINK', 'COOK', 'SLAB', 'REF', 'DW', 'ISLN',
         'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'
     }
     ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
     REQUIRED_FURNITURE = {
         'bed_plan': {'BED'},
-        'kitch_plan': {'SINK'},
+        'kitch_plan': {'SINK', 'COOK', 'SLAB', 'REF', 'DW'},
     }
 
     def __init__(
@@ -5356,7 +5397,7 @@ class GenerateView:
         append_jsonl_locked(SIM_FILE, obj)
 
     def _grid_snapshot(self, plan: 'GridPlan', max_hw: int = 16):
-        mapping = {'BED':1,'BST':2,'WRD':3,'DRS':4,'DESK':5,'TVU':6}
+        mapping = GRID_CODE_MAPPING
         H = min(max_hw, plan.gh); W = min(max_hw, plan.gw)
         sx = max(1, plan.gw // W); sy = max(1, plan.gh // H)
         G = np.zeros((H, W), dtype=np.int8)
@@ -5367,7 +5408,7 @@ class GenerateView:
                 c = plan.occ[y][x]
                 if c:
                     base = c.split(':')[0]
-                    G[jj, ii] = mapping.get(base, 7)
+                    G[jj, ii] = mapping.get(base, 0)
                 ii += 1
                 if ii >= W:
                     break
