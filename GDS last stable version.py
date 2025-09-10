@@ -3166,6 +3166,31 @@ class GenerateView:
         )
         if self.liv_openings:
             self.liv_openings.swing_depth = 0.60
+        self.kitch_openings = (
+            Openings(self.kitch_plan) if kitch_dims else None
+        )
+        if self.kitch_openings:
+            door_def = (
+                KITCH_RULES.get('openings', {})
+                .get('DOOR', {})
+                .get('default', {})
+            )
+            self.kitch_openings.door_width = door_def.get(
+                'w', self.kitch_openings.door_width
+            )
+            self.kitch_openings.swing_depth = door_def.get(
+                'swing_clear', self.kitch_openings.swing_depth
+            )
+            win_def = (
+                KITCH_RULES.get('openings', {})
+                .get('WIN', {})
+                .get('default', {})
+            )
+            # First window defaults to the top wall
+            self.kitch_openings.windows[0][0] = WALL_TOP
+            self.kitch_openings.windows[0][2] = win_def.get(
+                'w', self.kitch_openings.windows[0][2]
+            )
         self.bed_key=None if bed_key=='Auto' else bed_key
         self.weights, self.mlp, self.transformer, self.ae, self.cnn, self.rnn, self.gan, self.ensemble = rehydrate_from_feedback()
         self.rng=random.Random()
