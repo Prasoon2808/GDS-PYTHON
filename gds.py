@@ -3532,6 +3532,50 @@ class GenerateView:
             self.liv_bath_openings.swing_depth = self.bath_liv_openings.swing_depth
         else:
             self.liv_bath_openings = None
+        # Automatically adjust living room width based on bedroom/bathroom door spacing.
+        if (
+            getattr(self, "liv_dims", None)
+            and getattr(self, "bed_openings", None)
+            and getattr(self, "liv_bath_openings", None)
+        ):
+            bed_wall, bed_start, bed_width = self.bed_openings.door_span_cells()
+            bath_wall, bath_start, bath_width = self.liv_bath_openings.door_span_cells()
+
+            def _horiz_edges(plan: GridPlan, wall: int, start: int, width: int) -> Tuple[int, int]:
+                if wall in (WALL_BOTTOM, WALL_TOP):
+                    left = plan.x_offset + start
+                    right = left + width
+                elif wall == WALL_LEFT:
+                    left = right = plan.x_offset
+                else:  # WALL_RIGHT
+                    left = right = plan.x_offset + plan.gw
+                return left, right
+
+            bed_left, bed_right = _horiz_edges(self.bed_plan, bed_wall, bed_start, bed_width)
+            bath_left, bath_right = _horiz_edges(self.liv_plan, bath_wall, bath_start, bath_width)
+            span_left = min(bed_left, bath_left)
+            span_right = max(bed_right, bath_right)
+            req_width = (span_right - span_left) * CELL_M + 0.05
+            self.liv_dims = (req_width, self.liv_dims[1])
+            self.liv_Wm = req_width
+            self._validate_living_dims()
+            old_openings = getattr(self, "liv_openings", None)
+            self.liv_plan = GridPlan(self.liv_Wm, self.liv_Hm)
+            if old_openings:
+                self.liv_openings = Openings(self.liv_plan)
+                self.liv_openings.door_wall = old_openings.door_wall
+                self.liv_openings.door_center = old_openings.door_center
+                self.liv_openings.door_width = old_openings.door_width
+                self.liv_openings.swing_depth = old_openings.swing_depth
+            else:
+                self.liv_openings = Openings(self.liv_plan)
+                self.liv_openings.swing_depth = 0.60
+            if getattr(self, "bath_liv_openings", None):
+                self.liv_bath_openings = Openings(self.liv_plan)
+                self.liv_bath_openings.door_wall = opposite_wall(self.bath_liv_openings.door_wall)
+                self.liv_bath_openings.door_center = self.bath_liv_openings.door_center
+                self.liv_bath_openings.door_width = self.bath_liv_openings.door_width
+                self.liv_bath_openings.swing_depth = self.bath_liv_openings.swing_depth
         return True
     def _apply_batch_and_generate(self):
         # (1) snapshot only if you want to keep a LOCKED item; otherwise clear
