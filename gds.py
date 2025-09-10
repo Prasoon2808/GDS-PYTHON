@@ -1277,21 +1277,21 @@ class AreaDialogCombined(tk.Toplevel):
         for i in range(5): liv_body.grid_columnconfigure(i, weight=1)
 
         ttk.Label(f, text='Kitchen', font=('SF Pro Text', 12, 'bold')).pack(anchor='w', pady=(20,0))
-        kitchen_body=ttk.Frame(f); kitchen_body.pack(fill=tk.X, pady=(5,0))
-        self.kitchen_method=tk.StringVar(value='area')
-        ttk.Radiobutton(kitchen_body, text='Area', variable=self.kitchen_method, value='area').grid(row=0, column=0, sticky='w')
-        ttk.Radiobutton(kitchen_body, text='W × H', variable=self.kitchen_method, value='dims').grid(row=0, column=1, sticky='w', padx=10)
-        ttk.Label(kitchen_body, text='Area').grid(row=1, column=0, sticky='w')
-        self.kitchen_area=tk.StringVar(value='9'); ttk.Entry(kitchen_body, textvariable=self.kitchen_area, width=10).grid(row=2, column=0, sticky='we')
-        ttk.Label(kitchen_body, text='Units').grid(row=1, column=1, sticky='w')
-        self.kitchen_area_units=tk.StringVar(value='m²'); ttk.Combobox(kitchen_body, textvariable=self.kitchen_area_units, values=self.UNITS, state='readonly', width=10).grid(row=2, column=1)
-        ttk.Label(kitchen_body, text='W (for W×H)').grid(row=1, column=2, sticky='w')
-        self.kitchen_W=tk.StringVar(value='3.0'); ttk.Entry(kitchen_body, textvariable=self.kitchen_W, width=10).grid(row=2, column=2)
-        ttk.Label(kitchen_body, text='H (for W×H)').grid(row=1, column=3, sticky='w')
-        self.kitchen_H=tk.StringVar(value='3.0'); ttk.Entry(kitchen_body, textvariable=self.kitchen_H, width=10).grid(row=2, column=3)
-        ttk.Label(kitchen_body, text='Len units').grid(row=1, column=4, sticky='w')
-        self.kitchen_len_units=tk.StringVar(value='m'); ttk.Combobox(kitchen_body, textvariable=self.kitchen_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
-        for i in range(5): kitchen_body.grid_columnconfigure(i, weight=1)
+        kitch_body=ttk.Frame(f); kitch_body.pack(fill=tk.X, pady=(5,0))
+        self.kitch_method=tk.StringVar(value='area')
+        ttk.Radiobutton(kitch_body, text='Area', variable=self.kitch_method, value='area').grid(row=0, column=0, sticky='w')
+        ttk.Radiobutton(kitch_body, text='W × H', variable=self.kitch_method, value='dims').grid(row=0, column=1, sticky='w', padx=10)
+        ttk.Label(kitch_body, text='Area').grid(row=1, column=0, sticky='w')
+        self.kitch_area=tk.StringVar(value='9'); ttk.Entry(kitch_body, textvariable=self.kitch_area, width=10).grid(row=2, column=0, sticky='we')
+        ttk.Label(kitch_body, text='Units').grid(row=1, column=1, sticky='w')
+        self.kitch_area_units=tk.StringVar(value='m²'); ttk.Combobox(kitch_body, textvariable=self.kitch_area_units, values=self.UNITS, state='readonly', width=10).grid(row=2, column=1)
+        ttk.Label(kitch_body, text='W (for W×H)').grid(row=1, column=2, sticky='w')
+        self.kitch_W=tk.StringVar(value='3.0'); ttk.Entry(kitch_body, textvariable=self.kitch_W, width=10).grid(row=2, column=2)
+        ttk.Label(kitch_body, text='H (for W×H)').grid(row=1, column=3, sticky='w')
+        self.kitch_H=tk.StringVar(value='3.0'); ttk.Entry(kitch_body, textvariable=self.kitch_H, width=10).grid(row=2, column=3)
+        ttk.Label(kitch_body, text='Len units').grid(row=1, column=4, sticky='w')
+        self.kitch_len_units=tk.StringVar(value='m'); ttk.Combobox(kitch_body, textvariable=self.kitch_len_units, values=LENGTH_UNIT_LABELS, state='readonly', width=6).grid(row=2, column=4)
+        for i in range(5): kitch_body.grid_columnconfigure(i, weight=1)
 
         a=ttk.Frame(f); a.pack(fill=tk.X, pady=(12,0))
         ttk.Button(a, text='Continue', style='Primary.TButton', command=self._ok).pack(side=tk.RIGHT)
@@ -1328,13 +1328,13 @@ class AreaDialogCombined(tk.Toplevel):
             else:
                 W=float(self.liv_W.get()); H=float(self.liv_H.get()); assert W>0 and H>0
                 liv_res={"mode":"dims","W":W,"H":H,"len_units":self.liv_len_units.get(),"bed":"Auto"}
-            if self.kitchen_method.get()=='area':
-                A=float(self.kitchen_area.get()); assert A>0
-                kitchen_res={"mode":"area","area":A,"area_units":self.kitchen_area_units.get(),"bed":"Auto"}
+            if self.kitch_method.get()=='area':
+                A=float(self.kitch_area.get()); assert A>0
+                kitch_res={"mode":"area","area":A,"area_units":self.kitch_area_units.get(),"bed":"Auto"}
             else:
-                W=float(self.kitchen_W.get()); H=float(self.kitchen_H.get()); assert W>0 and H>0
-                kitchen_res={"mode":"dims","W":W,"H":H,"len_units":self.kitchen_len_units.get(),"bed":"Auto"}
-            self.result={"bedroom":bed_res,"bathroom":bath_res,"livingroom":liv_res,"kitchen":kitchen_res}
+                W=float(self.kitch_W.get()); H=float(self.kitch_H.get()); assert W>0 and H>0
+                kitch_res={"mode":"dims","W":W,"H":H,"len_units":self.kitch_len_units.get(),"bed":"Auto"}
+            self.result={"bedroom":bed_res,"bathroom":bath_res,"livingroom":liv_res,"kitchen":kitch_res}
         except Exception:
             self.bell(); self.title('Room Inputs – enter valid numbers'); return
         self.destroy()
