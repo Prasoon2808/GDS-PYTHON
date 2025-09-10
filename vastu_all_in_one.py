@@ -4375,8 +4375,7 @@ class GenerateView:
             room_name,
         )
         cv.tag_lower('clear')
-        has_furn = bool(getattr(cv, 'find_withtag', lambda _tag: [])('furn'))
-        if has_furn:
+        if cv.find_withtag('furn'):
             cv.tag_raise('furn', 'clear')
             cv.tag_raise('room', 'furn')
         else:
