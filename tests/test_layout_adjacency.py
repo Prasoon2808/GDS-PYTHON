@@ -5,18 +5,18 @@ import sys
 # Ensure repository root importable when tests run from this directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import (
+from solver import (
     GenerateView,
     GridPlan,
     shares_edge,
     overlaps,
-    CELL_M,
     Openings,
     WALL_RIGHT,
     WALL_LEFT,
     WALL_BOTTOM,
     WALL_TOP,
 )
+from rules import CELL_M
 from test_generate_view import make_generate_view
 
 

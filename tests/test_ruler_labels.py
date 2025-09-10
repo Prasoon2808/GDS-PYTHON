@@ -4,7 +4,7 @@ import sys
 # Ensure repository root importable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import GenerateView, GridPlan, ColumnGrid, Openings
+from solver import GenerateView, ColumnGrid, GridPlan, Openings
 from ui.overlays import ColumnGridOverlay
 
 

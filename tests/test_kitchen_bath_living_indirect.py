@@ -5,17 +5,17 @@ import tkinter as tk
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import (
+from solver import (
     GenerateView,
     GridPlan,
     Openings,
-    CELL_M,
     shares_edge,
     WALL_LEFT,
     WALL_RIGHT,
     WALL_BOTTOM,
     WALL_TOP,
 )
+from rules import CELL_M
 from test_generate_view import DummyStatus, DummyRoot
 
 
@@ -100,12 +100,12 @@ def test_indirect_living_connection(monkeypatch):
         p.place(0, 0, 1, 1, 'SOFA')
         return p
 
-    import gds
-    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(gds, 'KitchenSolver', DummyKitchenSolver)
-    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
-    monkeypatch.setattr(gds.GenerateView, '_add_door_clearance', lambda *a, **k: None, raising=False)
+    import solver
+    monkeypatch.setattr(solver, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(solver, 'KitchenSolver', DummyKitchenSolver)
+    monkeypatch.setattr(solver, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(solver, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(solver.GenerateView, '_add_door_clearance', lambda *a, **k: None, raising=False)
 
     gv._solve_and_draw()
 

@@ -5,7 +5,8 @@ import pytest
 # Ensure repository root is importable when running tests directly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import GenerateView, GridPlan, CELL_M
+from solver import GenerateView, GridPlan
+from rules import CELL_M
 
 
 def test_combine_plans_handles_offsets_without_index_error():

@@ -4,7 +4,7 @@ import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import GridPlan, Openings, BedroomSolver, components_by_code
+from solver import GridPlan, Openings, BedroomSolver, components_by_code
 
 
 def test_solver_signals_no_bed():
