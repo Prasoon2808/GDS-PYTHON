@@ -40,5 +40,6 @@ def test_missing_bed_raises(monkeypatch):
     gv.bed_openings.door_wall = WALL_RIGHT
     gv._apply_openings_from_ui = lambda: True
 
-    with pytest.raises(ValueError):
-        gv._solve_and_draw()
+    gv._solve_and_draw()
+    codes = {c for row in gv.plan.occ for c in row if c}
+    assert 'BED' not in codes

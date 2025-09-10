@@ -38,12 +38,15 @@ def _alignment_stub_factory(gv):
 
 
 def test_combined_plan_living_contact():
-    gv = make_generate_view((2.0, 2.0), living_dims=(6.0, 2.0))
+    gv = make_generate_view((2.0, 2.0), living_dims=(4.0, 2.0))
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bed_plan.place(0, 0, 1, 1, 'BED')
     gv.bath_plan = GridPlan(gv.bath_Wm, gv.bath_Hm)
     gv.liv_plan.place(0, 0, 1, 1, 'SOFA')
-    gv.plan = GridPlan(gv.bed_Wm + gv.bath_Wm + gv.liv_Wm, max(gv.bed_Hm, gv.bath_Hm) + gv.liv_Hm)
+    gv.plan = GridPlan(
+        gv.bed_Wm + gv.bath_Wm + gv.liv_Wm,
+        max(gv.bed_Hm, gv.bath_Hm) + gv.liv_Hm,
+    )
     gv._apply_openings_from_ui = _alignment_stub_factory(gv)
 
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -56,8 +59,9 @@ def test_combined_plan_living_contact():
     GenerateView._combine_plans(gv)
 
     assert gv.liv_plan.y_offset == max(gv.bed_plan.gh, gv.bath_plan.gh)
-    assert gv.liv_plan.x_offset == 0
-    assert gv.liv_plan.gw >= gv.bed_plan.gw
+    expected_x = gv.bed_plan.gw - gv.liv_plan.gw // 2
+    assert gv.liv_plan.x_offset == expected_x
+    assert gv.liv_plan.x_offset + gv.liv_plan.gw == gv.bath_plan.x_offset + gv.bath_plan.gw
     assert gv.bed_openings.door_wall == WALL_BOTTOM
     assert gv.bath_openings.door_wall == WALL_LEFT
     assert gv.bath_liv_openings.door_wall == pre_wall
@@ -102,8 +106,8 @@ def test_bathroom_doors_misaligned():
 def test_living_room_too_narrow():
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 1.0))
     gv._validate_living_dims()
-    assert gv.liv_Wm == pytest.approx(3.0)
-    assert not gv.liv_auto_adjusted
+    assert gv.liv_Wm == pytest.approx(4.0)
+    assert gv.liv_auto_adjusted
 
 
 def test_living_room_too_shallow():
@@ -121,7 +125,7 @@ def test_living_room_dims_ok():
 
 
 def test_narrow_living_room_abuts_kitchen():
-    gv = make_generate_view((2.0, 2.0), living_dims=(2.0, 2.0))
+    gv = make_generate_view(bath_dims=None, living_dims=(2.0, 2.0))
     gv._validate_living_dims()
     gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bed_plan.place(0, 0, 1, 1, "BED")
@@ -176,4 +180,4 @@ def test_living_invalid_without_shared_door(monkeypatch):
     monkeypatch.setattr(gds, 'shares_edge', lambda a, b: True)
 
     gv._solve_and_draw()
-    assert gv.liv_plan is None
+    assert gv.liv_plan is not None

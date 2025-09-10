@@ -3410,12 +3410,12 @@ class GenerateView:
         if not self.liv_dims:
             return
         self.liv_auto_adjusted = []
-        min_width = self.bed_Wm + self.bath_Wm
+        min_width = max(self.bed_Wm, self.bath_Wm)
         if self.liv_dims[0] < min_width:
             self.liv_dims = (min_width, self.liv_dims[1])
             self.liv_Wm = min_width
             self.liv_auto_adjusted.append(
-                f"Living room width increased to {min_width:.2f} m to span bedroom and bathroom."
+                f"Living room width increased to {min_width:.2f} m to match adjoining room width."
             )
         required = max(0.60, CELL_M)
         if self.liv_dims[1] < required:
@@ -4737,8 +4737,8 @@ class GenerateView:
             ox -= xoff; nx -= xoff
         elif room == 'kitchen':
             target_plan = getattr(self, 'kitch_plan', None)
-            xoff = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
-            yoff = max(self.bed_plan.gh, self.bath_plan.gh if self.bath_plan else 0)
+            xoff = getattr(target_plan, 'x_offset', 0)
+            yoff = getattr(target_plan, 'y_offset', 0)
             ox -= xoff; nx -= xoff
             oy -= yoff; ny -= yoff
         else:
@@ -4950,7 +4950,7 @@ class GenerateView:
                 bed.x_offset = 0
                 bed.y_offset = 0
             if bath:
-                bath.x_offset = left_gw
+                bath.x_offset = bed.gw
                 bath.y_offset = 0
             if liv:
                 liv.y_offset = top_gh
@@ -4961,6 +4961,15 @@ class GenerateView:
             if kitch:
                 kitch.x_offset = left_gw
                 kitch.y_offset = top_gh
+
+            if bath and liv:
+                total_width = bed.gw + bath.gw
+                if liv.gw < total_width:
+                    liv.x_offset = max(0, min(total_width - liv.gw, bed.gw - liv.gw // 2))
+                else:
+                    liv.x_offset = 0
+            if bath and kitch:
+                kitch.x_offset = bath.x_offset
 
         total_gw = left_gw + right_gw
         total_gh = top_gh + bottom_gh
