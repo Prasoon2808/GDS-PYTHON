@@ -3368,44 +3368,9 @@ class GenerateView:
         tb=ttk.Frame(self.container); tb.pack(fill=tk.X)
         ttk.Button(tb, text='← Back', command=self._go_back).pack(side=tk.LEFT, padx=6, pady=4)
         ttk.Label(tb, text=self.room_label, font=('SF Pro Text', 12, 'bold')).pack(side=tk.LEFT, padx=6)
-        # Canvas with scrollbars
-        self.canvas_frame = ttk.Frame(self.container)
-        self.canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        try:
-            self.hbar = tk.Scrollbar(self.canvas_frame, orient=tk.HORIZONTAL)
-            self.hbar.pack(side=tk.BOTTOM, fill=tk.X)
-            self.vbar = tk.Scrollbar(self.canvas_frame, orient=tk.VERTICAL)
-            self.vbar.pack(side=tk.RIGHT, fill=tk.Y)
-            self.canvas = tk.Canvas(
-                self.canvas_frame,
-                bg='#ffffff',
-                highlightthickness=0,
-                cursor='hand2',
-                xscrollcommand=self.hbar.set,
-                yscrollcommand=self.vbar.set,
-            )
-            self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            self.hbar.config(command=self.canvas.xview)
-            self.vbar.config(command=self.canvas.yview)
-            if hasattr(self.canvas, 'config'):
-                self.canvas.config(scrollregion=(0, 0, 5000, 5000))
-        except Exception:
-            self.canvas = tk.Canvas(
-                self.canvas_frame,
-                bg='#ffffff',
-                highlightthickness=0,
-                cursor='hand2',
-            )
-            self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            self.hbar = self.vbar = None
-        try:
-            self.zoom_factor = tk.DoubleVar(value=1.0)
-        except Exception:
-            class _DV:
-                def __init__(self, v): self._v=v
-                def get(self): return self._v
-                def set(self, v): self._v=v
-            self.zoom_factor = _DV(1.0)
+        self.canvas=tk.Canvas(self.container, bg='#ffffff', highlightthickness=0, cursor='hand2')
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.zoom_factor = tk.DoubleVar(value=1.0)
         self.grid_overlay = ColumnGridOverlay(self.canvas)
         # Floating legend popovers for openings
         self.popover = LegendPopover(self.canvas)
@@ -3423,7 +3388,6 @@ class GenerateView:
         
         # Drag state
         self.drag_item=None
-        self._pan_last=None
         # Undo/redo stacks
         self.undo_stack = []
         self.redo_stack = []
@@ -3436,12 +3400,6 @@ class GenerateView:
         
         # Double-click toggles sticky selection (lock/unlock)
         self.canvas.bind('<Double-Button-1>', self._on_double_click)
-
-        # Scroll/pan bindings
-        self.canvas.bind('<MouseWheel>', self._on_mousewheel)
-        self.canvas.bind('<Shift-MouseWheel>', self._on_shift_mousewheel)
-        self.canvas.bind('<Button-2>', self._on_pan_start)
-        self.canvas.bind('<B2-Motion>', self._on_pan_move)
 
         # Also bind arrows directly on the canvas (widget-level gets priority when canvas has focus)
         for seq in ('<KeyPress-Left>', '<Left>',
@@ -4203,10 +4161,6 @@ class GenerateView:
             i, j = self.sim2_path[min(self.sim2_index, len(self.sim2_path) - 1)]
             self._draw_human_block(i, j, HUMAN2_COLOR, which=2)
 
-        # Update scroll region to encompass all drawn items
-        if hasattr(self.canvas, "config") and hasattr(self.canvas, "bbox"):
-            self.canvas.config(scrollregion=self.canvas.bbox("all"))
-
     def _draw_all_layers(
         self,
         plan,
@@ -4859,25 +4813,6 @@ class GenerateView:
         self._combine_plans()
         self._draw()
 
-    def _on_mousewheel(self, e):
-        self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        return "break"
-
-    def _on_shift_mousewheel(self, e):
-        self.canvas.xview_scroll(int(-1 * (e.delta / 120)), "units")
-        return "break"
-
-    def _on_pan_start(self, e):
-        self._pan_last = (e.x, e.y)
-
-    def _on_pan_move(self, e):
-        if self._pan_last is None:
-            return
-        dx = e.x - self._pan_last[0]
-        dy = e.y - self._pan_last[1]
-        self.canvas.xview_scroll(int(-dx), "units")
-        self.canvas.yview_scroll(int(-dy), "units")
-        self._pan_last = (e.x, e.y)
 
     # ------- keyboard + opening-span helpers
 
