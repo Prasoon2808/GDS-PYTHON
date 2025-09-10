@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from collections import deque, defaultdict, Counter
 from math import ceil, sqrt, floor
-from typing import Optional, Dict, Tuple, List, Set
+from typing import Optional, Dict, Tuple, List, Set, ClassVar
 import time, json, random, os, itertools, re
 import numpy as np
 import warnings
@@ -3166,11 +3166,29 @@ HUMAN1_COLOR='#ff6262'
 HUMAN2_COLOR='#ffdd55'
 
 class GenerateView:
-    BED_CODES = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
-    BATH_CODES = {'WC', 'SHR', 'TUB', 'LAV'}
-    LIV_CODES = {'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'}
-    KITCH_CODES = {'SINK', 'COOK', 'REF', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'}
-    ALL_FURN_CODES = BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
+    """Canvas helper for arranging room layouts.
+
+    The class exposes a few sets of furniture codes used throughout tests and
+    drag logic.  These were originally defined without type hints which made it
+    easy to accidentally mutate them.  They are now ``ClassVar`` instances so
+    that tools and readers know they are constants shared across all
+    ``GenerateView`` instances.
+    """
+
+    BED_CODES: ClassVar[Set[str]] = {'WRD', 'DRS', 'DESK', 'TVU', 'BST', 'BED'}
+    BATH_CODES: ClassVar[Set[str]] = {'WC', 'SHR', 'TUB', 'LAV'}
+    LIV_CODES: ClassVar[Set[str]] = {
+        'SOFA', 'CTAB', 'STAB', 'RUG', 'CHAR', 'DTAB', 'DCHAIR', 'DSIDE'
+    }
+    KITCH_CODES: ClassVar[Set[str]] = {
+        'SINK', 'COOK', 'REF', 'DW', 'ISLN', 'BASE', 'WALL', 'HOOD', 'OVEN', 'MICRO'
+    }
+    # A handy union of every furniture code the view understands.  This replaces
+    # ad‑hoc unions like ``BED_CODES | BATH_CODES | LIV_CODES`` that existed in
+    # the pre‑kitchen implementation.
+    ALL_FURN_CODES: ClassVar[Set[str]] = (
+        BED_CODES | BATH_CODES | LIV_CODES | KITCH_CODES
+    )
 
     REQUIRED_FURNITURE = {
         'bed_plan': {'BED'},
@@ -4853,6 +4871,13 @@ class GenerateView:
         nx, ny, w, h = self.drag_item['live']
         code = self.drag_item['code']
         room = self.drag_item.get('room')
+
+        # Safety check: ``drag_item`` should only ever contain known furniture
+        # codes, but older snapshots may miss this.  Bail out early if the code
+        # isn't recognised to avoid corrupting the plan structures.
+        if code not in self.ALL_FURN_CODES:
+            self.drag_item = None
+            return
 
         if self.drag_item.get('ghost') is not None:
             try:
