@@ -99,26 +99,34 @@ class BoundingCanvas:
         return min(xs), min(ys), max(xs), max(ys)
 
 
-def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None):
+def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None, kitch_dims=None):
     master = tk.Tcl()
     tk._default_root = master
     gv = GenerateView.__new__(GenerateView)
     gv.bath_dims = bath_dims
     gv.liv_dims = living_dims
+    gv.kitch_dims = kitch_dims
     gv.bed_openings = Openings(GridPlan(4.0, 4.0))
     gv.bed_openings.swing_depth = 0.60
     gv.bath_openings = Openings(GridPlan(*bath_dims)) if bath_dims else None
     if gv.bath_openings:
         gv.bath_openings.swing_depth = CELL_M
-    gv.bath_liv_openings = Openings(GridPlan(*bath_dims)) if bath_dims and living_dims else None
+    gv.bath_liv_openings = (
+        Openings(GridPlan(*bath_dims)) if bath_dims and living_dims else None
+    )
     if gv.bath_liv_openings:
         gv.bath_liv_openings.swing_depth = CELL_M
-    gv.liv_bath_openings = Openings(GridPlan(*living_dims)) if bath_dims and living_dims else None
+    gv.liv_bath_openings = (
+        Openings(GridPlan(*living_dims)) if bath_dims and living_dims else None
+    )
     if gv.liv_bath_openings:
         gv.liv_bath_openings.swing_depth = CELL_M
     gv.liv_openings = Openings(GridPlan(*living_dims)) if living_dims else None
     if gv.liv_openings:
         gv.liv_openings.swing_depth = 0.60
+    gv.kitch_openings = Openings(GridPlan(*kitch_dims)) if kitch_dims else None
+    if gv.kitch_openings:
+        gv.kitch_openings.swing_depth = CELL_M
     gv.status = DummyStatus()
     gv.sim_timer = None
     gv.sim2_timer = None
@@ -141,7 +149,12 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None):
         gv.liv_Wm, gv.liv_Hm = living_dims
     else:
         gv.liv_Wm = gv.liv_Hm = 0.0
+    if kitch_dims:
+        gv.kitch_Wm, gv.kitch_Hm = kitch_dims
+    else:
+        gv.kitch_Wm = gv.kitch_Hm = 0.0
     gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if living_dims else None
+    gv.kitch_plan = GridPlan(gv.kitch_Wm, gv.kitch_Hm) if kitch_dims else None
     gv._draw = lambda: None
     gv._log_run = lambda meta: None
     gv.bed_key = None
@@ -686,6 +699,26 @@ def test_door_rectangle_present(monkeypatch):
     ]
     assert door_items, 'Door rectangle not found'
     assert all(i.get('outline') == 'black' for i in door_items)
+
+
+def test_kitchen_cells_render(monkeypatch):
+    gv = setup_drag_view(include_kitch=True)
+    gv.kitch_plan.place(0, 0, 1, 1, 'SINK')
+    GenerateView._combine_plans(gv)
+    gv.bed_openings = Openings(gv.bed_plan)
+    gv.bath_openings = Openings(gv.bath_plan)
+    gv.liv_openings = Openings(gv.liv_plan) if gv.liv_plan else None
+    gv.kitch_openings = Openings(gv.kitch_plan)
+    gv.canvas = BoundingCanvas(200, 200)
+    gv.grid_overlay = ColumnGridOverlay(gv.canvas)
+    gv._draw = GenerateView._draw.__get__(gv)
+    gv.zoom_factor = 1.0
+    gv.sim_poly = gv.sim2_poly = []
+    gv.sim_path = gv.sim2_path = []
+    gv.sim_index = gv.sim2_index = 0
+    gv._draw()
+
+    assert any('SINK' in i.get('tags', ()) for i in gv.canvas.items)
 
 
 def test_opening_click_opens_dialog(monkeypatch):
@@ -1374,6 +1407,93 @@ def test_mark_clear_removes_occupied_region():
     plan.place(0, 0, 1, 1, 'BED')
     plan.mark_clear(0, 0, 1, 1, 'DOOR_CLEAR', 'TEST')
     assert plan.occ[0][0] is None
+
+
+def test_area_dialog_combined_includes_kitchen():
+    import vastu_all_in_one
+
+    class SV:
+        def __init__(self, v):
+            self.v = v
+
+        def get(self):
+            return self.v
+
+    cd = vastu_all_in_one.AreaDialogCombined.__new__(vastu_all_in_one.AreaDialogCombined)
+    cd.bell = lambda: None
+    cd.title = lambda *a, **k: None
+    cd.destroy = lambda: None
+    cd.bed_method = SV('dims')
+    cd.bed_W = SV('4')
+    cd.bed_H = SV('3')
+    cd.bed_len_units = SV('m')
+    cd.bed_size = SV('Auto')
+    cd.bed_door_wall = SV('Right')
+    cd.bed_area = SV('12')
+    cd.bed_area_units = SV('m²')
+    cd.bath_method = SV('dims')
+    cd.bath_W = SV('2')
+    cd.bath_H = SV('2')
+    cd.bath_len_units = SV('m')
+    cd.bath_area = SV('4')
+    cd.bath_area_units = SV('m²')
+    cd.liv_method = SV('dims')
+    cd.liv_W = SV('3')
+    cd.liv_H = SV('3')
+    cd.liv_len_units = SV('m')
+    cd.liv_area = SV('9')
+    cd.liv_area_units = SV('m²')
+    cd.kitch_method = SV('dims')
+    cd.kitch_W = SV('3')
+    cd.kitch_H = SV('2')
+    cd.kitch_len_units = SV('m')
+    cd.kitch_area = SV('6')
+    cd.kitch_area_units = SV('m²')
+    cd._ok()
+    assert cd.result['kitchen'] == {'mode': 'dims', 'W': 3.0, 'H': 2.0, 'len_units': 'm', 'bed': 'Auto'}
+
+
+def test_startup_flow_forwards_kitchen_dims(monkeypatch):
+    import vastu_all_in_one
+
+    class DummyModeDialog:
+        def __init__(self, root):
+            self.result = 'generate'
+
+    class DummyAreaDialog:
+        def __init__(self, root, label):
+            self.result = {
+                'bedroom': {'mode': 'dims', 'W': 4.0, 'H': 3.0, 'len_units': 'm', 'bed': 'Auto', 'door_wall': 'Right'},
+                'bathroom': {'mode': 'dims', 'W': 2.0, 'H': 2.0, 'len_units': 'm', 'bed': 'Auto'},
+                'livingroom': {},
+                'kitchen': {'mode': 'dims', 'W': 3.0, 'H': 2.0, 'len_units': 'm', 'bed': 'Auto'},
+            }
+
+    monkeypatch.setattr(vastu_all_in_one, 'ModeDialog', DummyModeDialog)
+    monkeypatch.setattr(vastu_all_in_one, 'AreaDialogCombined', DummyAreaDialog)
+
+    class DummyRoot:
+        def lift(self):
+            pass
+
+        def update(self):
+            pass
+
+        def wait_window(self, w):
+            pass
+
+    app = vastu_all_in_one.App.__new__(vastu_all_in_one.App)
+    app.root = DummyRoot()
+
+    captured = {}
+
+    def fake_open_workspace(self, mode, bed_dims, bath_dims, liv_dims=None, kitch_dims=None):
+        captured['mode'] = mode
+        captured['kitch_dims'] = kitch_dims
+
+    app._open_workspace = fake_open_workspace.__get__(app, vastu_all_in_one.App)
+    app._startup_flow()
+    assert captured['kitch_dims'] == (3.0, 2.0, None)
 
 
 def test_grid_labels_fully_visible():
