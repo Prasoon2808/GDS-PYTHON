@@ -5,7 +5,7 @@ import sys
 # Ensure repository root importable when tests run from this directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import (
+from gds import (
     GenerateView,
     GridPlan,
     shares_edge,

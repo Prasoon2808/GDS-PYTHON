@@ -4,7 +4,7 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import arrange_livingroom, LIV_RULES, GridPlan, Openings
+from gds import arrange_livingroom, LIV_RULES, GridPlan, Openings
 
 
 def _find_rect(plan, code):

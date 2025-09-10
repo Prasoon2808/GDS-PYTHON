@@ -1,6 +1,6 @@
 import pytest
 
-from vastu_all_in_one import GenerateView, GridPlan, Openings, WALL_LEFT
+from gds import GenerateView, GridPlan, Openings, WALL_LEFT
 
 
 class LayeredCanvas:

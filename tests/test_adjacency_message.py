@@ -4,8 +4,8 @@ import tkinter as tk
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import vastu_all_in_one
-from vastu_all_in_one import GenerateView, GridPlan, Openings, CELL_M
+import gds
+from gds import GenerateView, GridPlan, Openings, CELL_M
 
 
 class DummyStatus:
@@ -83,8 +83,8 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
             self.plan.place(1, 0, 1, 1, 'SINK')
             return self.plan, None
 
-    monkeypatch.setattr(vastu_all_in_one, "BedroomSolver", DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, "KitchenSolver", DummyKitchenSolver)
+    monkeypatch.setattr(gds, "BedroomSolver", DummyBedroomSolver)
+    monkeypatch.setattr(gds, "KitchenSolver", DummyKitchenSolver)
     def dummy_arrange_bathroom(*a, **k):
         p = GridPlan(cell, cell)
         return p
@@ -94,9 +94,9 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
         p.place(1, 0, 1, 1, 'SOFA')
         return p
 
-    monkeypatch.setattr(vastu_all_in_one, "arrange_bathroom", dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, "arrange_livingroom", dummy_arrange_livingroom)
-    monkeypatch.setattr(vastu_all_in_one, "shares_edge", lambda a, b: False)
+    monkeypatch.setattr(gds, "arrange_bathroom", dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, "arrange_livingroom", dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, "shares_edge", lambda a, b: False)
 
     gv._solve_and_draw()
     assert (

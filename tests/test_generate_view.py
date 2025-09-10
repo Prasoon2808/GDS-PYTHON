@@ -7,7 +7,7 @@ import tkinter as tk
 # ``tests`` directory.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import (
+from gds import (
     GenerateView,
     Openings,
     GridPlan,
@@ -167,7 +167,7 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None, kitch_dims=None):
 
 
 def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -189,8 +189,8 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
             secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
         return p
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.bed_openings.door_wall = WALL_RIGHT
@@ -213,7 +213,7 @@ def test_bedroom_door_on_shared_wall_allows_generation(monkeypatch):
 
 
 def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -236,8 +236,8 @@ def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
             secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
         return p
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -257,7 +257,7 @@ def test_bedroom_door_not_on_shared_wall_rejects(monkeypatch):
 
 
 def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -274,8 +274,8 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
             secondary_openings.ext_rect = add_door_clearance(p, secondary_openings, 'LIVING_DOOR')
         return p
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -293,7 +293,7 @@ def test_bathroom_door_not_on_shared_wall_skips_bath(monkeypatch):
 
 
 def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -307,8 +307,8 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
         plan.place(0, 0, 1, 1, 'WC')
         return plan
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -328,7 +328,7 @@ def test_valid_shared_wall_bathroom_door_generates_furniture(monkeypatch):
 
 
 def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     def fake_solve_and_draw(self):
         plan = GridPlan(self.bed_Wm, self.bed_Hm)
@@ -352,7 +352,7 @@ def test_apply_batch_and_generate_reruns_bed_and_bath(monkeypatch):
 
 
 def test_apply_batch_and_generate_updates_status(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -366,8 +366,8 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
         seen['rng'] = rng
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv._apply_batch_and_generate()
@@ -376,7 +376,7 @@ def test_apply_batch_and_generate_updates_status(monkeypatch):
 
 
 def test_solver_failure_keeps_previous_plan(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -387,8 +387,8 @@ def test_solver_failure_keeps_previous_plan(monkeypatch):
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -409,7 +409,7 @@ def test_solver_failure_keeps_previous_plan(monkeypatch):
 
 
 def test_solver_rejects_plan_without_bed(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -419,7 +419,7 @@ def test_solver_rejects_plan_without_bed(monkeypatch):
             # Simulate solver failing to place a bed
             return None, {'status': 'no_bed'}
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
 
     draw_flag = {'called': False}
 
@@ -440,7 +440,7 @@ def test_solver_rejects_plan_without_bed(monkeypatch):
 
 
 def test_arrange_bathroom_failure_warns_user(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -452,8 +452,8 @@ def test_arrange_bathroom_failure_warns_user(monkeypatch):
     def failing_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return None
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', failing_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', failing_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
     gv.bed_openings.door_wall = WALL_BOTTOM
@@ -471,7 +471,7 @@ def test_arrange_bathroom_failure_warns_user(monkeypatch):
 
 
 def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -491,9 +491,9 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
         plan.place(0, 0, 1, 1, 'SOFA')
         return plan
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     # shared bedroom/bathroom door
@@ -537,7 +537,7 @@ def test_generate_view_combines_all_rooms_and_aligns_doors(monkeypatch):
 
 
 def test_bathroom_has_second_door_shared_with_living(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -558,9 +558,9 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
     def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.bed_openings.door_wall = WALL_RIGHT
@@ -606,7 +606,7 @@ def test_bathroom_has_second_door_shared_with_living(monkeypatch):
 
 
 def test_bedroom_door_drawn_with_bathroom(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -622,9 +622,9 @@ def test_bedroom_door_drawn_with_bathroom(monkeypatch):
     def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.canvas = BoundingCanvas(200, 200)
@@ -655,7 +655,7 @@ def test_bedroom_door_drawn_with_bathroom(monkeypatch):
 
 
 def test_door_rectangle_present(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -676,9 +676,9 @@ def test_door_rectangle_present(monkeypatch):
     def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.canvas = BoundingCanvas(200, 200)
@@ -725,7 +725,7 @@ def test_kitchen_cells_render(monkeypatch):
 
 
 def test_opening_click_opens_dialog(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -743,9 +743,9 @@ def test_opening_click_opens_dialog(monkeypatch):
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
 
     calls = []
 
@@ -753,7 +753,7 @@ def test_opening_click_opens_dialog(monkeypatch):
         def __init__(self, root, info, apply_func):
             calls.append(info)
 
-    monkeypatch.setattr(vastu_all_in_one, 'OpeningDialog', DummyDialog)
+    monkeypatch.setattr(gds, 'OpeningDialog', DummyDialog)
 
     class TagCanvas(BoundingCanvas):
         def __init__(self, width=200, height=200):
@@ -853,7 +853,7 @@ def test_opening_click_opens_dialog(monkeypatch):
 
 
 def test_bath_living_door_drawn_and_mirrored(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -870,9 +870,9 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
     def dummy_arrange_livingroom(w, h, rules, openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', dummy_arrange_livingroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', dummy_arrange_livingroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.canvas = BoundingCanvas(200, 200)
@@ -916,7 +916,7 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
     assert calls.get(gv.liv_bath_openings) is True
 
 def test_init_schedules_solver(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyWidget:
         def __init__(self, *a, **k):
@@ -926,11 +926,11 @@ def test_init_schedules_solver(monkeypatch):
         def bind(self, *a, **k):
             pass
 
-    monkeypatch.setattr(vastu_all_in_one.ttk, 'Frame', DummyWidget)
-    monkeypatch.setattr(vastu_all_in_one.ttk, 'Button', DummyWidget)
-    monkeypatch.setattr(vastu_all_in_one.ttk, 'Label', DummyWidget)
-    monkeypatch.setattr(vastu_all_in_one.tk, 'Canvas', DummyWidget)
-    monkeypatch.setattr(vastu_all_in_one.GenerateView, '_build_sidebar', lambda self: None)
+    monkeypatch.setattr(gds.ttk, 'Frame', DummyWidget)
+    monkeypatch.setattr(gds.ttk, 'Button', DummyWidget)
+    monkeypatch.setattr(gds.ttk, 'Label', DummyWidget)
+    monkeypatch.setattr(gds.tk, 'Canvas', DummyWidget)
+    monkeypatch.setattr(gds.GenerateView, '_build_sidebar', lambda self: None)
 
     class DummyRoot:
         def __init__(self):
@@ -941,7 +941,7 @@ def test_init_schedules_solver(monkeypatch):
             pass
 
     root = DummyRoot()
-    gv = vastu_all_in_one.GenerateView(root, 4.0, 4.0, None, bath_dims=None, liv_dims=None)
+    gv = gds.GenerateView(root, 4.0, 4.0, None, bath_dims=None, liv_dims=None)
     assert root.after_idle_called_with == gv._solve_and_draw
 
 
@@ -1070,7 +1070,7 @@ def test_on_up_updates_only_kitch_plan():
         assert all('SINK' not in row for row in gv.liv_plan.occ)
 
 def test_locked_bath_item_reapplied_after_generate(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -1083,8 +1083,8 @@ def test_locked_bath_item_reapplied_after_generate(monkeypatch):
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0))
 
@@ -1114,7 +1114,7 @@ def test_locked_bath_item_reapplied_after_generate(monkeypatch):
 def test_furniture_controls_present_for_generator_label(monkeypatch):
     import types
     import tkinter as tk
-    import vastu_all_in_one
+    import gds
 
     master = tk.Tcl()
     tk._default_root = master
@@ -1144,7 +1144,7 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
         Button=FakeWidget,
         Checkbutton=FakeWidget,
     )
-    monkeypatch.setattr(vastu_all_in_one, 'ttk', fake_ttk)
+    monkeypatch.setattr(gds, 'ttk', fake_ttk)
 
     gv = GenerateView.__new__(GenerateView)
     gv.room_label = 'Bedroom (Generator)'
@@ -1167,7 +1167,7 @@ def test_furniture_controls_present_for_generator_label(monkeypatch):
 
 
 def test_opening_dialog_prepopulates_values(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -1185,9 +1185,9 @@ def test_opening_dialog_prepopulates_values(monkeypatch):
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'arrange_livingroom', lambda *a, **k: GridPlan(1, 1))
 
     class TagCanvas(BoundingCanvas):
         def __init__(self, width=200, height=200):
@@ -1304,7 +1304,7 @@ def test_opening_dialog_prepopulates_values(monkeypatch):
             if on_apply:
                 on_apply()
 
-    monkeypatch.setattr(vastu_all_in_one, 'OpeningDialog', DummyDialog)
+    monkeypatch.setattr(gds, 'OpeningDialog', DummyDialog)
 
     gv._solve_and_draw()
 
@@ -1349,7 +1349,7 @@ def test_opening_dialog_prepopulates_values(monkeypatch):
 
 
 def test_mirrored_clearances_align_by_label(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -1362,8 +1362,8 @@ def test_mirrored_clearances_align_by_label(monkeypatch):
     def dummy_arrange_bathroom(w, h, rules, openings=None, secondary_openings=None, rng=None):
         return GridPlan(w, h)
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
-    monkeypatch.setattr(vastu_all_in_one, 'arrange_bathroom', dummy_arrange_bathroom)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'arrange_bathroom', dummy_arrange_bathroom)
 
     gv = make_generate_view((2.0, 2.0), living_dims=(3.0, 3.0))
     gv.bed_openings.door_wall = WALL_RIGHT
@@ -1413,7 +1413,7 @@ def test_mark_clear_removes_occupied_region():
 
 
 def test_area_dialog_combined_includes_kitchen():
-    import vastu_all_in_one
+    import gds
 
     class SV:
         def __init__(self, v):
@@ -1422,7 +1422,7 @@ def test_area_dialog_combined_includes_kitchen():
         def get(self):
             return self.v
 
-    cd = vastu_all_in_one.AreaDialogCombined.__new__(vastu_all_in_one.AreaDialogCombined)
+    cd = gds.AreaDialogCombined.__new__(gds.AreaDialogCombined)
     cd.bell = lambda: None
     cd.title = lambda *a, **k: None
     cd.destroy = lambda: None
@@ -1457,7 +1457,7 @@ def test_area_dialog_combined_includes_kitchen():
 
 
 def test_startup_flow_forwards_kitchen_dims(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     class DummyModeDialog:
         def __init__(self, root):
@@ -1472,8 +1472,8 @@ def test_startup_flow_forwards_kitchen_dims(monkeypatch):
                 'kitchen': {'mode': 'dims', 'W': 3.0, 'H': 2.0, 'len_units': 'm', 'bed': 'Auto'},
             }
 
-    monkeypatch.setattr(vastu_all_in_one, 'ModeDialog', DummyModeDialog)
-    monkeypatch.setattr(vastu_all_in_one, 'AreaDialogCombined', DummyAreaDialog)
+    monkeypatch.setattr(gds, 'ModeDialog', DummyModeDialog)
+    monkeypatch.setattr(gds, 'AreaDialogCombined', DummyAreaDialog)
 
     class DummyRoot:
         def lift(self):
@@ -1485,7 +1485,7 @@ def test_startup_flow_forwards_kitchen_dims(monkeypatch):
         def wait_window(self, w):
             pass
 
-    app = vastu_all_in_one.App.__new__(vastu_all_in_one.App)
+    app = gds.App.__new__(gds.App)
     app.root = DummyRoot()
 
     captured = {}
@@ -1494,7 +1494,7 @@ def test_startup_flow_forwards_kitchen_dims(monkeypatch):
         captured['mode'] = mode
         captured['kitch_dims'] = kitch_dims
 
-    app._open_workspace = fake_open_workspace.__get__(app, vastu_all_in_one.App)
+    app._open_workspace = fake_open_workspace.__get__(app, gds.App)
     app._startup_flow()
     assert captured['kitch_dims'] == (3.0, 2.0, None)
 

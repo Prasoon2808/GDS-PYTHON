@@ -4,7 +4,7 @@ import sys
 # Ensure repository root is importable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import (
+from gds import (
     GenerateView,
     PALETTE,
     ITEM_LABELS,
