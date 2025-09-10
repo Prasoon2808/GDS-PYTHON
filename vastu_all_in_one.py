@@ -7,7 +7,7 @@ import time, json, random, os, itertools, re
 import numpy as np
 import warnings
 from copy import deepcopy
-from ui.overlays import ColumnGridOverlay, LegendPopover
+from ui.overlays import ColumnGridOverlay, LegendPopover, DoorLegendOverlay
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
@@ -3336,7 +3336,9 @@ class GenerateView:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.zoom_factor = tk.DoubleVar(value=1.0)
         self.grid_overlay = ColumnGridOverlay(self.canvas)
-        # Floating legend popovers for openings
+        # Legends and popovers for openings
+        self.door_legend = DoorLegendOverlay(self.canvas, DOOR_FILL, 'Door')
+        self.window_legend = DoorLegendOverlay(self.canvas, WINDOW_FILL, 'Window', y=40)
         self.popover = LegendPopover(self.canvas)
         self.opening_item_info = {}
 
@@ -4237,6 +4239,10 @@ class GenerateView:
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
             self.grid_overlay.redraw(col_grid, ox, oy, scale)
+        if hasattr(self, 'door_legend'):
+            self.door_legend.redraw()
+        if hasattr(self, 'window_legend'):
+            self.window_legend.redraw()
         # clear previous popovers when redrawing
         if hasattr(self, 'popover'):
             self.popover.hide()
@@ -4539,7 +4545,8 @@ class GenerateView:
                 fill=fill_color,
                 tags=('plan', 'opening'),
             )
-            self.opening_item_info[item] = {
+            label = f"{room_name.title()} {'Door' if kind == 'door' else 'Window'}"
+            info = {
                 'type': kind,
                 'room': room_name,
                 'wall': wall,
@@ -4549,8 +4556,18 @@ class GenerateView:
                 'color': fill_color,
                 'openings': openings,
                 'index': idx,
+                'label': label,
             }
+            self.opening_item_info[item] = info
             cv.tag_bind(item, '<Button-1>', self._on_opening_click)
+            cv.tag_bind(
+                item,
+                '<Enter>',
+                lambda e, inf=info: self.popover.show(
+                    e.x + 12, e.y + 12, inf['label'], inf['color']
+                ),
+            )
+            cv.tag_bind(item, '<Leave>', lambda e: self.popover.hide())
 
         if draw_door:
             dwall, dstart, dwidth = openings.door_span_cells()

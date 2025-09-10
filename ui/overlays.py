@@ -61,17 +61,21 @@ class ColumnGridOverlay:
 
 
 class DoorLegendOverlay:
-    """Simple legend showing the color used to draw doors."""
+    """Simple legend showing the color used to draw doors or windows."""
 
-    def __init__(self, canvas, color: str, label: str = "Door"):
+    def __init__(self, canvas, color: str, label: str = "Door", x: int = 10, y: int = 10):
+        """Create a legend overlay at ``(x, y)`` with ``color`` and ``label``."""
         self.canvas = canvas
         self.color = color
         self.label = label
+        self.x = x
+        self.y = y
+        self.tag = f"legend-{label}"
 
     def redraw(self) -> None:
-        self.canvas.delete("legend")
+        self.canvas.delete(self.tag)
         size = 20
-        x0, y0 = 10, 10
+        x0, y0 = self.x, self.y
         self.canvas.create_rectangle(
             x0,
             y0,
@@ -79,7 +83,7 @@ class DoorLegendOverlay:
             y0 + size,
             fill=self.color,
             outline="#000",
-            tags=("legend",),
+            tags=(self.tag,),
         )
         self.canvas.create_text(
             x0 + size + 6,
@@ -87,7 +91,7 @@ class DoorLegendOverlay:
             text=self.label,
             anchor="w",
             fill="#000",
-            tags=("legend",),
+            tags=(self.tag,),
         )
 
 
