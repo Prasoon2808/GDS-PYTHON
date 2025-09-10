@@ -3822,10 +3822,14 @@ class GenerateView:
         bath_gh = self.bath_plan.gh if self.bath_plan else 0
         liv_gw = self.liv_plan.gw if getattr(self, 'liv_plan', None) else 0
         liv_gh = self.liv_plan.gh if getattr(self, 'liv_plan', None) else 0
+        kitch_gw = self.kitch_plan.gw if getattr(self, 'kitch_plan', None) else 0
+        kitch_gh = self.kitch_plan.gh if getattr(self, 'kitch_plan', None) else 0
         top_w = bed_gw + bath_gw
         top_h = max(bed_gh, bath_gh)
-        total_w = max(top_w, liv_gw)
-        total_h = top_h + liv_gh
+        bottom_w = liv_gw + kitch_gw
+        bottom_h = max(liv_gh, kitch_gh)
+        total_w = max(top_w, bottom_w)
+        total_h = top_h + bottom_h
         cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
         scale = min((cw - 2 * margin) / max(1, total_w),
@@ -3847,8 +3851,11 @@ class GenerateView:
         bed_oy = oy + (top_h - bed_gh) * scale
         bath_ox = ox + bed_gw * scale
         bath_oy = oy + (top_h - bath_gh) * scale
+        bottom_oy = oy + top_h * scale
         liv_ox = ox
-        liv_oy = oy + top_h * scale
+        liv_oy = bottom_oy + (bottom_h - liv_gh) * scale
+        kitch_ox = ox + liv_gw * scale
+        kitch_oy = bottom_oy + (bottom_h - kitch_gh) * scale
         wall_width = max(4, int(scale * 0.12)) * 3
         # Make door/window outlines thicker for better visibility
         open_width = max(2, wall_width // 2)
@@ -3915,6 +3922,18 @@ class GenerateView:
                     True,
                     'living',
                 )
+        if getattr(self, 'kitch_plan', None):
+            self._draw_all_layers(
+                self.kitch_plan,
+                self.kitch_openings,
+                kitch_ox,
+                kitch_oy,
+                scale,
+                wall_width,
+                open_width,
+                True,
+                'kitchen',
+            )
 
         col_grid = getattr(self.plan, 'column_grid', None)
         if col_grid:
