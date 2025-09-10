@@ -5,7 +5,11 @@ import pytest
 # Ensure repository root is importable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from solver import GenerateView, GridPlan, WALL_RIGHT
+from gds import (
+    GenerateView,
+    GridPlan,
+    WALL_RIGHT,
+)
 from test_generate_view import setup_drag_view, make_generate_view
 
 
@@ -21,7 +25,7 @@ def test_generated_plan_contains_required_furniture():
 
 
 def test_missing_bed_raises(monkeypatch):
-    import solver
+    import gds
 
     class DummyBedroomSolver:
         def __init__(self, plan, *args, **kwargs):
@@ -30,7 +34,7 @@ def test_missing_bed_raises(monkeypatch):
         def run(self):
             return self.plan, {}
 
-    monkeypatch.setattr(solver, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
 
     gv = make_generate_view()
     gv.bed_openings.door_wall = WALL_RIGHT
