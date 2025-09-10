@@ -5278,17 +5278,20 @@ class App:
             bed_res = cd.result.get('bedroom', {})
             bath_res = cd.result.get('bathroom', {})
             liv_res = cd.result.get('livingroom', {})
+            kitch_res = cd.result.get('kitchen', {})
         except Exception:
             bed_res = {"mode": "dims", "W": 4.2, "H": 3.0, "len_units": "m", "bed": "Auto"}
             bath_res = {"mode": "dims", "W": 2.4, "H": 1.8, "len_units": "m", "bed": "Auto"}
             liv_res = {"mode": "dims", "W": 3.0, "H": 3.0, "len_units": "m", "bed": "Auto"}
+            kitch_res = {"mode": "dims", "W": 3.0, "H": 3.0, "len_units": "m", "bed": "Auto"}
 
         bed_dims = self._compute_dims_from_result(bed_res)
         bath_dims = self._compute_dims_from_result(bath_res)
         liv_dims = self._compute_dims_from_result(liv_res) if liv_res else None
+        kitch_dims = self._compute_dims_from_result(kitch_res) if kitch_res else None
 
         # open the chosen workspace
-        self._open_workspace(mode, bed_dims, bath_dims, liv_dims)
+        self._open_workspace(mode, bed_dims, bath_dims, liv_dims, kitch_dims)
 
     def _compute_dims_from_result(self, res: Dict) -> Tuple[float,float,Optional[str]]:
         if res.get("mode") == "area":
@@ -5314,6 +5317,7 @@ class App:
         bed_dims: Tuple[float, float, Optional[str]],
         bath_dims: Tuple[float, float, Optional[str]],
         liv_dims: Optional[Tuple[float, float, Optional[str]]] = None,
+        kitch_dims: Optional[Tuple[float, float, Optional[str]]] = None,
     ):
       
         # clear landing and any previous workspaces so only one view remains
@@ -5341,6 +5345,11 @@ class App:
                 liv_tuple = (Wl, Hl)
             else:
                 liv_tuple = None
+            if kitch_dims:
+                Wk, Hk, _ = kitch_dims
+                kitch_tuple = (Wk, Hk)
+            else:
+                kitch_tuple = None
             GenerateView(
                 self.root,
                 Wb,
@@ -5349,6 +5358,7 @@ class App:
                 room_label='Plan',
                 bath_dims=(Wc, Hc),
                 liv_dims=liv_tuple,
+                kitch_dims=kitch_tuple,
                 pack_side=tk.LEFT,
                 on_back=self._back_to_landing,
             )
@@ -5368,7 +5378,7 @@ class App:
         # Quick path: default bedroom and bathroom sizes
         bed_dims = (4.2, 3.0, None)
         bath_dims = (2.4, 1.8, None)
-        self._open_workspace('generate', bed_dims, bath_dims, None)
+        self._open_workspace('generate', bed_dims, bath_dims, None, None)
 
 # ---- AND REPLACE YOUR MAIN GUARD WITH THIS -----------------------------------
 
