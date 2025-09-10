@@ -9,6 +9,26 @@ import warnings
 from copy import deepcopy
 from ui.overlays import ColumnGridOverlay, LegendPopover
 
+def overlaps(a, b) -> bool:
+    """Return ``True`` if axis-aligned plans ``a`` and ``b`` overlap."""
+    ax0, ay0 = a.x_offset, a.y_offset
+    ax1, ay1 = ax0 + a.gw, ay0 + a.gh
+    bx0, by0 = b.x_offset, b.y_offset
+    bx1, by1 = bx0 + b.gw, by0 + b.gh
+    return not (ax1 <= bx0 or bx1 <= ax0 or ay1 <= by0 or by1 <= ay0)
+
+def shares_edge(a, b) -> bool:
+    """Return ``True`` when plans ``a`` and ``b`` share a boundary edge."""
+    ax0, ay0 = a.x_offset, a.y_offset
+    ax1, ay1 = ax0 + a.gw, ay0 + a.gh
+    bx0, by0 = b.x_offset, b.y_offset
+    bx1, by1 = bx0 + b.gw, by0 + b.gh
+    return (
+        (ax1 == bx0 and max(ay0, by0) < min(ay1, by1))
+        or (bx1 == ax0 and max(ay0, by0) < min(ay1, by1))
+        or (ay1 == by0 and max(ax0, bx0) < min(ax1, bx1))
+        or (by1 == ay0 and max(ax0, bx0) < min(ax1, bx1))
+    )
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
 LIV_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.livingroom.json")

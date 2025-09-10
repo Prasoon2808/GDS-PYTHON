@@ -6,7 +6,7 @@ import tkinter as tk
 # Ensure repository root importable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from vastu_all_in_one import (
+from gds import (
     GenerateView,
     GridPlan,
     Openings,
@@ -151,7 +151,7 @@ def test_missing_bathroom_living_door():
 
 
 def test_living_invalid_without_shared_door(monkeypatch):
-    import vastu_all_in_one
+    import gds
 
     gv = make_generate_view((2.0, 5.0), living_dims=(6.0, 2.0))
     gv._apply_openings_from_ui = lambda: True
@@ -166,14 +166,14 @@ def test_living_invalid_without_shared_door(monkeypatch):
             self.plan.place(0, 0, 1, 1, 'BED')
             return self.plan, {}
 
-    monkeypatch.setattr(vastu_all_in_one, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
     monkeypatch.setattr(
-        vastu_all_in_one, 'arrange_bathroom', lambda *a, **k: GridPlan(*gv.bath_dims)
+        gds, 'arrange_bathroom', lambda *a, **k: GridPlan(*gv.bath_dims)
     )
     monkeypatch.setattr(
-        vastu_all_in_one, 'arrange_livingroom', lambda *a, **k: GridPlan(*gv.liv_dims)
+        gds, 'arrange_livingroom', lambda *a, **k: GridPlan(*gv.liv_dims)
     )
-    monkeypatch.setattr(vastu_all_in_one, 'shares_edge', lambda a, b: True)
+    monkeypatch.setattr(gds, 'shares_edge', lambda a, b: True)
 
     gv._solve_and_draw()
     assert gv.liv_plan is None

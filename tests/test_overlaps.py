@@ -1,4 +1,4 @@
-from vastu_all_in_one import overlaps
+from gds import overlaps
 
 
 class Dummy:
