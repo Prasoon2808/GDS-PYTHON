@@ -2750,6 +2750,18 @@ PALETTE.setdefault('SHR', '#a3d5ff')
 PALETTE.setdefault('TUB', '#fff3b0')
 PALETTE.setdefault('LAV', '#c5e1a5')
 
+# Kitchen elements
+PALETTE.setdefault('SINK',  '#add8e6')
+PALETTE.setdefault('COOK',  '#ffcccb')
+PALETTE.setdefault('REF',   '#b0e0e6')
+PALETTE.setdefault('DW',    '#ffe4b5')
+PALETTE.setdefault('ISLN',  '#e6e6fa')
+PALETTE.setdefault('BASE',  '#deb887')
+PALETTE.setdefault('WALL',  '#f5deb3')
+PALETTE.setdefault('HOOD',  '#d8bfd8')
+PALETTE.setdefault('OVEN',  '#ffc0cb')
+PALETTE.setdefault('MICRO', '#dda0dd')
+
 ITEM_LABELS = {
     'BED': 'Bed',
     'BST': 'Night Table',
@@ -2770,6 +2782,16 @@ ITEM_LABELS = {
     'DTAB': 'Dining Table',
     'DCHAIR': 'Dining Chair',
     'DSIDE': 'Sideboard',
+    'SINK': 'Sink',
+    'COOK': 'Cooktop',
+    'REF': 'Refrigerator',
+    'DW': 'Dishwasher',
+    'ISLN': 'Island',
+    'BASE': 'Base Cabinet',
+    'WALL': 'Wall Cabinet',
+    'HOOD': 'Range Hood',
+    'OVEN': 'Oven',
+    'MICRO': 'Microwave',
     'CHEST': 'Chest'
 }
 
