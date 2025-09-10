@@ -3628,13 +3628,38 @@ class GenerateView:
                 self._add_door_clearance(liv_plan, 'DOOR', self.liv_openings)
             else:
                 liv_plan = None
-
+        kitch_plan = None
+        if self.kitch_dims:
+            kitch_plan = GridPlan(self.kitch_dims[0], self.kitch_dims[1])
+            if self.kitch_openings:
+                self.kitch_openings.p = kitch_plan
+            solver = KitchenSolver(
+                kitch_plan,
+                self.kitch_openings,
+                rng=random.Random(),
+                weights=load_weights(),
+                book=KITCHEN_BOOK,
+            )
+            kbest, _kmeta = solver.run(
+                required=self.REQUIRED_FURNITURE['kitch_plan']
+            )
+            if isinstance(kbest, GridPlan):
+                kitch_plan = kbest
+                if self.kitch_openings:
+                    dx, dy, dw, dh = self.kitch_openings.door_rect_cells()
+                    for j in range(dy, dy + dh):
+                        for i in range(dx, dx + dw):
+                            kitch_plan.occ[j][i] = 'DOOR'
+                kitch_plan.clearzones = merge_clearances(kitch_plan.clearzones)
+                self._add_door_clearance(kitch_plan, 'DOOR', self.kitch_openings)
+            else:
+                kitch_plan = None
         top_gw = bed_plan.gw + (bath_plan.gw if bath_plan else 0)
         top_gh = max(bed_plan.gh, bath_plan.gh if bath_plan else 0)
-        liv_gw = liv_plan.gw if liv_plan else 0
-        liv_gh = liv_plan.gh if liv_plan else 0
-        total_gw = max(top_gw, liv_gw)
-        total_gh = top_gh + liv_gh
+        bottom_gw = (liv_plan.gw if liv_plan else 0) + (kitch_plan.gw if kitch_plan else 0)
+        bottom_gh = max(liv_plan.gh if liv_plan else 0, kitch_plan.gh if kitch_plan else 0)
+        total_gw = max(top_gw, bottom_gw)
+        total_gh = top_gh + bottom_gh
         col_grid = ColumnGrid(total_gw, total_gh)
         bed_plan.column_grid = col_grid
         bed_plan.x_offset = 0
@@ -3647,6 +3672,10 @@ class GenerateView:
             liv_plan.column_grid = col_grid
             liv_plan.x_offset = 0
             liv_plan.y_offset = top_gh
+        if kitch_plan:
+            kitch_plan.column_grid = col_grid
+            kitch_plan.x_offset = liv_plan.gw if liv_plan else 0
+            kitch_plan.y_offset = top_gh
 
         if bath_plan and bath_ext:
             bx, by, bw, bh = bath_ext
@@ -3657,11 +3686,14 @@ class GenerateView:
             bath_plan.clearzones = merge_clearances(bath_plan.clearzones)
         if liv_plan:
             liv_plan.clearzones = merge_clearances(liv_plan.clearzones)
+        if kitch_plan:
+            kitch_plan.clearzones = merge_clearances(kitch_plan.clearzones)
 
         # assign plans and combine with maximal-contact offsets
         self.bed_plan = bed_plan
         self.bath_plan = bath_plan
         self.liv_plan = liv_plan
+        self.kitch_plan = kitch_plan
         self._combine_plans()
 
         self.meta = meta
