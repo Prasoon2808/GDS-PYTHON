@@ -5756,25 +5756,28 @@ class App:
         self.landing.pack(fill=tk.BOTH, expand=True)
         self._build_landing()
 
-# ---- AND REPLACE YOUR MAIN GUARD WITH THIS -----------------------------------
-
-if __name__ == "__main__":
+# configure logging early so the main guard can report failures
+def _setup_logging() -> None:
+    """Configure root logging based on a ``--log-level`` argument."""
     import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "--log-level",
         default="INFO",
         help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         force=True,
     )
+
+
+_setup_logging()
+
+if __name__ == "__main__":
     try:
         App().run()
-    except Exception:
-        logger.exception("Unhandled exception in main")
-
-# ---- END REPLACEMENT ---------------------------------------------------------
+    except Exception as exc:
+        logging.exception("Application crashed: %s", exc)
