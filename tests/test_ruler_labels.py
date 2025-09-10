@@ -60,6 +60,9 @@ class CountingCanvas:
     def itemconfigure(self, *args, **kwargs):
         pass
 
+    def find_withtag(self, tag):
+        return []
+
 
 
 def test_ruler_labels_persist_across_zoom():

@@ -3829,7 +3829,9 @@ class GenerateView:
                         random.Random(),
                         getattr(self, 'weights', {}),
                     )
-                    kbest, _ = ksolver.run()
+                    kbest, _kmeta = ksolver.run(
+                        appliance_sets=[tuple(self.REQUIRED_FURNITURE['kitch_plan'])]
+                    )
                     if isinstance(kbest, GridPlan):
                         if self.kitch_openings:
                             dx, dy, dw, dh = self.kitch_openings.door_rect_cells()

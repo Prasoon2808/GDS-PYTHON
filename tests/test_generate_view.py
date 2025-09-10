@@ -98,6 +98,9 @@ class BoundingCanvas:
         ys = [b["bbox"][1] for b in self.items] + [b["bbox"][3] for b in self.items]
         return min(xs), min(ys), max(xs), max(ys)
 
+    def find_withtag(self, tag):
+        return [i for i, item in enumerate(self.items, 1) if tag in item.get('tags', ())]
+
 
 def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None, kitch_dims=None):
     master = tk.Tcl()
