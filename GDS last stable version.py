@@ -6,6 +6,7 @@ from typing import Optional, Dict, Tuple, List, Set
 import time, json, random, os, itertools, re
 import numpy as np
 import warnings
+from copy import deepcopy
 from ui.overlays import ColumnGridOverlay, LegendPopover
 
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
@@ -177,6 +178,43 @@ DEFAULT_BEDROOM_BOOK = {
 }
 
 BEDROOM_BOOK = RULES.get("bedroom_book") or RULES.get("BEDROOM_BOOK") or DEFAULT_BEDROOM_BOOK
+
+
+def kitchen_book_from_rules(rules: dict) -> dict:
+    """Construct a small kitchen catalog from a ``rules`` dictionary.
+
+    Only a subset of modules is currently included.  Width, depth and
+    clearance values are pulled directly from ``rules['furniture']`` so that
+    any custom rule file can override the defaults without editing the code.
+    """
+
+    furn = rules.get("furniture", {})
+
+    def _variants(module: str) -> dict:
+        mod = furn.get(module, {})
+        variants = mod.get("variants", {})
+        out = {}
+        for name, dims in variants.items():
+            out[name.upper()] = {k: dims.get(k) for k in ("w", "d") if k in dims}
+        return out
+
+    clear = furn.get("CLEAR", {})
+    return {
+        "SINK": _variants("SINK"),
+        "COOK": _variants("COOK"),
+        "REF": _variants("REF"),
+        "CLEAR": {
+            "side_rec": clear.get("side_rec"),
+            "side_min": clear.get("side_min"),
+            "front_rec": clear.get("front_rec"),
+            "front_min": clear.get("front_min"),
+            "unit_gap": clear.get("unit_gap_m"),
+        },
+    }
+
+
+DEFAULT_KITCHEN_BOOK = kitchen_book_from_rules(KITCH_RULES)
+KITCHEN_BOOK = KITCH_RULES.get("kitchen_book") or DEFAULT_KITCHEN_BOOK
 
 # -----------------------
 # Theme
@@ -1798,6 +1836,28 @@ def default_furniture_sets(extra_sets: Optional[List[Tuple[str, ...]]] = None) -
         base.extend(extra_sets)
     return base
 
+
+def default_kitchen_sets(extra_sets: Optional[List[Tuple[str, ...]]] = None) -> List[Tuple[str, ...]]:
+    """Return the default search order for kitchen appliance combinations.
+
+    The ordering progresses from the simplest requirement (a single
+    appliance) to the full work triangle of refrigerator, sink, and
+    cooktop.  ``extra_sets`` permits callers to extend the search without
+    modifying the core routine.
+    """
+    base: List[Tuple[str, ...]] = [
+        ("SINK",),
+        ("COOK",),
+        ("REF",),
+        ("SINK", "COOK"),
+        ("SINK", "REF"),
+        ("COOK", "REF"),
+        ("SINK", "COOK", "REF"),
+    ]
+    if extra_sets:
+        base.extend(extra_sets)
+    return base
+
 class BedroomSolver:
     def __init__(self,
                  plan:GridPlan,
@@ -2384,6 +2444,174 @@ class BedroomSolver:
                     if not (a1<b0 or b1<a0):
                         score += A['DESK']['WIN']; break
         return score
+
+
+class KitchenSolver:
+    def __init__(self,
+                 plan: GridPlan,
+                 openings: Openings,
+                 rng: random.Random,
+                 weights: Dict[str, float],
+                 book: Dict[str, Dict] = KITCHEN_BOOK):
+        self.p = plan
+        self.op = openings
+        self.rng = rng
+        self.weights = weights
+        self.book = book
+        # Allow callers to override clearance distances by supplying a custom
+        # ``book`` mapping with a ``CLEAR`` section.  Falling back to an empty
+        # mapping keeps behavior consistent with the default catalog.
+        self.c = self.book.get('CLEAR', {})
+
+    def run(self,
+            appliance_sets: Optional[List[Tuple[str, ...]]] = None,
+            iters: int = 200,
+            time_budget_ms: int = 520,
+            max_attempts: int = 3,
+            min_adjacency: float = 0.0) -> Tuple[Optional[GridPlan], Dict]:
+        sets = appliance_sets or default_kitchen_sets()
+        best_overall = None; meta_overall = None
+        for req in reversed(sets):
+            needed = Counter(req)
+            for _ in range(max_attempts):
+                t0 = time.time()
+                tries = 0
+                best = None; best_meta = None; best_adj = -1.0
+                while (time.time() - t0) * 1000 < time_budget_ms and tries < iters:
+                    tries += 1
+                    plan = deepcopy(self.p)
+                    success = True
+                    for code, cnt in needed.items():
+                        existing = list(components_by_code(plan, code))
+                        missing = cnt - len(existing)
+                        for _ in range(missing):
+                            spot = self._find_placement(plan, code)
+                            if spot is None:
+                                success = False
+                                break
+                            x, y, w, h = spot
+                            plan.place(x, y, w, h, code)
+                        if not success:
+                            break
+                    if not success:
+                        continue
+                    feats = {'work_triangle_bonus': self._work_triangle_bonus(plan)}
+                    adj, ok = self._adjacency_score(plan)
+                    if not ok:
+                        continue
+                    feats['adjacency'] = adj
+                    score = dot_score(self.weights, feats)
+                    cand_meta = {'features': feats, 'score': score, 'adjacency': adj}
+                    if adj > best_adj or (adj == best_adj and score > (best_meta or {}).get('score', -1e9)):
+                        best_adj = adj
+                        best = plan
+                        best_meta = cand_meta
+                    if adj >= 1.0:
+                        break
+                if best and best_meta['features'].get('adjacency', 0.0) >= min_adjacency:
+                    return best, best_meta
+                if best and (meta_overall is None or best_meta['features']['adjacency'] > meta_overall['features']['adjacency']):
+                    best_overall, meta_overall = best, best_meta
+        if meta_overall:
+            return None, {**meta_overall, 'status': 'adjacency_below_threshold'}
+        return None, {'status': 'missing_appliance'}
+
+    def _find_placement(self, plan: GridPlan, code: str) -> Optional[Tuple[int, int, int, int]]:
+        """Return a valid (x,y,w,h) placement for ``code`` or ``None``."""
+        variants = self.book.get(code, {})
+        if not variants:
+            defaults = {'SINK': (0.6, 0.6), 'COOK': (0.6, 0.6), 'REF': (0.9, 0.76)}
+            w_m, d_m = defaults.get(code, (0.6, 0.6))
+            variants = {'_': {'w': w_m, 'd': d_m}}
+        for dims in variants.values():
+            w = plan.meters_to_cells(dims.get('w', 0.6))
+            h = plan.meters_to_cells(dims.get('d', 0.6))
+            for w0, h0 in ((w, h), (h, w)):
+                for y in range(plan.gh - h0 + 1):
+                    for x in range(plan.gw - w0 + 1):
+                        if plan.fits(x, y, w0, h0):
+                            return x, y, w0, h0
+        return None
+
+    def _work_triangle_bonus(self, plan: GridPlan) -> float:
+        """Return a bonus based on the kitchen work triangle.
+
+        The function measures the distances between the centers of the sink
+        (``SINK``), cooktop (``COOK``) and refrigerator (``REF``).  If any of
+        these appliances are missing, the bonus is ``0.0``.  Otherwise the three
+        pairwise distances are summed to obtain the triangle's perimeter.  A
+        perimeter in the range of 4–7 meters (inclusive) is considered optimal
+        and yields a bonus of ``1.0``; values outside this range return ``0.0``.
+        """
+
+        nodes = ['SINK', 'COOK', 'REF']
+        centers = []
+        for code in nodes:
+            comps = list(components_by_code(plan, code))
+            if not comps:
+                return 0.0
+            x, y, w, h, _ = comps[0]
+            # convert appliance center to meters
+            centers.append(((x + w / 2.0) * plan.cell,
+                            (y + h / 2.0) * plan.cell))
+
+        # compute side lengths in meters
+        d1 = sqrt((centers[0][0] - centers[1][0]) ** 2 +
+                  (centers[0][1] - centers[1][1]) ** 2)
+        d2 = sqrt((centers[1][0] - centers[2][0]) ** 2 +
+                  (centers[1][1] - centers[2][1]) ** 2)
+        d3 = sqrt((centers[2][0] - centers[0][0]) ** 2 +
+                  (centers[2][1] - centers[0][1]) ** 2)
+        perimeter = d1 + d2 + d3
+        return 1.0 if 4.0 <= perimeter <= 7.0 else 0.0
+
+    def _adjacency_score(self, plan: GridPlan) -> Tuple[float, bool]:
+        """Return adjacency score and validity flag for kitchen layouts."""
+        A = {
+            'SINK': {'REF': (+1.0, 5), 'COOK': (+1.0, 4)},
+            'COOK': {'REF': (+0.5, 5)},
+        }
+
+        def boxes(code):
+            comps = components_by_code(plan, code)
+            if comps:
+                x, y, w, h, _ = comps[0]
+                return (x, y, x + w - 1, y + h - 1)
+            return None
+
+        score = 0.0
+        bsink = boxes('SINK')
+        if bsink:
+            sx0, sy0, sx1, sy1 = bsink
+            for other, (wt, thresh) in A['SINK'].items():
+                b = boxes(other)
+                if not b:
+                    continue
+                ox0, oy0, ox1, oy1 = b
+                dx = max(0, max(ox0 - sx1, sx0 - ox1))
+                dy = max(0, max(oy0 - sy1, sy0 - oy1))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
+
+        bcook = boxes('COOK')
+        if bcook:
+            cx0, cy0, cx1, cy1 = bcook
+            for other, (wt, thresh) in A.get('COOK', {}).items():
+                b = boxes(other)
+                if not b:
+                    continue
+                ox0, oy0, ox1, oy1 = b
+                dx = max(0, max(ox0 - cx1, cx0 - ox1))
+                dy = max(0, max(oy0 - cy1, cy0 - oy1))
+                dist = dx + dy
+                if dist > thresh:
+                    return 0.0, False
+                score += wt * (1.0 / (1.0 + dist))
+
+        return score, True
+
 
 # -----------------------
 # Clearance merging
