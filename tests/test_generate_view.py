@@ -928,6 +928,7 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
 
     gv.bed_openings.door_wall = WALL_RIGHT
 
+    gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
     gv.bath_plan = GridPlan(*gv.bath_dims)
     gv.liv_plan = GridPlan(*gv.liv_dims)
     gv.bath_plan.x_offset = 0
@@ -955,6 +956,52 @@ def test_bath_living_door_drawn_and_mirrored(monkeypatch):
 
     assert calls.get(gv.bath_liv_openings) is True
     assert calls.get(gv.liv_bath_openings) is True
+
+
+def test_living_width_scales_with_door_spacing():
+    gv = GenerateView.__new__(GenerateView)
+    gv.status = DummyStatus()
+    gv.bed_Wm = gv.bed_Hm = 4.0
+    gv.bath_dims = (2.0, 2.0)
+    gv.bath_Wm, gv.bath_Hm = gv.bath_dims
+    gv.liv_dims = (3.0, 2.0)
+    gv.liv_Wm, gv.liv_Hm = gv.liv_dims
+    gv.bed_plan = GridPlan(gv.bed_Wm, gv.bed_Hm)
+    gv.bath_plan = GridPlan(*gv.bath_dims)
+    gv.liv_plan = GridPlan(*gv.liv_dims)
+    gv.bed_plan.x_offset = 0
+    gv.bath_plan.x_offset = gv.bed_plan.gw + 20  # place bathroom further right
+    gv.liv_plan.x_offset = gv.bath_plan.x_offset
+    gv.bed_openings = Openings(gv.bed_plan)
+    gv.bed_openings.door_wall = WALL_RIGHT
+    gv.bed_openings.swing_depth = CELL_M
+    gv.bath_liv_openings = Openings(gv.bath_plan)
+    gv.bath_liv_openings.door_wall = WALL_BOTTOM
+    gv.bath_liv_openings.swing_depth = CELL_M
+    gv.liv_bath_openings = Openings(gv.liv_plan)
+    gv.liv_bath_openings.swing_depth = CELL_M
+    gv.liv_openings = Openings(gv.liv_plan)
+    gv.liv_openings.swing_depth = 0.60
+    assert GenerateView._apply_openings_from_ui(gv)
+    bed_wall, bed_start, bed_width = gv.bed_openings.door_span_cells()
+    bath_wall, bath_start, bath_width = gv.bath_liv_openings.door_span_cells()
+
+    def _h(plan, wall, start, width):
+        if wall in (WALL_BOTTOM, WALL_TOP):
+            left = plan.x_offset + start
+            right = left + width
+        elif wall == WALL_LEFT:
+            left = right = plan.x_offset
+        else:
+            left = right = plan.x_offset + plan.gw
+        return left, right
+
+    bed_left, bed_right = _h(gv.bed_plan, bed_wall, bed_start, bed_width)
+    bath_left, bath_right = _h(gv.bath_plan, bath_wall, bath_start, bath_width)
+    span_left = min(bed_left, bath_left)
+    span_right = max(bed_right, bath_right)
+    expected = max((span_right - span_left) * CELL_M + 0.05, gv.bed_Wm)
+    assert gv.liv_dims[0] == pytest.approx(expected)
 
 def test_init_schedules_solver(monkeypatch):
     import gds
