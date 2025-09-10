@@ -11,6 +11,7 @@ from ui.overlays import ColumnGridOverlay, LegendPopover
 BED_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bedroom.json")
 BATH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.bathroom.json")
 LIV_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.livingroom.json")
+KITCH_RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.kitchen.json")
 
 def load_rules(path: str) -> Dict:
     """
@@ -28,6 +29,7 @@ def load_rules(path: str) -> Dict:
 RULES = load_rules(BED_RULES_FILE)
 BATH_RULES = load_rules(BATH_RULES_FILE)
 LIV_RULES = load_rules(LIV_RULES_FILE)
+KITCH_RULES = load_rules(KITCH_RULES_FILE)
 
 """
 VASTU – Sketch + Generate (Bedroom) – ALL-IN-ONE ADVANCED – FINAL (Aug-2025)
@@ -71,9 +73,11 @@ FT_TO_M = 0.3048
 BED_CELL_M = RULES.get("units", {}).get("CELL_M")
 BATH_CELL_M = BATH_RULES.get("units", {}).get("CELL_M")
 LIV_CELL_M = LIV_RULES.get("units", {}).get("CELL_M")
-CELL_M = BED_CELL_M or BATH_CELL_M or LIV_CELL_M or 0.25
+KITCH_CELL_M = KITCH_RULES.get("units", {}).get("CELL_M")
+CELL_M = BED_CELL_M or BATH_CELL_M or LIV_CELL_M or KITCH_CELL_M or 0.25
 BATH_RULES.setdefault("units", {})["CELL_M"] = CELL_M
 LIV_RULES.setdefault("units", {})["CELL_M"] = CELL_M
+KITCH_RULES.setdefault("units", {})["CELL_M"] = CELL_M
 PATH_WIDTH_CELLS = RULES.get("solver", {}).get("PATH_WIDTH_CELLS", 2)
 LEARNING_RATE = RULES.get("learning", {}).get("LEARNING_RATE", 0.06)
 WINDOW_CLEARANCE_M = 0.40
