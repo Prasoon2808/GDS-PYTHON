@@ -724,6 +724,46 @@ def test_kitchen_cells_render(monkeypatch):
     assert any('SINK' in i.get('tags', ()) for i in gv.canvas.items)
 
 
+def test_kitchen_appliances_in_clearzones(monkeypatch):
+    import gds
+
+    class DummyBedroomSolver:
+        def __init__(self, plan, *args, **kwargs):
+            self.plan = plan
+
+        def run(self):
+            self.plan.place(0, 0, 1, 1, 'BED')
+            return self.plan, {
+                'score': 1.0,
+                'coverage': 0.5,
+                'paths_ok': True,
+                'reach_windows': True,
+            }
+
+    class DummyKitchenSolver:
+        def __init__(self, plan, openings, rng, weights, book):
+            self.plan = plan
+
+        def run(self, appliance_sets=None):
+            p = self.plan
+            p.place(0, 0, 1, 1, 'SINK')
+            p.place(1, 0, 1, 1, 'COOK')
+            p.place(0, 1, 1, 1, 'REF')
+            p.place(1, 1, 1, 1, 'DW')
+            return p, {}
+
+    monkeypatch.setattr(gds, 'BedroomSolver', DummyBedroomSolver)
+    monkeypatch.setattr(gds, 'KitchenSolver', DummyKitchenSolver)
+
+    gv = make_generate_view(bath_dims=None, kitch_dims=(2.0, 2.0))
+    gv._apply_openings_from_ui = lambda: True
+    gv.kitch_openings = None
+    gv._solve_and_draw()
+
+    owners = {owner for *_, owner in gv.plan.clearzones}
+    assert {'SINK', 'COOK', 'REF', 'DW'} <= owners
+
+
 def test_opening_click_opens_dialog(monkeypatch):
     import gds
 
