@@ -5575,7 +5575,6 @@ class App:
         ttk.Label(self.landing, text='Click Start to choose mode and room inputs.').pack(pady=(0,12))
         btns = ttk.Frame(self.landing); btns.pack()
         ttk.Button(btns, text='Start', style='Primary.TButton', command=self._startup_flow).pack(side=tk.LEFT, padx=6)
-        ttk.Button(btns, text='Open Default Generate', command=lambda: self._open_generate_default()).pack(side=tk.LEFT, padx=6)
 
     def _on_close(self):
         try: self.root.destroy()
@@ -5716,12 +5715,6 @@ class App:
                 except: pass
         self.landing.pack(fill=tk.BOTH, expand=True)
         self._build_landing()
-
-    def _open_generate_default(self):
-        # Quick path: default bedroom and bathroom sizes
-        bed_dims = (4.2, 3.0, None)
-        bath_dims = (2.4, 1.8, None)
-        self._open_workspace('generate', bed_dims, bath_dims, None, None)
 
 # ---- AND REPLACE YOUR MAIN GUARD WITH THIS -----------------------------------
 
