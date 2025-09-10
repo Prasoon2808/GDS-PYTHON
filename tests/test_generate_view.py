@@ -1446,12 +1446,12 @@ def test_area_dialog_combined_includes_kitchen():
     cd.liv_len_units = SV('m')
     cd.liv_area = SV('9')
     cd.liv_area_units = SV('m²')
-    cd.kitch_method = SV('dims')
-    cd.kitch_W = SV('3')
-    cd.kitch_H = SV('2')
-    cd.kitch_len_units = SV('m')
-    cd.kitch_area = SV('6')
-    cd.kitch_area_units = SV('m²')
+    cd.kitchen_method = SV('dims')
+    cd.kitchen_W = SV('3')
+    cd.kitchen_H = SV('2')
+    cd.kitchen_len_units = SV('m')
+    cd.kitchen_area = SV('6')
+    cd.kitchen_area_units = SV('m²')
     cd._ok()
     assert cd.result['kitchen'] == {'mode': 'dims', 'W': 3.0, 'H': 2.0, 'len_units': 'm', 'bed': 'Auto'}
 
