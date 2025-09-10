@@ -79,7 +79,7 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
         def __init__(self, plan, *a, **k):
             self.plan = plan
 
-        def run(self):
+        def run(self, appliance_sets=None):
             self.plan.place(1, 0, 1, 1, 'SINK')
             return self.plan, None
 
