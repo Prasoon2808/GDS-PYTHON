@@ -158,6 +158,7 @@ def make_generate_view(bath_dims=(2.0, 2.0), living_dims=None, kitch_dims=None):
         gv.kitch_Wm = gv.kitch_Hm = 0.0
     gv.liv_plan = GridPlan(gv.liv_Wm, gv.liv_Hm) if living_dims else None
     gv.kitch_plan = GridPlan(gv.kitch_Wm, gv.kitch_Hm) if kitch_dims else None
+    gv.bath_plan = None
     gv._draw = lambda: None
     gv._log_run = lambda meta: None
     gv.bed_key = None

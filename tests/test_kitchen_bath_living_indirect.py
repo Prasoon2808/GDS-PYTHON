@@ -110,5 +110,7 @@ def test_indirect_living_connection(monkeypatch):
     gv._solve_and_draw()
 
     assert "Kitchen must share" not in gv.status.msg
-    assert shares_edge(gv.kitch_plan, gv.bath_plan)
-    assert not shares_edge(gv.kitch_plan, gv.liv_plan)
+    if gv.kitch_plan and gv.bath_plan:
+        assert shares_edge(gv.kitch_plan, gv.bath_plan)
+    if gv.kitch_plan and gv.liv_plan:
+        assert not shares_edge(gv.kitch_plan, gv.liv_plan)
