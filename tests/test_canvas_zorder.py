@@ -1,6 +1,8 @@
-import pytest
+import os, sys, pytest
 
-from gds import GenerateView, GridPlan, Openings, WALL_LEFT
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from solver import GenerateView, GridPlan, Openings, WALL_LEFT
 
 
 class LayeredCanvas:

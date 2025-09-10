@@ -4,7 +4,8 @@ import pytest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import arrange_bathroom, BATH_RULES, CELL_M
+from solver import arrange_bathroom
+from rules import BATH_RULES, CELL_M
 
 
 def _find_rect(plan, code):

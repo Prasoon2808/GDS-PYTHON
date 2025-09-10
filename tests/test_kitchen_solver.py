@@ -3,7 +3,7 @@ import os, sys
 import math
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gds import (
+from solver import (
     GridPlan,
     Openings,
     KitchenSolver,

@@ -4,8 +4,9 @@ import tkinter as tk
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import gds
-from gds import GenerateView, GridPlan, Openings, CELL_M
+import solver
+from solver import GenerateView, GridPlan, Openings
+from rules import CELL_M
 
 
 class DummyStatus:
@@ -83,8 +84,8 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
             self.plan.place(1, 0, 1, 1, 'SINK')
             return self.plan, None
 
-    monkeypatch.setattr(gds, "BedroomSolver", DummyBedroomSolver)
-    monkeypatch.setattr(gds, "KitchenSolver", DummyKitchenSolver)
+    monkeypatch.setattr(solver, "BedroomSolver", DummyBedroomSolver)
+    monkeypatch.setattr(solver, "KitchenSolver", DummyKitchenSolver)
     def dummy_arrange_bathroom(*a, **k):
         p = GridPlan(cell, cell)
         return p
@@ -94,9 +95,9 @@ def test_kitchen_adjacency_failure_sets_status(monkeypatch):
         p.place(1, 0, 1, 1, 'SOFA')
         return p
 
-    monkeypatch.setattr(gds, "arrange_bathroom", dummy_arrange_bathroom)
-    monkeypatch.setattr(gds, "arrange_livingroom", dummy_arrange_livingroom)
-    monkeypatch.setattr(gds, "shares_edge", lambda a, b: False)
+    monkeypatch.setattr(solver, "arrange_bathroom", dummy_arrange_bathroom)
+    monkeypatch.setattr(solver, "arrange_livingroom", dummy_arrange_livingroom)
+    monkeypatch.setattr(solver, "shares_edge", lambda a, b: False)
 
     gv._solve_and_draw()
     assert gv.status.msg
