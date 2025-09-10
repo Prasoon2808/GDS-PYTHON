@@ -86,7 +86,7 @@ def test_indirect_living_connection(monkeypatch):
     class DummyKitchenSolver:
         def __init__(self, plan, *a, **k):
             self.plan = plan
-        def run(self, appliance_sets=None):
+        def run(self, appliance_sets=None, required=()):
             self.plan.place(0, 0, 1, 1, 'SINK')
             return self.plan, None
 

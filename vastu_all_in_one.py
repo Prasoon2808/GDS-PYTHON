@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from collections import deque, defaultdict, Counter
 from math import ceil, sqrt, floor
-from typing import Optional, Dict, Tuple, List, Set, ClassVar
+from typing import Optional, Dict, Tuple, List, Set, ClassVar, Iterable
 import time, json, random, os, itertools, re
 import numpy as np
 import warnings
@@ -2546,10 +2546,13 @@ class KitchenSolver:
 
     def run(self,
             appliance_sets: Optional[List[Tuple[str, ...]]] = None,
+            required: Iterable[str] = (),
             iters: int = 200,
             time_budget_ms: int = 520,
             max_attempts: int = 3,
             min_adjacency: float = 0.0) -> Tuple[Optional[GridPlan], Dict]:
+        if not appliance_sets and required:
+            appliance_sets = [tuple(required)]
         sets = appliance_sets or default_kitchen_sets()
         best_overall = None; meta_overall = None
         for req in reversed(sets):
@@ -3830,7 +3833,7 @@ class GenerateView:
                         getattr(self, 'weights', {}),
                     )
                     kbest, _kmeta = ksolver.run(
-                        appliance_sets=[tuple(self.REQUIRED_FURNITURE['kitch_plan'])]
+                        required=self.REQUIRED_FURNITURE['kitch_plan']
                     )
                     if isinstance(kbest, GridPlan):
                         if self.kitch_openings:
