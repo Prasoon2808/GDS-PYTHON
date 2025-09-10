@@ -4689,6 +4689,71 @@ class GenerateView:
         self._draw()
 
 
+    def _layout_rooms(self):
+        """Calculate room offsets and overall size based on adjacencies."""
+        bed = getattr(self, 'bed_plan', None)
+        bath = getattr(self, 'bath_plan', None)
+        liv = getattr(self, 'liv_plan', None)
+        kitch = getattr(self, 'kitch_plan', None)
+
+        plans = [p for p in (bed, bath, liv, kitch) if p]
+        if not plans:
+            self.Wm = self.Hm = 0.0
+            return
+
+        # Determine layout orientation: place living beside the bedroom when it
+        # is at least as tall; otherwise lay out rooms in a top/bottom pair.
+        orient_right = liv is not None and bed is not None and liv.gh >= bed.gh
+
+        if orient_right:
+            left_gw = max(bed.gw if bed else 0, bath.gw if bath else 0)
+            right_gw = max(liv.gw if liv else 0, kitch.gw if kitch else 0)
+            top_gh = max(bed.gh if bed else 0, liv.gh if liv else 0)
+            bottom_gh = max(bath.gh if bath else 0, kitch.gh if kitch else 0)
+
+            if bed:
+                bed.x_offset = 0
+                bed.y_offset = 0
+            if liv:
+                liv.x_offset = left_gw
+                liv.y_offset = 0
+            if bath:
+                bath.y_offset = top_gh
+                if bath.gw < left_gw:
+                    bath.x_offset = left_gw - bath.gw
+                else:
+                    bath.x_offset = 0
+            if kitch:
+                kitch.x_offset = left_gw
+                kitch.y_offset = top_gh
+        else:
+            left_gw = max(bed.gw if bed else 0, liv.gw if liv else 0)
+            right_gw = max(bath.gw if bath else 0, kitch.gw if kitch else 0)
+            top_gh = max(bed.gh if bed else 0, bath.gh if bath else 0)
+            bottom_gh = max(liv.gh if liv else 0, kitch.gh if kitch else 0)
+
+            if bed:
+                bed.x_offset = 0
+                bed.y_offset = 0
+            if bath:
+                bath.x_offset = left_gw
+                bath.y_offset = 0
+            if liv:
+                liv.y_offset = top_gh
+                if kitch and not bath and liv.gw < left_gw:
+                    liv.x_offset = left_gw - liv.gw
+                else:
+                    liv.x_offset = 0
+            if kitch:
+                kitch.x_offset = left_gw
+                kitch.y_offset = top_gh
+
+        total_gw = left_gw + right_gw
+        total_gh = top_gh + bottom_gh
+        self.Wm = total_gw * CELL_M
+        self.Hm = total_gh * CELL_M
+
+
     def _combine_plans(self):
         """Merge per-room plans into ``self.plan``."""
         plans = [self.bed_plan]
