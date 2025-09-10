@@ -4024,13 +4024,22 @@ class GenerateView:
         bottom_h = max(liv_gh, kitch_gh)
         total_w = max(top_w, bottom_w)
         total_h = top_h + bottom_h
-        cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
         margin = 26
+        getattr(cv, 'update_idletasks', lambda: None)()
+        cw, ch = cv.winfo_width() or 1, cv.winfo_height() or 1
+        if cw <= 2 * margin or ch <= 2 * margin:
+            cv.after_idle(self._draw)
+            return
         scale = min((cw - 2 * margin) / max(1, total_w),
                     (ch - 2 * margin) / max(1, total_h))
         r = max(8, scale * 0.3)
         label_gap = r * 2.5
         margin = max(26, label_gap + 10)
+        if cw <= 2 * margin or ch <= 2 * margin:
+            cv.after_idle(self._draw)
+            return
+        cw = max(cw, 2 * margin + 1)
+        ch = max(ch, 2 * margin + 1)
         scale = min((cw - 2 * margin) / max(1, total_w),
                     (ch - 2 * margin) / max(1, total_h))
         zf = (self.zoom_factor.get()
