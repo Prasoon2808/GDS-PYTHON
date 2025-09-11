@@ -5669,6 +5669,7 @@ class App:
             bed_res = cd.result.get('bedroom', {})
             bath_res = cd.result.get('bathroom', {})
             liv_res = cd.result.get('livingroom', {})
+            # pull any kitchen result even if dialog omitted that section
             kitch_res = cd.result.get('kitchen', {})
         except Exception:
             bed_res = {"mode": "dims", "W": 4.2, "H": 3.0, "len_units": "m", "bed": "Auto"}
@@ -5679,7 +5680,10 @@ class App:
         bed_dims = self._compute_dims_from_result(bed_res)
         bath_dims = self._compute_dims_from_result(bath_res)
         liv_dims = self._compute_dims_from_result(liv_res) if liv_res else None
-        kitch_dims = self._compute_dims_from_result(kitch_res) if kitch_res else None
+        # Convert kitchen input to metres and capture orientation using helper
+        kitch_dims = (
+            self._compute_dims_from_result(kitch_res) if kitch_res else None
+        )
 
         # open the chosen workspace
         self._open_workspace(mode, bed_dims, bath_dims, liv_dims, kitch_dims)
@@ -5737,8 +5741,8 @@ class App:
             else:
                 liv_tuple = None
             if kitch_dims:
-                Wk, Hk, _ = kitch_dims
-                kitch_tuple = (Wk, Hk)
+                # ignore orientation component when passing to GenerateView
+                kitch_tuple = kitch_dims[:2]
             else:
                 kitch_tuple = None
             GenerateView(
